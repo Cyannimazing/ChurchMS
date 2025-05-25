@@ -32,9 +32,9 @@ const AppLayout = ({ children }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div className="min-h-screen bg-gray-100">
       <Navigation user={user} className="fixed" />
-      <main className="flex-1">{children}</main>
+      <main>{children}</main>
     </div>
   );
 };

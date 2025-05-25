@@ -13,12 +13,16 @@ const Navigation = ({ user }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [activeSubmenu, setActiveSubmenu] = useState(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 1024); // lg breakpoint
-      if (window.innerWidth >= 1024) setIsOpen(true);
-      else setIsOpen(false); // Ensure menu is closed on mobile by default
+      if (window.innerWidth >= 1024) {
+        setIsOpen(true); // Sidebar always open at lg and above
+      } else {
+        setIsOpen(false); // Sidebar closed by default on mobile
+      }
     };
 
     handleResize();
@@ -28,6 +32,18 @@ const Navigation = ({ user }) => {
 
   const handleNavClick = () => {
     if (isMobile) setIsOpen(false); // Close sidebar on link click in mobile view
+  };
+
+  const toggleSidebar = () => {
+    setIsOpen(!isOpen);
+  };
+
+  const toggleSubmenu = (index) => {
+    setActiveSubmenu(activeSubmenu === index ? null : index);
+  };
+
+  const toggleDropdown = () => {
+    setIsDropdownOpen(!isDropdownOpen);
   };
 
   const navItems = [
@@ -60,6 +76,7 @@ const Navigation = ({ user }) => {
       //   },
       // ],
     },
+    // Uncommented items remain commented out as in the original code
     // {
     //   name: "Patients",
     //   href: "/dashboard",
@@ -74,40 +91,144 @@ const Navigation = ({ user }) => {
     // },
   ];
 
-  const toggleSubmenu = (index) => {
-    setActiveSubmenu(activeSubmenu === index ? null : index);
-  };
-
   return (
     <>
-      {/* Mobile Hamburger Button - Only shows when sidebar is closed on mobile */}
-      {isMobile && !isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="fixed z-50 p-2 m-2 rounded-md bg-white shadow-lg lg:hidden"
-          aria-label="Open menu"
-        >
-          <Menu size={24} className="text-gray-800" />
-        </button>
+      {/* Top Navigation Bar - Only on mobile (<1024px) */}
+      {isMobile && (
+        <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md h-16 flex items-center justify-between px-4">
+          <div className="flex items-center">
+            <button
+              onClick={toggleSidebar}
+              className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+              aria-label={isOpen ? "Close menu" : "Open menu"}
+            >
+              {isOpen ? (
+                <X size={24} className="text-gray-800" />
+              ) : (
+                <Menu size={24} className="text-gray-800" />
+              )}
+            </button>
+          </div>
+
+          {/* User Profile in Top Bar */}
+          <div className="relative">
+            <button
+              onClick={toggleDropdown}
+              className="flex items-center p-2 rounded-lg"
+            >
+              <div className="flex-shrink-0">
+                <div className="h-10 w-10 rounded-full flex items-center justify-center font-medium bg-indigo-100 text-indigo-600">
+                  {user?.profile.first_name?.charAt(0) || "U"}
+                </div>
+              </div>
+            </button>
+
+            {/* Dropdown - Triggered by click */}
+            {isDropdownOpen && (
+              <div className="absolute right-0 top-full mt-2 rounded-lg shadow-lg overflow-hidden z-50 bg-white w-48">
+                <div className="py-1">
+                  <div className="px-4 py-2 text-xs text-gray-500">
+                    Signed in as{" "}
+                    <span className="font-medium">{user?.email}</span>
+                  </div>
+                  <Link
+                    href="/profile"
+                    onClick={() => {
+                      handleNavClick();
+                      setIsDropdownOpen(false); // Close dropdown on link click
+                    }}
+                    className="flex items-center w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-indigo-600"
+                  >
+                    <svg
+                      className="w-5 h-5 mr-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      />
+                    </svg>
+                    Your Profile
+                  </Link>
+                  <Link
+                    href="/settings"
+                    onClick={() => {
+                      handleNavClick();
+                      setIsDropdownOpen(false); // Close dropdown on link click
+                    }}
+                    className="flex items-center w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-indigo-600"
+                  >
+                    <svg
+                      className="w-5 h-5 mr-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                    </svg>
+                    Settings
+                  </Link>
+                  <button
+                    onClick={() => {
+                      logout();
+                      setIsDropdownOpen(false); // Close dropdown on logout
+                    }}
+                    className="flex items-center cursor-pointer w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-red-600"
+                  >
+                    <svg
+                      className="w-5 h-5 mr-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                      />
+                    </svg>
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </header>
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-72 shadow-lg bg-white ${
+        className={`fixed inset-y-0 left-0 z-40 bg-white shadow-lg transition-transform duration-300 ease-in-out ${
           isMobile
             ? isOpen
-              ? "translate-x-0"
-              : "-translate-x-full"
-            : "translate-x-0"
-        }`}
+              ? "translate-x-0 w-72"
+              : "-translate-x-full w-72"
+            : "translate-x-0 w-72" // Always visible at lg and above
+        } ${isMobile ? "mt-16" : "mt-0"}`} // Adjust for top bar height in mobile
       >
         <div className="flex flex-col h-full">
-          {/* Header with close button (mobile only) */}
-          <div className="flex items-center justify-between h-16 px-4 border-b border-gray-100">
-            <div className="flex items-center">
-              <ApplicationLogo className="h-8 w-auto" />
-            </div>
-            {isMobile && (
+          {/* Header - Only on mobile */}
+          {isMobile && (
+            <div className="flex items-center justify-between h-16 px-4 border-b border-gray-100">
+              <div className="flex items-center">
+                <ApplicationLogo className="h-8 w-auto" />
+              </div>
               <button
                 onClick={() => setIsOpen(false)}
                 className="p-1 rounded-md hover:bg-gray-100 transition-colors"
@@ -115,8 +236,8 @@ const Navigation = ({ user }) => {
               >
                 <X size={24} className="text-gray-800" />
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Navigation */}
           <nav className="flex-1 px-2 py-4 overflow-y-auto">
@@ -155,7 +276,7 @@ const Navigation = ({ user }) => {
                           )}
                         </div>
                         <svg
-                          className={`w-4 h-4 transform ${
+                          className={`w-4 h-4 transform transition-transform duration-200 ${
                             activeSubmenu === index ? "rotate-90" : ""
                           }`}
                           fill="none"
@@ -177,7 +298,10 @@ const Navigation = ({ user }) => {
                             <li key={subItem.name}>
                               <Link
                                 href={subItem.href}
-                                onClick={handleNavClick}
+                                onClick={() => {
+                                  handleNavClick();
+                                  setActiveSubmenu(null); // Close submenu on link click
+                                }}
                                 className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
                                   pathname === subItem.href
                                     ? "bg-indigo-50 text-indigo-600"
@@ -244,118 +368,136 @@ const Navigation = ({ user }) => {
             </ul>
           </nav>
 
-          {/* User Profile */}
-          <div className="px-4 py-4 border-t border-gray-100">
-            <div className="group relative">
-              <button className="flex items-center w-full p-2 rounded-lg transition-colors hover:bg-gray-50">
-                <div className="flex-shrink-0">
-                  <div className="h-10 w-10 rounded-full flex items-center justify-center font-medium bg-indigo-100 text-indigo-600">
-                    {user?.profile.first_name?.charAt(0) || "U"}
-                  </div>
-                </div>
-                <div className="ml-3 text-left">
-                  <p className="text-sm font-medium text-gray-900">
-                    {user?.profile.first_name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {user?.profile.system_role.role_name}
-                  </p>
-                </div>
-                <svg
-                  className="ml-auto h-5 w-5 text-gray-400 group-hover:text-gray-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+          {/* User Profile - Only at lg and above */}
+          {!isMobile && (
+            <div className="px-4 py-4 border-t border-gray-100">
+              <div className="relative">
+                <button
+                  onClick={toggleDropdown}
+                  className="flex items-center w-full p-2 rounded-lg"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-
-              {/* Dropdown */}
-              <div className="absolute bottom-full left-0 right-0 hidden group-hover:block rounded-lg shadow-lg overflow-hidden z-50 bg-white">
-                <div className="py-1">
-                  <div className="px-4 py-2 text-xs text-gray-500">
-                    Signed in as{" "}
-                    <span className="font-medium">{user?.email}</span>
+                  <div className="flex-shrink-0">
+                    <div className="h-10 w-10 rounded-full flex items-center justify-center font-medium bg-indigo-100 text-indigo-600">
+                      {user?.profile.first_name?.charAt(0) || "U"}
+                    </div>
                   </div>
-                  <Link
-                    href="/profile"
-                    onClick={handleNavClick}
-                    className="flex items-center w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-indigo-600"
+                  <div className="ml-3 text-left">
+                    <p className="text-sm font-medium text-gray-900">
+                      {user?.profile.first_name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {user?.profile.system_role.role_name}
+                    </p>
+                  </div>
+                  <svg
+                    className={`ml-auto h-5 w-5 text-gray-400 transition-transform duration-200 ${
+                      isDropdownOpen ? "rotate-180" : ""
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
-                    <svg
-                      className="w-5 h-5 mr-3"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      />
-                    </svg>
-                    Your Profile
-                  </Link>
-                  <Link
-                    href="/settings"
-                    onClick={handleNavClick}
-                    className="flex items-center w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-indigo-600"
-                  >
-                    <svg
-                      className="w-5 h-5 mr-3"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                    Settings
-                  </Link>
-                  <button
-                    onClick={logout}
-                    className="flex items-center cursor-pointer w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-red-600"
-                  >
-                    <svg
-                      className="w-5 h-5 mr-3"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                      />
-                    </svg>
-                    Sign out
-                  </button>
-                </div>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+
+                {/* Dropdown - Triggered by click */}
+                {isDropdownOpen && (
+                  <div className="absolute bottom-full left-0 right-0 rounded-lg shadow-lg overflow-hidden z-50 bg-white">
+                    <div className="py-1">
+                      <div className="px-4 py-2 text-xs text-gray-500">
+                        Signed in as{" "}
+                        <span className="font-medium">{user?.email}</span>
+                      </div>
+                      <Link
+                        href="/profile"
+                        onClick={() => {
+                          handleNavClick();
+                          setIsDropdownOpen(false); // Close dropdown on link click
+                        }}
+                        className="flex items-center w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-indigo-600"
+                      >
+                        <svg
+                          className="w-5 h-5 mr-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                          />
+                        </svg>
+                        Your Profile
+                      </Link>
+                      <Link
+                        href="/settings"
+                        onClick={() => {
+                          handleNavClick();
+                          setIsDropdownOpen(false); // Close dropdown on link click
+                        }}
+                        className="flex items-center w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-indigo-600"
+                      >
+                        <svg
+                          className="w-5 h-5 mr-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                        </svg>
+                        Settings
+                      </Link>
+                      <button
+                        onClick={() => {
+                          logout();
+                          setIsDropdownOpen(false); // Close dropdown on logout
+                        }}
+                        className="flex items-center cursor-pointer w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-red-600"
+                      >
+                        <svg
+                          className="w-5 h-5 mr-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                          />
+                        </svg>
+                        Sign out
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
+          )}
         </div>
       </aside>
 
-      {/* Overlay for mobile */}
+      {/* Overlay - Only on mobile when sidebar is open */}
       {isMobile && isOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-30"

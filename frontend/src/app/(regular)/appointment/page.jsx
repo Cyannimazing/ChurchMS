@@ -5,9 +5,9 @@ export const metadata = {
 const Dashboard = () => {
   return (
     <>
-      <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg lg:ml-75 ml-3 mr-3 my-10">
-        <div className="p-6 bg-white border-b border-gray-200">
-          REGULAR DASHBOARD
+      <div className="lg:ml-75 mx-3 lg:py-12 py-20">
+        <div className="p-6 bg-white border-b border-gray-200 shadow-lg">
+          APPOINTMENT
         </div>
       </div>
     </>
