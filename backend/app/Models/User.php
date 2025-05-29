@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Notifications\CustomVerifyEmail;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -17,6 +18,7 @@ class User extends Authenticatable
         'password',
         'email_verified_at',
         'remember_token',
+        'is_active',
     ];
 
     protected $hidden = [
@@ -61,6 +63,7 @@ class User extends Authenticatable
             'system_role_id',
             'id',
             'system_role_id'
+            
         );
     }
 
@@ -69,13 +72,38 @@ class User extends Authenticatable
      */
     public function churches()
     {
-        return $this->hasManyThrough(
+        return $this->hasMany(Church::class, 'user_id');
+    }
+
+    // One UserChurchRole per User (one role, one church)
+    public function userChurchRole()
+    {
+        return $this->hasOne(UserChurchRole::class, 'user_id', 'id');
+    }
+
+    // One Church through UserChurchRole
+    public function church()
+    {
+        return $this->hasOneThrough(
             Church::class,
-            ChurchOwner::class,
-            'UserID',
-            'ChurchID',
-            'id',
-            'ChurchID'
+            UserChurchRole::class,
+            'user_id', // Foreign key on UserChurchRole pointing to User
+            'ChurchID', // Foreign key on Church
+            'id', // Local key on User
+            'ChurchID' // Local key on UserChurchRole
+        );
+    }
+
+    // One ChurchRole through UserChurchRole
+    public function churchRole()
+    {
+        return $this->hasOneThrough(
+            ChurchRole::class,
+            UserChurchRole::class,
+            'user_id', // Foreign key on UserChurchRole pointing to User
+            'RoleID', // Foreign key on ChurchRole
+            'id', // Local key on User
+            'RoleID' // Local key on UserChurchRole
         );
     }
 }

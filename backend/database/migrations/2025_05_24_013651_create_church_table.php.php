@@ -6,15 +6,17 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up(): void
+    public function up()
     {
         Schema::create('Church', function (Blueprint $table) {
             $table->id('ChurchID');
-            $table->string('ChurchName', 100)->nullable(false);
+            $table->string('ChurchName');
             $table->boolean('IsPublic')->default(false);
-            $table->decimal('Latitude', 10, 8)->nullable();
-            $table->decimal('Longitude', 11, 8)->nullable();
-            $table->enum('ChurchStatus', ['Active', 'Pending'])->default('Pending');
+            $table->decimal('Latitude', 10, 8);
+            $table->decimal('Longitude', 11, 8);
+            $table->string('ChurchStatus')->default('Pending');
+            $table->unsignedBigInteger('user_id');
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->timestamps();
         });
     }

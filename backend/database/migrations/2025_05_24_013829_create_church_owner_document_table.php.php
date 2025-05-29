@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
-    public function up(): void
+     public function up(): void
     {
         Schema::create('ChurchOwnerDocument', function (Blueprint $table) {
             $table->id('DocumentID');
@@ -16,7 +16,7 @@ return new class extends Migration
                   ->onDelete('cascade')
                   ->nullable(false);
             $table->string('DocumentType', 100)->nullable(false);
-            $table->binary('DocumentData')->nullable();
+            $table->string('DocumentPath')->nullable(); // Store file path
             $table->dateTime('SubmissionDate')->default(DB::raw('CURRENT_TIMESTAMP'));
             $table->timestamps();
         });

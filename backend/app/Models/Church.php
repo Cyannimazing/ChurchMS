@@ -14,6 +14,7 @@ class Church extends Model
         'Latitude',
         'Longitude',
         'ChurchStatus',
+        'user_id', // Added to link to User
     ];
     protected $casts = [
         'IsPublic' => 'boolean',
@@ -22,34 +23,65 @@ class Church extends Model
         'Longitude' => 'decimal:8',
     ];
 
-    /**
-     * Get the user who owns this church via the ChurchOwner table.
-     */
-    public function owner()
+    const STATUS_PENDING = 'Pending';
+    const STATUS_ACTIVE = 'Active';
+    const STATUS_REJECTED = 'Rejected';
+
+    protected $attributes = [
+        'ChurchStatus' => self::STATUS_PENDING,
+    ];
+
+    public static $validStatuses = [
+        self::STATUS_PENDING,
+        self::STATUS_ACTIVE,
+        self::STATUS_REJECTED,
+    ];
+
+    public function setChurchStatusAttribute($value)
     {
-        return $this->hasOneThrough(
-            User::class,
-            ChurchOwner::class,
-            'ChurchID', // Foreign key on ChurchOwner pointing to Church
-            'id', // Foreign key on User
-            'ChurchID', // Local key on Church
-            'UserID' // Local key on ChurchOwner
-        );
+        if (!in_array($value, self::$validStatuses)) {
+            throw new \InvalidArgumentException("Invalid ChurchStatus: {$value}");
+        }
+        $this->attributes['ChurchStatus'] = $value;
     }
 
-    /**
-     * Get the church's profile.
-     */
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     public function profile()
     {
         return $this->hasOne(ChurchProfile::class, 'ChurchID', 'ChurchID');
     }
 
-    /**
-     * Get all documents submitted for this church.
-     */
     public function documents()
     {
         return $this->hasMany(ChurchOwnerDocument::class, 'ChurchID', 'ChurchID');
+    }
+
+    // Many UserChurchRole records (users serving the church)
+    public function userChurchRoles()
+    {
+        return $this->hasMany(UserChurchRole::class, 'ChurchID', 'ChurchID');
+    }
+
+    // Many Users through UserChurchRole (employees)
+    public function users()
+    {
+        return $this->hasManyThrough(
+            User::class,
+            UserChurchRole::class,
+            'ChurchID', // Foreign key on UserChurchRole pointing to Church
+            'id', // Foreign key on User
+            'ChurchID', // Local key on Church
+            'user_id' // Local key on UserChurchRole
+        );
+    }
+
+    // Many ChurchRoles (roles defined for the church)
+    public function roles()
+    {
+        return $this->hasMany(ChurchRole::class, 'ChurchID', 'ChurchID');
     }
 }

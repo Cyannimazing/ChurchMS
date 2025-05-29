@@ -4,9 +4,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/auth.jsx";
-import ApplicationLogo from "@/components/ApplicationLogo.jsx";
 import { Menu, X } from "lucide-react";
-import Subscriptions from "./subscriptions/page";
 
 const Navigation = ({ user }) => {
   const pathname = usePathname();
@@ -54,29 +52,6 @@ const Navigation = ({ user }) => {
       icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
       badge: null,
     },
-    // {
-    //   name: "Appointments",
-    //   href: "/appointments",
-    //   icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
-    //   badge: "3",
-    //   submenu: [
-    //     {
-    //       name: "Calendar View",
-    //       href: "/appointments/calendar",
-    //       icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
-    //     },
-    //     {
-    //       name: "Schedule New",
-    //       href: "/appointments/schedule",
-    //       icon: "M12 6v6m0 0v6m0-6h6m-6 0H6",
-    //     },
-    //     {
-    //       name: "Patient History",
-    //       href: "/appointments/history",
-    //       icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
-    //     },
-    //   ],
-    // },
     {
       name: "Subscriptions",
       href: "/subscriptions",
@@ -129,7 +104,7 @@ const Navigation = ({ user }) => {
                     href="/profile"
                     onClick={() => {
                       handleNavClick();
-                      setIsDropdownOpen(false); // Close dropdown on link click
+                      setIsDropdownOpen(false);
                     }}
                     className="flex items-center w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-indigo-600"
                   >
@@ -152,7 +127,7 @@ const Navigation = ({ user }) => {
                     href="/settings"
                     onClick={() => {
                       handleNavClick();
-                      setIsDropdownOpen(false); // Close dropdown on link click
+                      setIsDropdownOpen(false);
                     }}
                     className="flex items-center w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-indigo-600"
                   >
@@ -180,7 +155,7 @@ const Navigation = ({ user }) => {
                   <button
                     onClick={() => {
                       logout();
-                      setIsDropdownOpen(false); // Close dropdown on logout
+                      setIsDropdownOpen(false);
                     }}
                     className="flex items-center cursor-pointer w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-red-600"
                   >
@@ -213,26 +188,10 @@ const Navigation = ({ user }) => {
             ? isOpen
               ? "translate-x-0 w-72"
               : "-translate-x-full w-72"
-            : "translate-x-0 w-72" // Always visible at lg and above
-        } ${isMobile ? "mt-16" : "mt-0"}`} // Adjust for top bar height in mobile
+            : "translate-x-0 w-72"
+        } ${isMobile ? "mt-16" : "mt-0"}`}
       >
         <div className="flex flex-col h-full">
-          {/* Header - Only on mobile */}
-          {isMobile && (
-            <div className="flex items-center justify-between h-16 px-4 border-b border-gray-100">
-              <div className="flex items-center">
-                <ApplicationLogo className="h-8 w-auto" />
-              </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="p-1 rounded-md"
-                aria-label="Close menu"
-              >
-                <X size={24} className="text-gray-800" />
-              </button>
-            </div>
-          )}
-
           {/* Navigation */}
           <nav className="flex-1 px-2 py-4 overflow-y-auto">
             <ul className="space-y-1">
@@ -294,7 +253,7 @@ const Navigation = ({ user }) => {
                                 href={subItem.href}
                                 onClick={() => {
                                   handleNavClick();
-                                  setActiveSubmenu(null); // Close submenu on link click
+                                  setActiveSubmenu(null);
                                 }}
                                 className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
                                   pathname === subItem.href
@@ -412,7 +371,7 @@ const Navigation = ({ user }) => {
                         href="/profile"
                         onClick={() => {
                           handleNavClick();
-                          setIsDropdownOpen(false); // Close dropdown on link click
+                          setIsDropdownOpen(false);
                         }}
                         className="flex items-center w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-indigo-600"
                       >
@@ -435,7 +394,7 @@ const Navigation = ({ user }) => {
                         href="/settings"
                         onClick={() => {
                           handleNavClick();
-                          setIsDropdownOpen(false); // Close dropdown on link click
+                          setIsDropdownOpen(false);
                         }}
                         className="flex items-center w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-indigo-600"
                       >
@@ -463,7 +422,7 @@ const Navigation = ({ user }) => {
                       <button
                         onClick={() => {
                           logout();
-                          setIsDropdownOpen(false); // Close dropdown on logout
+                          setIsDropdownOpen(false);
                         }}
                         className="flex items-center cursor-pointer w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-red-600"
                       >
@@ -494,7 +453,7 @@ const Navigation = ({ user }) => {
       {/* Overlay - Only on mobile when sidebar is open */}
       {isMobile && isOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30"
           onClick={() => setIsOpen(false)}
         />
       )}

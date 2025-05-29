@@ -35,6 +35,17 @@ const LoginLinks = () => {
               Dashboard
             </Link>
           )}
+          {user.profile.system_role.role_name === "ChurchStaff" && (
+            <Link
+              href={`/${user.church.ChurchName.replace(
+                /\s+/g,
+                "-"
+              ).toLowerCase()}/dashboard`}
+              className="ml-4 text-sm text-gray-700 underline"
+            >
+              Dashboard
+            </Link>
+          )}
         </>
       )}
       {!user && (

@@ -46,6 +46,13 @@ return [
             'throw' => false,
             'report' => false,
         ],
+        'church_documents' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/church_documents'),
+            'visibility' => 'private', // Ensures files are not publicly accessible
+            'throw' => false,
+            'report' => false,
+        ],
 
         's3' => [
             'driver' => 's3',

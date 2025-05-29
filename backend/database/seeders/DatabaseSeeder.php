@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Permission;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -75,5 +76,19 @@ class DatabaseSeeder extends Seeder
                 'contact_number' => '09171234567',
             ]
         );
+
+        // Seed permissions
+        $permissions = [
+            'appointment_list',
+            'employee_list',
+            'role_list',
+            'sacrament_list',
+            'schedule_list',
+        ];
+
+        foreach ($permissions as $permission) {
+            Permission::firstOrCreate(['PermissionName' => $permission]);
+        }
+
     }
 }

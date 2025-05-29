@@ -11,11 +11,12 @@ class ChurchOwnerDocument extends Model
     protected $fillable = [
         'ChurchID',
         'DocumentType',
-        'DocumentData',
+        'DocumentPath', // Changed from DocumentData to DocumentPath
+        'SubmissionDate',
     ];
     protected $casts = [
         'SubmissionDate' => 'datetime',
-        'DocumentData' => 'binary',
+        // Removed DocumentData binary cast
     ];
 
     /**
@@ -23,6 +24,17 @@ class ChurchOwnerDocument extends Model
      */
     public function church()
     {
-        return $this->hasOne(Church::class, 'ChurchID', 'ChurchID');
+        return $this->belongsTo(Church::class, 'ChurchID', 'ChurchID'); // Changed to belongsTo
+    }
+
+    /**
+     * Get the full URL to the document.
+     *
+     * @return string|null
+     */
+    public function getDocumentUrlAttribute()
+    {
+        return $this->DocumentPath ? asset('storage/' . $this->DocumentPath) : null;
     }
 }
+?>

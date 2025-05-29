@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/auth.jsx";
-import ApplicationLogo from "@/components/ApplicationLogo.jsx";
+import ApplicationLogo from "@/components/ApplicationLogo";
 import { Menu, X } from "lucide-react";
 
 const Navigation = ({ user }) => {
   const pathname = usePathname();
   const { logout } = useAuth();
+  const { churchname } = useParams();
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [activeSubmenu, setActiveSubmenu] = useState(null);
@@ -49,17 +50,93 @@ const Navigation = ({ user }) => {
   const navItems = [
     {
       name: "Dashboard",
-      href: "/dashboard",
+      href: `/${churchname}/dashboard`,
       icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
       badge: null,
     },
     {
-      name: "Appointments",
-      href: "/appointment",
+      name: "Manage Staff",
       icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
       badge: null,
+      permission: null,
+      submenu: [
+        {
+          name: "Roles & Permissions",
+          href: `/${churchname}/role`,
+          icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+          permission: "role_list",
+        },
+        {
+          name: "Employee",
+          href: `/${churchname}/employee`,
+          icon: "M12 6v6m0 0v6m0-6h6m-6 0H6",
+          permission: "employee_list",
+        },
+      ],
+    },
+    {
+      name: "Appointment",
+      href: `/${churchname}/appointment`,
+      icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
+      badge: null,
+      permission: "appointment_list",
+    },
+    {
+      name: "Sacrament",
+      href: `/${churchname}/sacrament`,
+      icon: "M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z",
+      badge: null,
+      permission: "sacrament_list",
+    },
+    {
+      name: "Schedule",
+      href: `/${churchname}/schedule`,
+      icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+      badge: null,
+      permission: "schedule_list",
     },
   ];
+
+  const filteredNavItems = navItems
+    .filter((item) => {
+      if (user?.profile?.system_role?.role_name === "ChurchOwner") {
+        return true;
+      }
+      if (item.submenu) {
+        const permittedSubmenu = item.submenu.filter((subItem) =>
+          subItem.permission
+            ? user?.church_role?.permissions?.some(
+                (perm) => perm.PermissionName === subItem.permission
+              )
+            : true
+        );
+        return permittedSubmenu.length > 0;
+      }
+      return (
+        !item.permission ||
+        user?.church_role?.permissions?.some(
+          (perm) => perm.PermissionName === item.permission
+        )
+      );
+    })
+    .map((item) => {
+      if (
+        item.submenu &&
+        user?.profile?.system_role?.role_name !== "ChurchOwner"
+      ) {
+        return {
+          ...item,
+          submenu: item.submenu.filter((subItem) =>
+            subItem.permission
+              ? user?.church_role?.permissions?.some(
+                  (perm) => perm.PermissionName === subItem.permission
+                )
+              : true
+          ),
+        };
+      }
+      return item;
+    });
 
   return (
     <>
@@ -80,7 +157,6 @@ const Navigation = ({ user }) => {
             </button>
           </div>
 
-          {/* User Profile in Top Bar */}
           <div className="relative">
             <button
               onClick={toggleDropdown}
@@ -93,7 +169,6 @@ const Navigation = ({ user }) => {
               </div>
             </button>
 
-            {/* Dropdown - Triggered by click */}
             {isDropdownOpen && (
               <div className="absolute right-0 top-full mt-2 rounded-lg shadow-lg overflow-hidden z-50 bg-white w-48">
                 <div className="py-1">
@@ -105,7 +180,7 @@ const Navigation = ({ user }) => {
                     href="/profile"
                     onClick={() => {
                       handleNavClick();
-                      setIsDropdownOpen(false); // Close dropdown on link click
+                      setIsDropdownOpen(false);
                     }}
                     className="flex items-center w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-indigo-600"
                   >
@@ -128,7 +203,7 @@ const Navigation = ({ user }) => {
                     href="/settings"
                     onClick={() => {
                       handleNavClick();
-                      setIsDropdownOpen(false); // Close dropdown on link click
+                      setIsDropdownOpen(false);
                     }}
                     className="flex items-center w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-indigo-600"
                   >
@@ -156,7 +231,7 @@ const Navigation = ({ user }) => {
                   <button
                     onClick={() => {
                       logout();
-                      setIsDropdownOpen(false); // Close dropdown on logout
+                      setIsDropdownOpen(false);
                     }}
                     className="flex items-center cursor-pointer w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-red-600"
                   >
@@ -189,14 +264,14 @@ const Navigation = ({ user }) => {
             ? isOpen
               ? "translate-x-0 w-72"
               : "-translate-x-full w-72"
-            : "translate-x-0 w-72" // Always visible at lg and above
-        } ${isMobile ? "mt-16" : "mt-0"}`} // Adjust for top bar height in mobile
+            : "translate-x-0 w-72"
+        } ${isMobile ? "mt-16" : "mt-0"}`}
       >
         <div className="flex flex-col h-full">
           {/* Navigation */}
           <nav className="flex-1 px-2 py-4 overflow-y-auto">
             <ul className="space-y-1">
-              {navItems.map((item, index) => (
+              {filteredNavItems.map((item, index) => (
                 <li key={item.name}>
                   {item.submenu ? (
                     <>
@@ -254,7 +329,7 @@ const Navigation = ({ user }) => {
                                 href={subItem.href}
                                 onClick={() => {
                                   handleNavClick();
-                                  setActiveSubmenu(null); // Close submenu on link click
+                                  setActiveSubmenu(null);
                                 }}
                                 className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
                                   pathname === subItem.href
@@ -360,7 +435,6 @@ const Navigation = ({ user }) => {
                   </svg>
                 </button>
 
-                {/* Dropdown - Triggered by click */}
                 {isDropdownOpen && (
                   <div className="absolute bottom-full left-0 right-0 rounded-lg shadow-lg overflow-hidden z-50 bg-white">
                     <div className="py-1">
@@ -372,7 +446,7 @@ const Navigation = ({ user }) => {
                         href="/profile"
                         onClick={() => {
                           handleNavClick();
-                          setIsDropdownOpen(false); // Close dropdown on link click
+                          setIsDropdownOpen(false);
                         }}
                         className="flex items-center w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-indigo-600"
                       >
@@ -395,7 +469,7 @@ const Navigation = ({ user }) => {
                         href="/settings"
                         onClick={() => {
                           handleNavClick();
-                          setIsDropdownOpen(false); // Close dropdown on link click
+                          setIsDropdownOpen(false);
                         }}
                         className="flex items-center w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-indigo-600"
                       >
@@ -423,7 +497,7 @@ const Navigation = ({ user }) => {
                       <button
                         onClick={() => {
                           logout();
-                          setIsDropdownOpen(false); // Close dropdown on logout
+                          setIsDropdownOpen(false);
                         }}
                         className="flex items-center cursor-pointer w-full px-4 py-3 text-sm text-gray-700 transition-colors hover:bg-gray-50 hover:text-red-600"
                       >
@@ -450,7 +524,6 @@ const Navigation = ({ user }) => {
           )}
         </div>
       </aside>
-
       {/* Overlay - Only on mobile when sidebar is open */}
       {isMobile && isOpen && (
         <div

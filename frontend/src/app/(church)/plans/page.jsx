@@ -1,15 +1,15 @@
 "use client";
 
-import { useAuth } from "@/hooks/auth";
 import axios from "@/lib/axios";
 import Button from "@/components/Button.jsx";
 import InputError from "@/components/InputError.jsx";
 import Label from "@/components/Label.jsx";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import DataLoading from "@/components/DataLoading";
+import PlanCard from "@/components/PlanCard";
 
 const SubscriptionPlans = () => {
-  const { user } = useAuth({ middleware: "auth" });
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -20,11 +20,29 @@ const SubscriptionPlans = () => {
   const [errors, setErrors] = useState({});
 
   const fetchPlans = async () => {
+    setLoading(true);
+    setErrors({});
     try {
+      await axios.get("/sanctum/csrf-cookie");
       const response = await axios.get("/api/subscription-plans");
-      setPlans(response.data);
+      console.log("API Response:", response.data);
+      if (Array.isArray(response.data)) {
+        setPlans(response.data);
+      } else {
+        throw new Error("Invalid data format: Expected an array of plans");
+      }
     } catch (error) {
-      console.error("Error fetching plans:", error);
+      console.error(
+        "Error fetching plans:",
+        error.response?.data || error.message
+      );
+      setErrors({
+        fetch: [
+          error.response?.data?.message ||
+            error.response?.data?.error ||
+            "Failed to fetch subscription plans. Please try again later.",
+        ],
+      });
     } finally {
       setLoading(false);
     }
@@ -49,112 +67,167 @@ const SubscriptionPlans = () => {
         plan_id: selectedPlan.PlanID,
       })
       .then(() => {
-        window.location.href = "/subscriptions"; // Redirect to status page
+        window.location.href = "/subscriptions";
       })
       .catch((error) => {
         if (error.response?.status === 422) {
-          setErrors(error.response.data.errors);
+          setErrors(
+            error.response.data.errors || { general: ["Validation failed"] }
+          );
         } else if (
           error.response?.status === 400 &&
           error.response.data.error
         ) {
-          alert(error.response.data.error);
+          setErrors({ general: [error.response.data.error] });
         } else {
           console.error("Error applying subscription:", error);
+          setErrors({
+            general: ["An unexpected error occurred. Please try again."],
+          });
         }
       });
   };
 
-  if (user?.profile?.system_role_id !== 2) {
-    return <div className="py-12 text-center">Unauthorized</div>;
-  }
-
-  if (loading) {
-    return (
-      <div className="lg:ml-75 mx-3 py-12 text-center text-lg font-medium">
-        Loading subscription plans...
-      </div>
-    );
-  }
+  const closePaymentModal = () => {
+    setSelectedPlan(null);
+    setErrors({});
+  };
 
   return (
-    <div className="py-12 lg:ml-75 mx-3">
-      <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-        <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-          <div className="p-6 bg-white border-b border-gray-200">
-            <div className="flex items-center mb-6">
-              <Link href="/subscriptions" className="mr-4">
-                <Button variant="secondary">← Back to Status</Button>
-              </Link>
-              <h2 className="text-lg font-semibold">
-                Available Subscription Plans
-              </h2>
-            </div>
+    <div className="min-h-screen px-4 sm:px-6 lg:ml-75 lg:py-12 mx-3 py-20">
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white shadow-sm rounded-xl p-6 sm:p-8">
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-4 sm:mb-0">
+              Subscription Plans
+            </h1>
+            <Link href="/subscriptions" className="w-full sm:w-auto">
+              <Button
+                variant="secondary"
+                className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-md"
+              >
+                ← Back to Status
+              </Button>
+            </Link>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Object.keys(errors).length > 0 && !selectedPlan && (
+            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-md">
+              <p className="text-sm text-red-700">
+                {errors.fetch
+                  ? errors.fetch[0]
+                  : Object.values(errors).flat()[0]}
+              </p>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <DataLoading message="Loading subscription plans..." />
+            </div>
+          ) : plans.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-lg">No plans available.</p>
+              <Link href="/subscriptions">
+                <Button className="mt-4 bg-blue-600 hover:bg-blue-700 text-white">
+                  Return to Subscription Status
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
               {plans.map((plan) => (
                 <div
                   key={plan.PlanID}
-                  className={`border rounded-lg p-6 cursor-pointer transition-all ${
-                    selectedPlan?.PlanID === plan.PlanID
-                      ? "border-blue-500 ring-2 ring-blue-200"
-                      : "hover:border-gray-300"
-                  }`}
-                  onClick={() => setSelectedPlan(plan)}
+                  className="flex justify-center items-center min-h-[300px]"
                 >
-                  <h3 className="text-xl font-bold">{plan.PlanName}</h3>
-                  <p className="text-2xl font-semibold my-2">
-                    ${plan.Price}
-                    <span className="text-sm text-gray-500 ml-1">
-                      / {plan.DurationInMonths} months
-                    </span>
-                  </p>
-                  <p className="text-gray-600">{plan.Description}</p>
+                  <div className="w-full max-w-sm">
+                    <PlanCard
+                      plan={plan}
+                      isSelected={selectedPlan?.PlanID === plan.PlanID}
+                      onSelect={() => setSelectedPlan(plan)}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
+          )}
 
-            {selectedPlan && (
-              <form onSubmit={handleSubmit} className="mt-8 space-y-4 max-w-md">
-                <div>
-                  <Label>Selected Plan</Label>
-                  <div className="p-3 bg-gray-50 rounded border">
-                    <p className="font-medium">{selectedPlan.PlanName}</p>
-                    <p className="text-sm text-gray-600">
-                      ${selectedPlan.Price} for {selectedPlan.DurationInMonths}{" "}
-                      months
+          {/* Payment Modal */}
+          {selectedPlan && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="bg-white shadow-xl rounded-xl p-6 sm:p-8 max-w-md w-full mx-4">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Subscription Details
+                  </h2>
+                  <button
+                    onClick={closePaymentModal}
+                    className="text-gray-500 hover:text-gray-700 font-medium"
+                  >
+                    ✕ Close
+                  </button>
+                </div>
+
+                {Object.keys(errors).length > 0 && (
+                  <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-md">
+                    <p className="text-sm text-red-700">
+                      {errors.plan_id
+                        ? errors.plan_id[0]
+                        : errors.general
+                        ? errors.general[0]
+                        : Object.values(errors).flat()[0]}
                     </p>
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <Label htmlFor="payment_method">Payment Method</Label>
-                  <select
-                    id="payment_method"
-                    value={form.payment_method}
-                    onChange={(e) =>
-                      setForm({ ...form, payment_method: e.target.value })
-                    }
-                    required
-                    className="block mt-1 w-full border rounded p-2"
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div>
+                    <Label>Selected Plan</Label>
+                    <div className="mt-2 p-4 bg-gray-50 border rounded-md">
+                      <p className="font-medium text-gray-900">
+                        {selectedPlan.PlanName || "Unnamed Plan"}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        ${selectedPlan.Price || 0} for{" "}
+                        {selectedPlan.DurationInMonths || 0} month
+                        {(selectedPlan.DurationInMonths || 0) !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="payment_method">Payment Method</Label>
+                    <select
+                      id="payment_method"
+                      value={form.payment_method}
+                      onChange={(e) =>
+                        setForm({ ...form, payment_method: e.target.value })
+                      }
+                      required
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 p-3"
+                    >
+                      <option value="">Select Payment Method</option>
+                      <option value="Credit Card">Credit Card</option>
+                      <option value="PayPal">PayPal</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                    </select>
+                    <InputError
+                      messages={errors.payment_method}
+                      className="mt-2"
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-md transition-colors"
                   >
-                    <option value="">Select Payment Method</option>
-                    <option value="Credit Card">Credit Card</option>
-                    <option value="PayPal">PayPal</option>
-                    <option value="Bank Transfer">Bank Transfer</option>
-                  </select>
-                  <InputError
-                    messages={errors.payment_method}
-                    className="mt-2"
-                  />
-                </div>
-
-                <Button type="submit" className="w-full">
-                  Confirm Subscription
-                </Button>
-              </form>
-            )}
-          </div>
+                    Confirm Subscription
+                  </Button>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
