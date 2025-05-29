@@ -28,7 +28,11 @@ php artisan key:generate
 5.
 php artisan migrate --seed
 
-6.
+  if error
+
+php artisan migrate:fresh --seed
+
+7.
 php artisan serve
 
 ANOTHER TERMINAL  
