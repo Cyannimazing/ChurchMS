@@ -55,4 +55,13 @@ npm run dev
 ADMIN USER:
 
 'email' => 'admin@example.com'  
-'password' => 'adminpassword'
+'password' => '123123123'
+
+'email' => 'regular@example.com'  
+'password' => '123123123'
+
+'email' => 'owner@example.com'
+'password' => '123123123'
+
+'email' => 'staff@example.com'  
+'password' => '123123123'
