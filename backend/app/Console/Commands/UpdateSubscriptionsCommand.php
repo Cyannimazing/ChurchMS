@@ -13,13 +13,10 @@ class UpdateSubscriptionsCommand extends Command
 
     public function handle()
     {
-        Log::info('Running subscriptions:update at ' . now());
-
         // Mark active subscriptions as expired
         $expiredCount = ChurchSubscription::where('Status', 'Active')
             ->where('EndDate', '<=', now())
             ->update(['Status' => 'Expired']);
-        Log::info("Marked $expiredCount subscriptions as Expired");
 
         // Activate pending subscriptions
         $pendingSubscriptions = ChurchSubscription::where('Status', 'Pending')
@@ -34,11 +31,9 @@ class UpdateSubscriptionsCommand extends Command
                 ->update(['Status' => 'Expired']);
 
             $subscription->update(['Status' => 'Active']);
-            Log::info("Activated subscription ID {$subscription->SubscriptionID} for user ID {$subscription->UserID}, Plan ID {$subscription->PlanID}");
             $activatedCount++;
         }
 
-        Log::info("Activated $activatedCount pending subscriptions");
         $this->info('Subscription statuses updated successfully.');
     }
 }

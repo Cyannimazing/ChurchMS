@@ -1,21 +1,23 @@
-import { Nunito } from "next/font/google";
+import { Roboto } from "next/font/google";
 import "./globals.css";
 
-const nunitoFont = Nunito({
+// Configure Roboto font
+const robotoFont = Roboto({
   subsets: ["latin"],
   display: "swap",
+  weight: ["400", "500", "700"],
 });
 
 const RootLayout = ({ children }) => {
   return (
-    <html lang="en" className={nunitoFont.className}>
+    <html lang="en" className={robotoFont.className}>
       <body className="antialiased">{children}</body>
     </html>
   );
 };
 
 export const metadata = {
-  title: "Laravel",
+  title: "FaithSeeker",
 };
 
 export default RootLayout;

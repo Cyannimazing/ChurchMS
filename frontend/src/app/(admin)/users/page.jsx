@@ -14,10 +14,7 @@ export default function Users() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        await axios.get("/sanctum/csrf-cookie");
-        const response = await axios.get("/api/users_list", {
-          headers: { Accept: "application/json" },
-        });
+        const response = await axios.get("/api/users_list");
         console.log("Fetched users:", response.data);
         setUsers(response.data);
       } catch (error) {
@@ -37,54 +34,59 @@ export default function Users() {
   }, []);
 
   return (
-    <div className="lg:ml-75 lg:py-12 mx-3 py-20">
-      <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
+    <div className="lg:ml-72 mx-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
           <div className="p-6 bg-white border-b border-gray-200">
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">User List</h1>
-
+            <h1 className="text-2xl font-bold mb-6 text-gray-900">User List</h1>
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 text-gray-700 text-left">
-                    <th className="p-3 text-sm font-semibold">Full Name</th>
-                    <th className="p-3 text-sm font-semibold">System Role</th>
-                    <th className="p-3 text-sm font-semibold">Active Status</th>
-                    <th className="p-3 text-sm font-semibold">Actions</th>
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Full Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      System Role
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Active Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
-                <tbody aria-live="polite">
+                <tbody
+                  className="bg-white divide-y divide-gray-200"
+                  aria-live="polite"
+                >
                   {isLoading ? (
                     <tr>
-                      <td colSpan={4} className="p-3 text-center">
+                      <td colSpan={4} className="px-6 py-4">
                         <DataLoading message="Loading users..." />
                       </td>
                     </tr>
                   ) : users.length ? (
-                    users.map((user, index) => (
-                      <tr
-                        key={user.id}
-                        className={`border-t border-gray-200 hover:bg-gray-50 transition-opacity duration-300 ${
-                          index % 2 === 0 ? "bg-white" : "bg-gray-50/50"
-                        }`}
-                      >
-                        <td className="p-3 text-sm text-gray-900">
+                    users.map((user) => (
+                      <tr key={user.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                           {user.full_name}
                         </td>
-                        <td className="p-3 text-sm text-gray-600">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                           {user.system_role_name}
                         </td>
-                        <td className="p-3 text-sm">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <button
                             onClick={() =>
                               handleActiveStatusChange(user.id, !user.is_active)
                             }
-                            className={`flex items-center border rounded p-1 text-sm ${
+                            className={`flex items-center text-sm ${
                               user.is_active
-                                ? "text-green-500 hover:text-green-700"
-                                : "text-red-500 hover:text-red-700"
+                                ? "text-green-600 hover:text-green-800"
+                                : "text-red-600 hover:text-red-800"
                             }`}
-                            disabled={loadingUserId === user.id} // Disable only this button
+                            disabled={loadingUserId === user.id}
                             aria-label={`Toggle active status for ${user.full_name}`}
                           >
                             {user.is_active ? (
@@ -100,10 +102,11 @@ export default function Users() {
                             )}
                           </button>
                         </td>
-                        <td className="p-3">
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <Link
                             href={`/users/${user.id}`}
                             className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
+                            aria-label={`View details for ${user.full_name}`}
                           >
                             <Eye className="mr-1 h-4 w-4" /> View
                           </Link>
@@ -111,10 +114,10 @@ export default function Users() {
                       </tr>
                     ))
                   ) : (
-                    <tr className="transition-opacity duration-300">
+                    <tr>
                       <td
                         colSpan={4}
-                        className="p-3 text-center text-sm text-gray-600"
+                        className="px-6 py-4 text-center text-sm text-gray-700"
                       >
                         No users found.
                       </td>

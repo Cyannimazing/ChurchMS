@@ -57,20 +57,20 @@ class UserController extends Controller
 
 
     public function show($id)
-{
-    $user = User::with(['profile.systemRole', 'contact', 'churches', 'church', 'churchRole'])->findOrFail($id);
+    {
+        $user = User::with(['profile.systemRole', 'contact', 'churches', 'church', 'churchRole'])->findOrFail($id);
 
-    // If no profile or systemRole, or not ChurchStaff, remove church and churchRole
-    if (!$user->profile || !$user->profile->systemRole || $user->profile->systemRole->role_name !== 'ChurchStaff') {
-        unset($user->church);
-        unset($user->churchRole);
+        // If no profile or systemRole, or not ChurchStaff, remove church and churchRole
+        if (!$user->profile || !$user->profile->systemRole || $user->profile->systemRole->role_name !== 'ChurchStaff') {
+            unset($user->church);
+            unset($user->churchRole);
+        }
+
+        // If no profile or systemRole, or not ChurchOwner, remove churches
+        if (!$user->profile || !$user->profile->systemRole || $user->profile->systemRole->role_name !== 'ChurchOwner') {
+            unset($user->churches);
+        }
+
+        return response()->json($user, 200);
     }
-
-    // If no profile or systemRole, or not ChurchOwner, remove churches
-    if (!$user->profile || !$user->profile->systemRole || $user->profile->systemRole->role_name !== 'ChurchOwner') {
-        unset($user->churches);
-    }
-
-    return response()->json($user, 200);
-}
 }

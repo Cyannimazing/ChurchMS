@@ -13,18 +13,6 @@ use Illuminate\Support\Facades\Storage;
 
 class ChurchController extends Controller
 {
-    public function getByName($churchName)
-    {
-        $name = str_replace('-', ' ', ucwords($churchName, '-'));
-        $church = Church::whereRaw('LOWER(ChurchName) = ?', [strtolower($name)])->first();
-        
-        if (!$church) {
-            return response()->json(['error' => 'Church not found'], 404);
-        }
-        
-        return response()->json(['ChurchID' => $church->ChurchID]);
-    }
-
     public function store(Request $request)
     {
     $validated = $request->validate([

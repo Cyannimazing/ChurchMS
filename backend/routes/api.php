@@ -48,7 +48,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
 //CHURCHES
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('churches/name/{churchName}', [ChurchController::class, 'getByName']);
     Route::post('/churches', [ChurchController::class, 'store'])->name('churches.store');
     Route::get('/churches/owned', [ChurchController::class, 'showOwnedChurches'])->name('churches.owned');
     
@@ -59,16 +58,16 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 //Staff Management
-Route::middleware('auth')->group(function () {
+Route::middleware('auth:sanctum')->group(function () {
     // RolePermissionController Endpoints
-    Route::get('roles', [RolePermissionController::class, 'index']);
+    Route::get('/churches-and-roles/{churchName}', [RolePermissionController::class, 'getChurchAndRoles']);
     Route::post('roles', [RolePermissionController::class, 'store']);
     Route::get('roles/{roleId}', [RolePermissionController::class, 'show']);
     Route::put('roles/{roleId}', [RolePermissionController::class, 'update']);
     Route::get('permissions', [RolePermissionController::class, 'getPermissions']);
 
     // ChurchStaffController Endpoints
-    Route::get('staff', [ChurchStaffController::class, 'index']);
+    Route::get('/church-and-staff/{churchName}', [ChurchStaffController::class, 'getChurchAndStaff']);
     Route::post('staff', [ChurchStaffController::class, 'store']);
     Route::get('staff/{staffId}', [ChurchStaffController::class, 'show']);
     Route::put('staff/{staffId}', [ChurchStaffController::class, 'update']);

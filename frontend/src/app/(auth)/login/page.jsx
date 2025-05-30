@@ -8,8 +8,8 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/auth.jsx";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import AuthSessionStatus from "@/app/(auth)/AuthSessionStatus.jsx";
-import AuthCard from "../AuthCard";
+import AuthSessionStatus from "../AuthSessionStatus";
+import { Mail, Lock } from "lucide-react";
 
 const Login = () => {
   const router = useRouter();
@@ -44,47 +44,53 @@ const Login = () => {
       setStatus,
     });
   };
+
   return (
-    <AuthCard>
-      <AuthSessionStatus className="mb-4" status={status} />
-      <form onSubmit={submitForm}>
-        {/* Email Address */}
-        <div>
-          <Label htmlFor="email">Email</Label>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-gray-200 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 space-y-8 transform transition-all duration-300 animate-fade-in">
+        <h2 className="text-2xl font-bold text-gray-900 text-center">
+          Sign In to Your Account
+        </h2>
+        <AuthSessionStatus className="mb-4 text-center" status={status} />
+        <form onSubmit={submitForm} className="space-y-6">
+          {/* Email Address */}
+          <div>
+            <Label htmlFor="email">Email</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                className="block mt-1 w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600 transition-all duration-200"
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+            <InputError messages={errors.email} className="mt-2" />
+          </div>
 
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            className="block mt-1 w-full"
-            onChange={(event) => setEmail(event.target.value)}
-            required
-            autoFocus
-          />
+          {/* Password */}
+          <div>
+            <Label htmlFor="password">Password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                className="block mt-1 w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600 transition-all duration-200"
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                autoComplete="current-password"
+              />
+            </div>
+            <InputError messages={errors.password} className="mt-2" />
+          </div>
 
-          <InputError messages={errors.email} className="mt-2" />
-        </div>
-
-        {/* Password */}
-        <div className="mt-4">
-          <Label htmlFor="password">Password</Label>
-
-          <Input
-            id="password"
-            type="password"
-            value={password}
-            className="block mt-1 w-full"
-            onChange={(event) => setPassword(event.target.value)}
-            required
-            autoComplete="current-password"
-          />
-
-          <InputError messages={errors.password} className="mt-2" />
-        </div>
-
-        {/* Remember Me */}
-        <div className="block mt-4">
-          <label htmlFor="remember_me" className="inline-flex items-center">
+          {/* Remember Me */}
+          <div className="flex items-center">
             <input
               id="remember_me"
               type="checkbox"
@@ -92,25 +98,51 @@ const Login = () => {
               className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
               onChange={(event) => setShouldRemember(event.target.checked)}
             />
+            <label htmlFor="remember_me" className="ml-2 text-sm text-gray-600">
+              Remember me
+            </label>
+          </div>
 
-            <span className="ml-2 text-sm text-gray-600">Remember me</span>
-          </label>
-        </div>
-
-        <div className="flex items-center justify-end mt-4">
+          {/* Form Actions */}
+          <div className="flex items-center justify-between">
+            <Link
+              href="/forgot-password"
+              className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline"
+            >
+              Forgot your password?
+            </Link>
+            <Button type="submit" variant="primary" className="">
+              Sign In
+            </Button>
+          </div>
+        </form>
+        <div className="text-center">
           <Link
-            href="/forgot-password"
-            className="underline text-sm text-gray-600 hover:text-gray-900"
+            href="/register"
+            className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline"
           >
-            Forgot your password?
+            Don't have an account? Sign up
           </Link>
-
-          <Button type="submit" className="ml-3">
-            Login
-          </Button>
         </div>
-      </form>
-    </AuthCard>
+      </div>
+
+      {/* Custom Animation CSS */}
+      <style jsx>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.3s ease-out;
+        }
+      `}</style>
+    </div>
   );
 };
 

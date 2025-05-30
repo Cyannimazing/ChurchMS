@@ -3,18 +3,30 @@
 import Link from "next/link";
 import { useAuth } from "@/hooks/auth";
 
-const LoginLinks = () => {
+const LoginLinks = ({ mobile = false, handleLinkClick }) => {
   const { user } = useAuth({ middleware: "guest" });
 
   console.log("user", user);
+
+  // Base classes for links with button design and font styling
+  const linkClasses = mobile
+    ? "block py-2 px-4 text-black bg-white border border-gray-300 rounded-md hover:bg-gray-100 font-medium text-base transition-colors"
+    : "py-2 px-4 text-black bg-white border border-gray-300 rounded-md hover:bg-gray-100 font-medium text-base transition-colors";
+
+  // Container classes (unchanged functionality)
+  const containerClasses = mobile
+    ? "w-full"
+    : "fixed  top-0 right-0 px-6 py-4 hidden lg:block z-[70]";
+
   return (
-    <div className="hidden fixed top-0 right-0 px-6 py-4 sm:block">
-      {user && user.profile.system_role.role_name && (
+    <div className={containerClasses}>
+      {user && user.profile.system_role.role_name ? (
         <>
           {user.profile.system_role.role_name === "Admin" && (
             <Link
               href="/admin"
-              className="ml-4 text-sm text-gray-700 underline"
+              className={mobile ? linkClasses : `${linkClasses} ml-4`}
+              onClick={mobile ? handleLinkClick : undefined}
             >
               Dashboard
             </Link>
@@ -22,7 +34,8 @@ const LoginLinks = () => {
           {user.profile.system_role.role_name === "ChurchOwner" && (
             <Link
               href="/church"
-              className="ml-4 text-sm text-gray-700 underline"
+              className={mobile ? linkClasses : `${linkClasses} ml-4`}
+              onClick={mobile ? handleLinkClick : undefined}
             >
               Dashboard
             </Link>
@@ -30,7 +43,8 @@ const LoginLinks = () => {
           {user.profile.system_role.role_name === "Regular" && (
             <Link
               href="/dashboard"
-              className="ml-4 text-sm text-gray-700 underline"
+              className={mobile ? linkClasses : `${linkClasses} ml-4`}
+              onClick={mobile ? handleLinkClick : undefined}
             >
               Dashboard
             </Link>
@@ -41,21 +55,26 @@ const LoginLinks = () => {
                 /\s+/g,
                 "-"
               ).toLowerCase()}/dashboard`}
-              className="ml-4 text-sm text-gray-700 underline"
+              className={mobile ? linkClasses : `${linkClasses} ml-4`}
+              onClick={mobile ? handleLinkClick : undefined}
             >
               Dashboard
             </Link>
           )}
         </>
-      )}
-      {!user && (
+      ) : (
         <>
-          <Link href="/login" className="text-sm text-gray-700 underline">
+          <Link
+            href="/login"
+            className={linkClasses}
+            onClick={mobile ? handleLinkClick : undefined}
+          >
             Login
           </Link>
           <Link
             href="/register"
-            className="ml-4 text-sm text-gray-700 underline"
+            className={mobile ? `${linkClasses} mt-2` : `${linkClasses} ml-4`}
+            onClick={mobile ? handleLinkClick : undefined}
           >
             Register
           </Link>

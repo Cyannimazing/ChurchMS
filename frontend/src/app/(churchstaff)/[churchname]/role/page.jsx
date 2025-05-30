@@ -7,36 +7,23 @@ import { List, Pencil, Plus, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/hooks/auth.jsx";
 import DataLoading from "@/components/DataLoading";
+import { Button } from "@/components/Button.jsx";
 
-const csrf = () => axios.get("/sanctum/csrf-cookie");
-
-const fetchChurchByName = async (churchName, setErrors) => {
-  await csrf();
+const fetchChurchAndRoles = async (churchName, setErrors) => {
   try {
-    const response = await axios.get(`/api/churches/name/${churchName}`);
+    const response = await axios.get(`/api/churches-and-roles/${churchName}`);
+    console.log(response);
     return response.data;
   } catch (error) {
     setErrors([
       error.response?.data?.error ||
-        "Failed to fetch church data. Please ensure the church exists.",
+        "Failed to fetch church and roles data. Please ensure the church exists.",
     ]);
     throw error;
   }
 };
 
-const fetchRoles = async (churchId, setErrors) => {
-  await csrf();
-  try {
-    const response = await axios.get(`/api/roles?church_id=${churchId}`);
-    return response.data;
-  } catch (error) {
-    setErrors([error.response?.data?.error || "Failed to fetch roles."]);
-    throw error;
-  }
-};
-
 const fetchPermissions = async (setErrors) => {
-  await csrf();
   try {
     const response = await axios.get("/api/permissions");
     return response.data;
@@ -47,7 +34,6 @@ const fetchPermissions = async (setErrors) => {
 };
 
 const fetchRoleById = async (roleId, churchId, setErrors) => {
-  await csrf();
   try {
     const response = await axios.get(
       `/api/roles/${roleId}?church_id=${churchId}`
@@ -60,7 +46,6 @@ const fetchRoleById = async (roleId, churchId, setErrors) => {
 };
 
 const saveRole = async ({ editRoleId, churchId, form, setErrors, mutate }) => {
-  await csrf();
   try {
     const url = editRoleId ? `/api/roles/${editRoleId}` : "/api/roles";
     const method = editRoleId ? "put" : "post";
@@ -91,7 +76,7 @@ const RolePermissionPage = () => {
   const [permissions, setPermissions] = useState([]);
   const [permissionMap, setPermissionMap] = useState(new Map());
   const [loadingPermissions, setLoadingPermissions] = useState(false);
-  const [isInitialLoading, setIsInitialLoading] = useState(true); // Unified loading state for initial fetch
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ RoleName: "", permissions: [] });
   const [editRoleId, setEditRoleId] = useState(null);
@@ -107,11 +92,9 @@ const RolePermissionPage = () => {
       }
 
       try {
-        const churchData = await fetchChurchByName(churchname, setErrors);
-        setChurchId(churchData.ChurchID);
-
-        const rolesData = await fetchRoles(churchData.ChurchID, setErrors);
-        setRoles(rolesData);
+        const data = await fetchChurchAndRoles(churchname, setErrors);
+        setChurchId(data.ChurchID);
+        setRoles(data.roles);
       } catch (err) {
         if (err.response?.status === 401) {
           toast.error("Please log in to view roles.");
@@ -124,7 +107,7 @@ const RolePermissionPage = () => {
       }
     };
 
-    setIsInitialLoading(true); // Start loading
+    setIsInitialLoading(true);
     loadChurchAndRoles();
   }, [churchname, router]);
 
@@ -197,7 +180,11 @@ const RolePermissionPage = () => {
         churchId,
         form: { ...form, permissions: permissionIds },
         setErrors,
-        mutate: () => fetchRoles(churchId, setErrors).then(setRoles),
+        mutate: () =>
+          fetchChurchAndRoles(churchname, setErrors).then((data) => {
+            setChurchId(data.ChurchID);
+            setRoles(data.roles);
+          }),
       });
       setOpen(false);
     } catch (err) {
@@ -230,13 +217,17 @@ const RolePermissionPage = () => {
 
   if (!hasAccess) {
     return (
-      <div className="lg:ml-75 lg:py-12 mx-3 py-20">
-        <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-          <div className="p-6">
-            <h2 className="text-xl font-semibold text-red-600">Unauthorized</h2>
-            <p className="mt-2 text-gray-600">
-              You do not have permission to access the Role page.
-            </p>
+      <div className="lg:ml-72 mx-3">
+        <div className="max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+          <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-red-600">
+                Unauthorized
+              </h2>
+              <p className="mt-2 text-gray-600">
+                You do not have permission to access the Role page.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -244,93 +235,97 @@ const RolePermissionPage = () => {
   }
 
   return (
-    <div className="lg:ml-75 lg:py-12 mx-3 py-20">
-      <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-              <List className="mr-2 h-6 w-6 text-gray-600" /> Church Roles
-            </h1>
-            <button
-              onClick={handleOpen}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="mr-2 h-5 w-5" /> Create Role
-            </button>
-          </div>
-
-          {errors.length > 0 && (
-            <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-md flex justify-between items-center">
-              <div>
-                {errors.map((error, index) => (
-                  <p key={index} className="text-sm">
-                    {error}
-                  </p>
-                ))}
-              </div>
-              <button
-                onClick={() => setErrors([])}
-                className="text-red-700 hover:text-red-900"
-              >
-                <X className="h-5 w-5" />
-              </button>
+    <div className="lg:ml-72 mx-3">
+      <div className="max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
+        <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+          <div className="p-6 bg-white border-b border-gray-200">
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                <List className="mr-2 h-6 w-6 text-gray-600" /> Church Roles
+              </h1>
+              <Button className="flex" onClick={handleOpen}>
+                <Plus className="mr-2 h-5 w-5" /> Create Role
+              </Button>
             </div>
-          )}
 
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-50 text-gray-700 text-left">
-                  <th className="p-3 text-sm font-semibold">Role Name</th>
-                  <th className="p-3 text-sm font-semibold">Permissions</th>
-                  <th className="p-3 text-sm font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody aria-live="polite">
-                {isInitialLoading ? (
+            {errors.length > 0 && (
+              <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-md flex justify-between items-center">
+                <div>
+                  {errors.map((error, index) => (
+                    <p key={index} className="text-sm">
+                      {error}
+                    </p>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setErrors([])}
+                  className="text-red-700 hover:text-red-900"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
                   <tr>
-                    <td colSpan={3} className="p-3 text-center">
-                      <DataLoading message="Loading roles..." />
-                    </td>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Role Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Permissions
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
-                ) : roles.length ? (
-                  roles.map((role, index) => (
-                    <tr
-                      key={role.RoleID}
-                      className={`border-t border-gray-200 hover:bg-gray-50 transition-opacity duration-300 ${
-                        index % 2 === 0 ? "bg-white" : "bg-gray-50/50"
-                      }`}
-                    >
-                      <td className="p-3 text-sm text-gray-900">
-                        {role.RoleName}
-                      </td>
-                      <td className="p-3 text-sm text-gray-600">
-                        {role.permissions
-                          .map((p) => p.PermissionName)
-                          .join(", ") || "None"}
-                      </td>
-                      <td className="p-3">
-                        <button
-                          onClick={() => handleEdit(role.RoleID)}
-                          className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
-                        >
-                          <Pencil className="mr-1 h-4 w-4" /> Edit
-                        </button>
+                </thead>
+                <tbody
+                  className="bg-white divide-y divide-gray-200"
+                  aria-live="polite"
+                >
+                  {isInitialLoading ? (
+                    <tr>
+                      <td colSpan={3} className="px-6 py-4">
+                        <DataLoading message="Loading roles..." />
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr className="transition-opacity duration-300">
-                    <td
-                      colSpan={3}
-                      className="p-3 text-center text-sm text-gray-600"
-                    >
-                      No roles found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  ) : roles.length ? (
+                    roles.map((role) => (
+                      <tr key={role.RoleID}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                          {role.RoleName}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-700">
+                          {role.permissions
+                            .map((p) => p.PermissionName)
+                            .join(", ") || "None"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => handleEdit(role.RoleID)}
+                            className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
+                            aria-label={`Edit role ${role.RoleName}`}
+                          >
+                            <Pencil className="mr-1 h-4 w-4" /> Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={3}
+                        className="px-6 py-4 text-center text-sm text-gray-700"
+                      >
+                        No roles found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -338,7 +333,7 @@ const RolePermissionPage = () => {
       {open && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
           <div
-            className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6 relative max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto"
             role="dialog"
             aria-labelledby="modal-title"
           >
@@ -351,7 +346,7 @@ const RolePermissionPage = () => {
             </button>
             <h2
               id="modal-title"
-              className="text-xl font-bold text-gray-900 mb-4"
+              className="text-2xl font-bold text-gray-900 mb-4"
             >
               {editRoleId ? "Edit Role" : "Create Role"}
             </h2>
@@ -410,21 +405,20 @@ const RolePermissionPage = () => {
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Cancel
                 </button>
-                <button
+                <Button
                   type="submit"
                   disabled={isSubmitting || !form.RoleName.trim()}
-                  className="px-4 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
                 >
                   {isSubmitting
                     ? "Saving..."
                     : editRoleId
                     ? "Update"
                     : "Create"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

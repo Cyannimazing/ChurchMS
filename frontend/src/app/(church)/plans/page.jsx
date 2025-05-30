@@ -1,13 +1,12 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import axios from "@/lib/axios";
 import Button from "@/components/Button.jsx";
 import InputError from "@/components/InputError.jsx";
 import Label from "@/components/Label.jsx";
 import Link from "next/link";
-import { useState, useEffect } from "react";
 import DataLoading from "@/components/DataLoading";
-import PlanCard from "@/components/PlanCard";
 
 const SubscriptionPlans = () => {
   const [plans, setPlans] = useState([]);
@@ -90,6 +89,7 @@ const SubscriptionPlans = () => {
 
   const closePaymentModal = () => {
     setSelectedPlan(null);
+    setForm({ transaction_type: "Renewal", payment_method: "" });
     setErrors({});
   };
 
@@ -139,15 +139,77 @@ const SubscriptionPlans = () => {
               {plans.map((plan) => (
                 <div
                   key={plan.PlanID}
-                  className="flex justify-center items-center min-h-[300px]"
+                  className="w-full p-4 sm:p-5 md:p-6 bg-gradient-to-br from-white to-gray-50 border border-black rounded-2xl shadow-md hover:shadow-lg transition-all duration-300"
                 >
-                  <div className="w-full max-w-sm">
-                    <PlanCard
-                      plan={plan}
-                      isSelected={selectedPlan?.PlanID === plan.PlanID}
-                      onSelect={() => setSelectedPlan(plan)}
-                    />
+                  <div className="flex items-baseline justify-center text-gray-900 mb-3 sm:mb-4">
+                    <span className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight">
+                      ${plan.Price}
+                    </span>
+                    <span className="ml-1 text-sm sm:text-base md:text-lg font-normal text-gray-600">
+                      /{plan.DurationInMonths} month
+                      {plan.DurationInMonths !== 1 ? "s" : ""}
+                    </span>
                   </div>
+                  <h5 className="mb-2 text-base sm:text-lg md:text-xl font-bold text-gray-900 text-center">
+                    {plan.PlanName}
+                  </h5>
+                  <p className="mb-4 sm:mb-5 text-sm sm:text-base text-gray-600 text-center">
+                    {plan.Description || "Test plan for church owners"}
+                  </p>
+                  <ul
+                    role="list"
+                    className="space-y-3 sm:space-y-4 my-5 sm:my-6"
+                  >
+                    <li className="flex items-center">
+                      <svg
+                        className="shrink-0 w-4 h-4 sm:w-5 sm:h-5 text-green-500"
+                        aria-hidden="true"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z" />
+                      </svg>
+                      <span className="text-sm sm:text-base font-normal leading-tight text-gray-900 ml-2 sm:ml-3">
+                        All components included
+                      </span>
+                    </li>
+                    <li className="flex items-center">
+                      <svg
+                        className="shrink-0 w-4 h-4 sm:w-5 sm:h-5 text-green-500"
+                        aria-hidden="true"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z" />
+                      </svg>
+                      <span className="text-sm sm:text-base font-normal leading-tight text-gray-900 ml-2 sm:ml-3">
+                        Advanced dashboard
+                      </span>
+                    </li>
+                    <li className="flex items-center">
+                      <svg
+                        className="shrink-0 w-4 h-4 sm:w-5 sm:h-5 text-green-500"
+                        aria-hidden="true"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z" />
+                      </svg>
+                      <span className="text-sm sm:text-base font-normal leading-tight text-gray-900 ml-2 sm:ml-3">
+                        Max Churches Supported: {plan.MaxChurchesAllowed}
+                      </span>
+                    </li>
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPlan(plan)}
+                    className="text-white font-medium rounded-lg text-sm sm:text-base px-4 sm:px-5 py-2 sm:py-2.5 w-full text-center bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black hover:scale-105 active:scale-95 transition-all duration-300 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  >
+                    Select
+                  </button>
                 </div>
               ))}
             </div>

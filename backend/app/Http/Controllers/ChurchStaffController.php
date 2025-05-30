@@ -12,14 +12,29 @@ use Illuminate\Support\Facades\Hash;
 
 class ChurchStaffController extends Controller
 {
-    public function index(Request $request)
+    public function getChurchAndStaff(Request $request, $churchName)
     {
-        $churchId = $request->query('church_id');
-        $userChurchRoles = UserChurchRole::where('ChurchID', $churchId)
+        // Convert URL-friendly church name to proper case (e.g., "st-johns" to "St Johns")
+        $name = str_replace('-', ' ', ucwords($churchName, '-'));
+
+        // Find the church by name (case-insensitive)
+        $church = Church::whereRaw('LOWER(ChurchName) = ?', [strtolower($name)])->first();
+
+        if (!$church) {
+            return response()->json(['error' => 'Church not found'], 404);
+        }
+
+        // Fetch staff for the church
+        $staff = UserChurchRole::where('ChurchID', $church->ChurchID)
             ->with(['user.profile', 'role'])
             ->get();
-        
-        return response()->json($userChurchRoles);
+
+        // Return combined response
+        return response()->json([
+            'ChurchID' => $church->ChurchID,
+            'ChurchName' => $church->ChurchName,
+            'staff' => $staff
+        ]);
     }
 
     public function store(Request $request)

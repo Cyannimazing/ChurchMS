@@ -15,10 +15,10 @@ const Dashboard = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [reviewedChurches, setReviewedChurches] = useState(new Set());
 
+  // Fetch the list of churches on component mount
   useEffect(() => {
     const fetchChurches = async () => {
       try {
-        await axios.get("/sanctum/csrf-cookie");
         const response = await axios.get("/api/churches");
         setChurches(response.data.churches);
       } catch (error) {
@@ -37,13 +37,18 @@ const Dashboard = () => {
     fetchChurches();
   }, []);
 
+  // Fetch documents for a specific church when the eye icon is clicked
   const fetchDocuments = async (churchId) => {
     try {
-      await axios.get("/sanctum/csrf-cookie");
       const response = await axios.get(`/api/churches/${churchId}/documents`);
       setSelectedChurch(response.data.church);
       setDocuments(response.data.documents);
-      setReviewedChurches(new Set(reviewedChurches).add(churchId));
+      // Add the churchId to reviewedChurches set and log for debugging
+      setReviewedChurches((prev) => {
+        const updated = new Set(prev).add(churchId);
+        console.log("Reviewed Churches:", Array.from(updated));
+        return updated;
+      });
       setIsModalOpen(true);
     } catch (error) {
       const errorData = error.response?.data || {};
@@ -59,10 +64,11 @@ const Dashboard = () => {
     }
   };
 
+  // Update the status of a church (Accept or Reject)
   const updateStatus = async (churchId, status) => {
     setIsUpdating(true);
+    console.log("isUpdating set to true");
     try {
-      await axios.get("/sanctum/csrf-cookie");
       const response = await axios.put(`/api/churches/${churchId}/status`, {
         ChurchStatus: status,
       });
@@ -77,6 +83,7 @@ const Dashboard = () => {
       if (selectedChurch?.ChurchID === churchId) {
         setSelectedChurch({ ...selectedChurch, ChurchStatus: status });
       }
+      setIsModalOpen(false);
     } catch (error) {
       const errorMessage =
         error.response?.data?.error || "Failed to update status";
@@ -89,12 +96,13 @@ const Dashboard = () => {
       });
     } finally {
       setIsUpdating(false);
+      console.log("isUpdating set to false");
     }
   };
 
+  // Preview a document in a new tab
   const previewDocument = async (documentId) => {
     try {
-      await axios.get("/sanctum/csrf-cookie");
       const response = await axios.get(`/api/documents/${documentId}`, {
         responseType: "blob",
       });
@@ -123,9 +131,9 @@ const Dashboard = () => {
     }
   };
 
+  // Download a document
   const downloadDocument = async (documentId, documentType) => {
     try {
-      await axios.get("/sanctum/csrf-cookie");
       const response = await axios.get(`/api/documents/${documentId}`, {
         responseType: "blob",
       });
@@ -164,7 +172,9 @@ const Dashboard = () => {
       <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
           <div className="p-6 bg-white border-b border-gray-200">
-            APPLICATION DASHBOARD
+            <h1 className="text-2xl font-bold mb-6 text-gray-900">
+              Application Dashboard
+            </h1>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -211,10 +221,10 @@ const Dashboard = () => {
                   ) : (
                     churches.map((church) => (
                       <tr key={church.ChurchID}>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                           {church.ChurchID}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                           {church.ChurchName}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -230,21 +240,23 @@ const Dashboard = () => {
                             {church.ChurchStatus}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                           {church.Owner}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-4 text-sm text-gray-700">
                           {church.Description || "N/A"}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                           {church.DocumentCount}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <button
                             onClick={() => fetchDocuments(church.ChurchID)}
-                            className="text-indigo-600 hover:text-indigo-900"
+                            className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
+                            aria-label={`Review application for ${church.ChurchName}`}
                           >
-                            <Eye className="h-5 w-5" />
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
                           </button>
                         </td>
                       </tr>
@@ -258,97 +270,127 @@ const Dashboard = () => {
       </div>
 
       {isModalOpen && selectedChurch && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-            <h2 className="text-xl font-bold mb-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg">
+            {/* Modal Header */}
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
               {selectedChurch.ChurchName}
             </h2>
-            <div className="space-y-4">
-              <p>
-                <strong>Status:</strong> {selectedChurch.ChurchStatus}
+
+            {/* Current Status Section */}
+            <div className="mb-6">
+              <p className="text-sm font-medium text-gray-700 mb-1">
+                Current Status
               </p>
-              <div>
-                <strong>Update Status:</strong>
-                <select
-                  className="ml-2 p-1 border rounded"
-                  value={selectedChurch.ChurchStatus}
-                  onChange={(e) =>
-                    updateStatus(selectedChurch.ChurchID, e.target.value)
+              <span
+                className={`inline-block px-3 py-1 text-sm font-medium rounded-full ${
+                  selectedChurch.ChurchStatus === "Active"
+                    ? "bg-green-100 text-green-800"
+                    : selectedChurch.ChurchStatus === "Rejected"
+                    ? "bg-red-100 text-red-800"
+                    : "bg-yellow-100 text-yellow-800"
+                }`}
+              >
+                {selectedChurch.ChurchStatus}
+              </span>
+            </div>
+
+            {/* Documents Section */}
+            <div className="mb-6">
+              <p className="text-sm font-medium text-gray-700 mb-2">
+                Documents
+              </p>
+              {documents.length === 0 ? (
+                <p className="text-gray-500 text-sm">No documents available</p>
+              ) : (
+                <ul className="space-y-3 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                  {documents.map((doc) => (
+                    <li
+                      key={doc.DocumentID}
+                      className="flex items-center justify-between p-2 bg-gray-50 rounded-md"
+                    >
+                      <div>
+                        <p className="text-gray-800 text-sm">
+                          {doc.DocumentType}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(doc.SubmissionDate).toLocaleDateString()}
+                        </p>
+                        {doc.FileExists === false && (
+                          <p className="text-xs text-red-500">File not found</p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => previewDocument(doc.DocumentID)}
+                          className="text-blue-600 hover:text-blue-800 disabled:text-gray-400"
+                          disabled={doc.FileExists === false}
+                          aria-label={`Preview ${doc.DocumentType}`}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() =>
+                            downloadDocument(doc.DocumentID, doc.DocumentType)
+                          }
+                          className="text-blue-600 hover:text-blue-800 disabled:text-gray-400"
+                          disabled={doc.FileExists === false}
+                          aria-label={`Download ${doc.DocumentType}`}
+                        >
+                          <Download className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* Update Status Section */}
+            <div className="mb-6">
+              <p className="text-sm font-medium text-gray-700 mb-3">
+                Update Application Status
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() =>
+                    updateStatus(selectedChurch.ChurchID, "Active")
                   }
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium"
                   disabled={
                     !reviewedChurches.has(selectedChurch.ChurchID) || isUpdating
                   }
                 >
-                  {reviewedChurches.has(selectedChurch.ChurchID) ? (
-                    <>
-                      <option value="Pending">Pending</option>
-                      <option value="Active">Active</option>
-                      <option value="Rejected">Rejected</option>
-                    </>
-                  ) : (
-                    <option value={selectedChurch.ChurchStatus}>
-                      {selectedChurch.ChurchStatus}
-                    </option>
-                  )}
-                </select>
-                {isUpdating && (
-                  <Loader2 className="inline ml-2 h-4 w-4 animate-spin" />
-                )}
-                {!reviewedChurches.has(selectedChurch.ChurchID) && (
-                  <p className="text-sm text-red-500 mt-1">
-                    Review documents to enable status update
-                  </p>
-                )}
+                  Accept Application
+                </button>
+                <button
+                  onClick={() =>
+                    updateStatus(selectedChurch.ChurchID, "Rejected")
+                  }
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                  disabled={
+                    !reviewedChurches.has(selectedChurch.ChurchID) || isUpdating
+                  }
+                >
+                  Reject Application
+                </button>
               </div>
-              <div>
-                <h3 className="text-lg font-semibold">Documents</h3>
-                {documents.length === 0 ? (
-                  <p>No documents available</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {documents.map((doc) => (
-                      <li
-                        key={doc.DocumentID}
-                        className="flex items-center justify-between"
-                      >
-                        <div>
-                          <p>{doc.DocumentType}</p>
-                          <p className="text-sm text-gray-500">
-                            {new Date(doc.SubmissionDate).toLocaleDateString()}
-                          </p>
-                          {doc.FileExists === false && (
-                            <p className="text-sm text-red-500">
-                              File not found
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => previewDocument(doc.DocumentID)}
-                            className="text-indigo-600 hover:text-indigo-900"
-                            disabled={doc.FileExists === false}
-                          >
-                            <Eye className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() =>
-                              downloadDocument(doc.DocumentID, doc.DocumentType)
-                            }
-                            className="text-indigo-600 hover:text-indigo-900"
-                            disabled={doc.FileExists === false}
-                          >
-                            <Download className="h-5 w-5" />
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+              {isUpdating && (
+                <div className="flex justify-center mt-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
+                </div>
+              )}
+              {!reviewedChurches.has(selectedChurch.ChurchID) && (
+                <p className="text-xs text-red-500 mt-2 text-center">
+                  Please review documents before updating status
+                </p>
+              )}
             </div>
+
+            {/* Close Button */}
             <button
               onClick={() => setIsModalOpen(false)}
-              className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+              className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium"
             >
               Close
             </button>

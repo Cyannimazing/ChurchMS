@@ -15,13 +15,7 @@ const UserDetail = () => {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        console.log("Fetching CSRF token...");
-        await axios.get("/sanctum/csrf-cookie");
-        console.log("CSRF token fetched, fetching user...");
-        const response = await axios.get(`/api/users/${id}`, {
-          headers: { Accept: "application/json" },
-        });
-        console.log("Fetched user data for id", id, ":", response.data);
+        const response = await axios.get(`/api/users/${id}`);
         setUser(response.data);
       } catch (error) {
         toast.error(error.response?.data?.error || "Failed to fetch user");
