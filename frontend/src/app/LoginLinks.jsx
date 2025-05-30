@@ -8,7 +8,7 @@ const LoginLinks = () => {
 
   console.log("user", user);
   return (
-    <div className="hidden fixed top-0 right-0 px-6 py-4 sm:block">
+    <div className="hidden absolute top-0 right-0 px-6 py-4 sm:block z-50">
       {user && user.profile.system_role.role_name && (
         <>
           {user.profile.system_role.role_name === "Admin" && (
@@ -30,17 +30,6 @@ const LoginLinks = () => {
           {user.profile.system_role.role_name === "Regular" && (
             <Link
               href="/dashboard"
-              className="ml-4 text-sm text-gray-700 underline"
-            >
-              Dashboard
-            </Link>
-          )}
-          {user.profile.system_role.role_name === "ChurchStaff" && (
-            <Link
-              href={`/${user.church.ChurchName.replace(
-                /\s+/g,
-                "-"
-              ).toLowerCase()}/dashboard`}
               className="ml-4 text-sm text-gray-700 underline"
             >
               Dashboard

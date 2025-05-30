@@ -14,7 +14,6 @@ const AppLayout = ({ children }) => {
 
   useEffect(() => {
     if (user) {
-      
       const role = user.profile.system_role.role_name;
 
       if (role === "Regular") {

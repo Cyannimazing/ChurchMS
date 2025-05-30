@@ -1,21 +1,19 @@
-import { Nunito } from "next/font/google";
 import "./globals.css";
 
-const nunitoFont = Nunito({
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const RootLayout = ({ children }) => {
-  return (
-    <html lang="en" className={nunitoFont.className}>
-      <body className="antialiased">{children}</body>
-    </html>
-  );
-};
 
 export const metadata = {
-  title: "Laravel",
+  title: "FaithSeeker",
+  description: "A platform for faith seekers and churches",
 };
 
-export default RootLayout;
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      
+      <body className="antialiased font-roboto">
+        
+        {children}
+      </body>
+    </html>
+  );
+}
