@@ -58,7 +58,37 @@ const Navigation = ({ user }) => {
       href: "/appointment",
       icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
       badge: null,
+      // submenu: [
+      //   {
+      //     name: "Calendar View",
+      //     href: "/appointments/calendar",
+      //     icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+      //   },
+      //   {
+      //     name: "Schedule New",
+      //     href: "/appointments/schedule",
+      //     icon: "M12 6v6m0 0v6m0-6h6m-6 0H6",
+      //   },
+      //   {
+      //     name: "Patient History",
+      //     href: "/appointments/history",
+      //     icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+      //   },
+      // ],
     },
+    // Uncommented items remain commented out as in the original code
+    // {
+    //   name: "Patients",
+    //   href: "/dashboard",
+    //   icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
+    //   badge: "12+",
+    // },
+    // {
+    //   name: "Telehealth",
+    //   href: "/appointment",
+    //   icon: "M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z",
+    //   badge: "New",
+    // },
   ];
 
   return (
@@ -193,6 +223,22 @@ const Navigation = ({ user }) => {
         } ${isMobile ? "mt-16" : "mt-0"}`} // Adjust for top bar height in mobile
       >
         <div className="flex flex-col h-full">
+          {/* Header - Only on mobile */}
+          {isMobile && (
+            <div className="flex items-center justify-between h-16 px-4 border-b border-gray-100">
+              <div className="flex items-center">
+                <ApplicationLogo className="h-8 w-auto" />
+              </div>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="p-1 rounded-md hover:bg-gray-100 transition-colors"
+                aria-label="Close menu"
+              >
+                <X size={24} className="text-gray-800" />
+              </button>
+            </div>
+          )}
+
           {/* Navigation */}
           <nav className="flex-1 px-2 py-4 overflow-y-auto">
             <ul className="space-y-1">
@@ -454,7 +500,7 @@ const Navigation = ({ user }) => {
       {/* Overlay - Only on mobile when sidebar is open */}
       {isMobile && isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30"
+          className="fixed inset-0 bg-black bg-opacity-50 z-30"
           onClick={() => setIsOpen(false)}
         />
       )}

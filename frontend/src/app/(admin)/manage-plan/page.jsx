@@ -6,9 +6,7 @@ import Button from "@/components/Button.jsx";
 import Input from "@/components/Input.jsx";
 import InputError from "@/components/InputError.jsx";
 import Label from "@/components/Label.jsx";
-import DataLoading from "@/components/DataLoading";
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
 
 const SubscriptionPlans = () => {
   const { user } = useAuth({ middleware: "auth" });
@@ -19,8 +17,6 @@ const SubscriptionPlans = () => {
   }
 
   const [plans, setPlans] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState({
     PlanName: "",
     Price: "",
@@ -33,17 +29,10 @@ const SubscriptionPlans = () => {
 
   // Fetch plans
   useEffect(() => {
-    setLoading(true);
     axios
       .get("/api/subscription-plans")
-      .then((response) => {
-        setPlans(response.data);
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error fetching plans:", error);
-        setLoading(false);
-      });
+      .then((response) => setPlans(response.data))
+      .catch((error) => console.error("Error fetching plans:", error));
   }, []);
 
   const handleSubmit = (e) => {
@@ -73,7 +62,6 @@ const SubscriptionPlans = () => {
           Description: "",
         });
         setEditingPlanId(null);
-        setIsModalOpen(false);
       })
       .catch((error) => {
         if (error.response?.status === 422) {
@@ -93,8 +81,6 @@ const SubscriptionPlans = () => {
       Description: plan.Description,
     });
     setEditingPlanId(plan.PlanID);
-    setErrors({});
-    setIsModalOpen(true);
   };
 
   const handleDelete = (planId) => {
@@ -109,154 +95,15 @@ const SubscriptionPlans = () => {
       });
   };
 
-  const handleOpenModal = () => {
-    setForm({
-      PlanName: "",
-      Price: "",
-      DurationInMonths: "",
-      MaxChurchesAllowed: "",
-      Description: "",
-    });
-    setEditingPlanId(null);
-    setErrors({});
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setForm({
-      PlanName: "",
-      Price: "",
-      DurationInMonths: "",
-      MaxChurchesAllowed: "",
-      Description: "",
-    });
-    setEditingPlanId(null);
-    setErrors({});
-  };
-
   return (
-    <div className="lg:ml-72 lg:py-12 mx-3 py-20">
+    <div className="lg:ml-75 lg:py-12 mx-3 py-20">
       <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
           <div className="p-6 bg-white border-b border-gray-200">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-semibold">
-                Manage Subscription Plans
-              </h2>
-              <button
-                onClick={handleOpenModal}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Create Plan
-              </button>
-            </div>
+            <h2 className="text-lg font-semibold">Manage Subscription Plans</h2>
 
-            {/* Plan List */}
-            <div className="mt-6">
-              <h3 className="text-md font-medium">Existing Plans</h3>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Price
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Duration
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Max Churches
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody
-                    className="bg-white divide-y divide-gray-200"
-                    aria-live="polite"
-                  >
-                    {loading ? (
-                      <tr>
-                        <td colSpan={5} className="px-6 py-4">
-                          <DataLoading message="Loading plans..." />
-                        </td>
-                      </tr>
-                    ) : plans.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={5}
-                          className="px-6 py-4 text-center text-gray-500"
-                        >
-                          No plans available.
-                        </td>
-                      </tr>
-                    ) : (
-                      plans.map((plan) => (
-                        <tr key={plan.PlanID}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {plan.PlanName}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            ${plan.Price}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {plan.DurationInMonths} months
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {plan.MaxChurchesAllowed}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <button
-                              onClick={() => handleEdit(plan)}
-                              className="text-indigo-600 hover:text-indigo-900 mr-4"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(plan.PlanID)}
-                              className="text-indigo-600 hover:text-indigo-900"
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div
-            className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6 relative max-h-[90vh] overflow-y-auto"
-            role="dialog"
-            aria-labelledby="modal-title"
-          >
-            <button
-              onClick={handleCloseModal}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-              aria-label="Close modal"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <h2
-              id="modal-title"
-              className="text-xl font-bold text-gray-900 mb-4"
-            >
-              {editingPlanId ? "Edit Plan" : "Create Plan"}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-4 mt-4 max-w-md">
               <div>
                 <Label htmlFor="PlanName">Plan Name</Label>
                 <Input
@@ -330,22 +177,61 @@ const SubscriptionPlans = () => {
                 />
                 <InputError messages={errors.Description} className="mt-2" />
               </div>
-              <div className="flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
-                <Button type="submit">
-                  {editingPlanId ? "Update Plan" : "Create Plan"}
-                </Button>
-              </div>
+              <Button type="submit">
+                {editingPlanId ? "Update Plan" : "Create Plan"}
+              </Button>
             </form>
+
+            {/* Plan List */}
+            <div className="mt-6">
+              <h3 className="text-md font-medium">Existing Plans</h3>
+              {plans.length === 0 ? (
+                <p className="mt-2">No plans available.</p>
+              ) : (
+                <table className="min-w-full mt-2 border">
+                  <thead>
+                    <tr>
+                      <th className="border px-4 py-2">Name</th>
+                      <th className="border px-4 py-2">Price</th>
+                      <th className="border px-4 py-2">Duration</th>
+                      <th className="border px-4 py-2">Max Churches</th>
+                      <th className="border px-4 py-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {plans.map((plan) => (
+                      <tr key={plan.PlanID}>
+                        <td className="border px-4 py-2">{plan.PlanName}</td>
+                        <td className="border px-4 py-2">${plan.Price}</td>
+                        <td className="border px-4 py-2">
+                          {plan.DurationInMonths} months
+                        </td>
+                        <td className="border px-4 py-2">
+                          {plan.MaxChurchesAllowed}
+                        </td>
+                        <td className="border px-4 py-2">
+                          <button
+                            onClick={() => handleEdit(plan)}
+                            className="text-blue-600 hover:underline mr-2"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(plan.PlanID)}
+                            className="text-red-600 hover:underline"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
