@@ -253,8 +253,8 @@ const ChurchRegistrationPage = () => {
       // Handle success
       setSubmitSuccess(true);
       setTimeout(() => {
-        router.push("/dashboard");
-      }, 3000);
+        router.push("/church");
+      }, 2000);
     } catch (error) {
       console.error("Church registration error:", error);
 
@@ -457,12 +457,6 @@ const ChurchRegistrationPage = () => {
                   Your church has been registered and is awaiting admin
                   approval. You will be redirected to your dashboard shortly.
                 </p>
-                <Button
-                  onClick={() => router.push("/dashboard")}
-                  variant="primary"
-                >
-                  Go to Dashboard
-                </Button>
               </div>
             </div>
           </div>
@@ -475,385 +469,390 @@ const ChurchRegistrationPage = () => {
     <div className="min-h-screen px-4 sm:px-6 lg:ml-75 lg:py-12 mx-3 py-20">
       <div className="max-w-7xl mx-auto">
         <div className="bg-white shadow-sm rounded-xl p-6 sm:p-8">
-          <div className="flex flex-col sm:flex-row justify-between items-center mb-8">
-            <div className="text-center mb-12 w-full">
-              <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
-                Register Your Church
-              </h1>
-              <p className="mt-3 text-lg text-gray-500">
-                Complete the form below to register your church in our system.
-              </p>
-            </div>
-          </div>
-
-          {/* Progress Indicator */}
-          <div className="mb-8 relative">
-            <div className="flex items-center justify-between w-full">
-              {/* Connector line container */}
-              <div className="absolute top-5 left-0 w-full h-0.5 bg-gray-200 z-0">
-                {steps.map(
-                  (s, i) =>
-                    i < steps.length - 1 && (
-                      <div
-                        key={`line-${s.id}`}
-                        className={`absolute top-0 h-0.5 ${
-                          step >= s.id + 1 ? "bg-indigo-600" : "bg-gray-200"
-                        }`}
-                        style={{
-                          left: `${(i / (steps.length - 1)) * 100}%`,
-                          width: `${100 / (steps.length - 1)}%`,
-                        }}
-                      />
-                    )
-                )}
+          <div className="mx-20">
+            <div className="flex flex-col sm:flex-row justify-between items-center mb-8">
+              <div className="text-center mb-12 w-full">
+                <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
+                  Register Your Church
+                </h1>
+                <p className="mt-3 text-lg text-gray-500">
+                  Complete the form below to register your church in our system.
+                </p>
               </div>
+            </div>
 
-              {/* Step circles */}
-              {steps.map((s, i) => (
-                <div key={s.id} className="flex-1 relative z-10">
-                  <div
-                    className={`
+            {/* Progress Indicator */}
+            <div className="mb-8 relative">
+              <div className="flex items-center justify-between">
+                {/* Connector line container */}
+                <div className="absolute top-5 left-0 w-full h-0.5 bg-gray-200 z-0">
+                  {steps.map(
+                    (s, i) =>
+                      i < steps.length - 1 && (
+                        <div
+                          key={`line-${s.id}`}
+                          className={`absolute top-0 h-0.5 ${
+                            step >= s.id + 1 ? "bg-indigo-600" : "bg-gray-200"
+                          }`}
+                          style={{
+                            left: `${(i / (steps.length - 1)) * 100}%`,
+                            width: `${100 / (steps.length - 1)}%`,
+                          }}
+                        />
+                      )
+                  )}
+                </div>
+
+                {/* Step circles */}
+                {steps.map((s, i) => (
+                  <div key={s.id} className="flex-1 relative z-10">
+                    <div
+                      className={`
                       w-10 h-10 mx-auto rounded-full flex items-center justify-center
                       ${step >= s.id ? "bg-indigo-600" : "bg-gray-200"}
                     `}
-                  >
-                    <span
-                      className={`text-sm font-medium ${
-                        step >= s.id ? "text-white" : "text-gray-500"
-                      }`}
                     >
-                      {i + 1}
-                    </span>
+                      <span
+                        className={`text-sm font-medium ${
+                          step >= s.id ? "text-white" : "text-gray-500"
+                        }`}
+                      >
+                        {i + 1}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs text-center font-medium text-gray-500">
+                      {s.name}
+                    </p>
                   </div>
-                  <p className="mt-2 text-xs text-center font-medium text-gray-500">
-                    {s.name}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* General Error Message */}
-          {errors.general && (
-            <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded">
-              <div className="flex items-start">
-                <AlertCircle className="h-5 w-5 text-red-500 mr-2 mt-0.5" />
-                <p className="text-sm text-red-700">{errors.general[0]}</p>
+                ))}
               </div>
             </div>
-          )}
 
-          {/* Form */}
-          <div>
-            <form onSubmit={handleSubmit}>
-              {/* Step 1: Basic Information */}
-              {step === 1 && (
-                <div className="animate-fade-in">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                    Basic Information
-                  </h2>
-
-                  <div className="space-y-6">
-                    <div>
-                      <Label htmlFor="ChurchName">
-                        Church Name <span className="text-red-500">*</span>
-                      </Label>
-                      <div className="mt-1 relative rounded-md shadow-sm">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Church className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <input
-                          type="text"
-                          id="ChurchName"
-                          name="ChurchName"
-                          value={formData.ChurchName}
-                          onChange={handleChange}
-                          className="block w-full pl-10 pr-3 py-2 sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                          placeholder="St. Mary's Catholic Church"
-                        />
-                      </div>
-                      <InputError
-                        messages={errors.ChurchName}
-                        className="mt-2"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="Description">
-                        Description <span className="text-red-500">*</span>
-                      </Label>
-                      <div className="mt-1">
-                        <textarea
-                          id="Description"
-                          name="Description"
-                          rows={4}
-                          value={formData.Description}
-                          onChange={handleChange}
-                          className="block w-full sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                          placeholder="Provide a description of your church, including its mission, history, and community..."
-                        />
-                      </div>
-                      <InputError
-                        messages={errors.Description}
-                        className="mt-2"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="ParishDetails">
-                        Parish Details <span className="text-red-500">*</span>
-                      </Label>
-                      <div className="mt-1">
-                        <textarea
-                          id="ParishDetails"
-                          name="ParishDetails"
-                          rows={4}
-                          value={formData.ParishDetails}
-                          onChange={handleChange}
-                          className="block w-full sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                          placeholder="Provide details about the parish, service schedules, priests, and other relevant information..."
-                        />
-                      </div>
-                      <InputError
-                        messages={errors.ParishDetails}
-                        className="mt-2"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-8 flex justify-end">
-                    <Button
-                      onClick={nextStep}
-                      variant="primary"
-                      type="button"
-                      className="flex items-center"
-                    >
-                      Next Step
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </div>
+            {/* General Error Message */}
+            {errors.general && (
+              <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                <div className="flex items-start">
+                  <AlertCircle className="h-5 w-5 text-red-500 mr-2 mt-0.5" />
+                  <p className="text-sm text-red-700">{errors.general[0]}</p>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Step 2: Location */}
-              {step === 2 && (
-                <div className="animate-fade-in">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                    Church Location
-                  </h2>
+            {/* Form */}
+            <div>
+              <form onSubmit={handleSubmit}>
+                {/* Step 1: Basic Information */}
+                {step === 1 && (
+                  <div className="animate-fade-in">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-6">
+                      Basic Information
+                    </h2>
 
-                  <div className="space-y-6">
-                    <div>
-                      <Label>
-                        Select Location on Map{" "}
-                        <span className="text-red-500">*</span>
-                      </Label>
-                      <p className="text-sm text-gray-500 mb-4">
-                        Click on the map to set your church's location or use
-                        the "Use My Current Location" button.
-                      </p>
-
-                      {isLeafletLoaded ? (
-                        <LocationPicker
-                          onLocationSelect={handleLocationSelect}
-                          initialPosition={
-                            formData.Latitude && formData.Longitude
-                              ? [
-                                  parseFloat(formData.Latitude),
-                                  parseFloat(formData.Longitude),
-                                ]
-                              : null
-                          }
-                        />
-                      ) : (
-                        <div className="h-[400px] w-full flex items-center justify-center bg-gray-100 rounded-lg">
-                          <p>Loading map...</p>
-                        </div>
-                      )}
-                      <InputError messages={errors.location} className="mt-2" />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-6">
                       <div>
-                        <Label htmlFor="Latitude">Latitude</Label>
-                        <input
-                          type="text"
-                          id="Latitude"
-                          name="Latitude"
-                          value={formData.Latitude}
-                          readOnly
-                          className="mt-1 block w-full sm:text-sm border-gray-300 bg-gray-50 rounded-md"
+                        <Label htmlFor="ChurchName">
+                          Church Name <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="mt-1 relative rounded-md shadow-sm">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Church className="h-5 w-5 text-gray-400" />
+                          </div>
+                          <input
+                            type="text"
+                            id="ChurchName"
+                            name="ChurchName"
+                            value={formData.ChurchName}
+                            onChange={handleChange}
+                            className="block w-full pl-10 pr-3 py-2 sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="St. Mary's Catholic Church"
+                          />
+                        </div>
+                        <InputError
+                          messages={errors.ChurchName}
+                          className="mt-2"
                         />
                       </div>
+
                       <div>
-                        <Label htmlFor="Longitude">Longitude</Label>
-                        <input
-                          type="text"
-                          id="Longitude"
-                          name="Longitude"
-                          value={formData.Longitude}
-                          readOnly
-                          className="mt-1 block w-full sm:text-sm border-gray-300 bg-gray-50 rounded-md"
+                        <Label htmlFor="Description">
+                          Description <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="mt-1">
+                          <textarea
+                            id="Description"
+                            name="Description"
+                            rows={4}
+                            value={formData.Description}
+                            onChange={handleChange}
+                            className="block w-full sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="Provide a description of your church, including its mission, history, and community..."
+                          />
+                        </div>
+                        <InputError
+                          messages={errors.Description}
+                          className="mt-2"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="ParishDetails">
+                          Parish Details <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="mt-1">
+                          <textarea
+                            id="ParishDetails"
+                            name="ParishDetails"
+                            rows={4}
+                            value={formData.ParishDetails}
+                            onChange={handleChange}
+                            className="block w-full sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="Provide details about the parish, service schedules, priests, and other relevant information..."
+                          />
+                        </div>
+                        <InputError
+                          messages={errors.ParishDetails}
+                          className="mt-2"
                         />
                       </div>
                     </div>
+
+                    <div className="mt-8 flex justify-end">
+                      <Button
+                        onClick={nextStep}
+                        variant="primary"
+                        type="button"
+                        className="flex items-center"
+                      >
+                        Next Step
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
+                )}
 
-                  <div className="mt-8 flex justify-between">
-                    <Button
-                      onClick={prevStep}
-                      variant="outline"
-                      type="button"
-                      className="flex items-center"
-                    >
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Previous
-                    </Button>
-                    <Button
-                      onClick={nextStep}
-                      variant="primary"
-                      type="button"
-                      className="flex items-center"
-                    >
-                      Next Step
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
+                {/* Step 2: Location */}
+                {step === 2 && (
+                  <div className="animate-fade-in">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-6">
+                      Church Location
+                    </h2>
+
+                    <div className="space-y-6">
+                      <div>
+                        <Label>
+                          Select Location on Map{" "}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <p className="text-sm text-gray-500 mb-4">
+                          Click on the map to set your church's location or use
+                          the "Use My Current Location" button.
+                        </p>
+
+                        {isLeafletLoaded ? (
+                          <LocationPicker
+                            onLocationSelect={handleLocationSelect}
+                            initialPosition={
+                              formData.Latitude && formData.Longitude
+                                ? [
+                                    parseFloat(formData.Latitude),
+                                    parseFloat(formData.Longitude),
+                                  ]
+                                : null
+                            }
+                          />
+                        ) : (
+                          <div className="h-[400px] w-full flex items-center justify-center bg-gray-100 rounded-lg">
+                            <p>Loading map...</p>
+                          </div>
+                        )}
+                        <InputError
+                          messages={errors.location}
+                          className="mt-2"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="Latitude">Latitude</Label>
+                          <input
+                            type="text"
+                            id="Latitude"
+                            name="Latitude"
+                            value={formData.Latitude}
+                            readOnly
+                            className="mt-1 block w-full sm:text-sm border-gray-300 bg-gray-50 rounded-md"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="Longitude">Longitude</Label>
+                          <input
+                            type="text"
+                            id="Longitude"
+                            name="Longitude"
+                            value={formData.Longitude}
+                            readOnly
+                            className="mt-1 block w-full sm:text-sm border-gray-300 bg-gray-50 rounded-md"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-8 flex justify-between">
+                      <Button
+                        onClick={prevStep}
+                        variant="outline"
+                        type="button"
+                        className="flex items-center"
+                      >
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Previous
+                      </Button>
+                      <Button
+                        onClick={nextStep}
+                        variant="primary"
+                        type="button"
+                        className="flex items-center"
+                      >
+                        Next Step
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Step 3: Documents */}
-              {step === 3 && (
-                <div className="animate-fade-in">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                    Church Documents
-                  </h2>
+                {/* Step 3: Documents */}
+                {step === 3 && (
+                  <div className="animate-fade-in">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-6">
+                      Church Documents
+                    </h2>
 
-                  <div className="space-y-6">
-                    <FileInput
-                      label="Church Profile Picture"
-                      id="ProfilePicture"
-                      name="ProfilePicture"
-                      accept="image/*"
-                      maxSize={2048}
-                      required
-                      filePreview={true}
-                      helpText="JPG, PNG or JPEG up to 2MB"
-                      onChange={handleFileChange}
-                      errors={errors.ProfilePicture || []}
-                    />
+                    <div className="space-y-6">
+                      <FileInput
+                        label="Church Profile Picture"
+                        id="ProfilePicture"
+                        name="ProfilePicture"
+                        accept="image/*"
+                        maxSize={2048}
+                        required
+                        filePreview={true}
+                        helpText="JPG, PNG or JPEG up to 2MB"
+                        onChange={handleFileChange}
+                        errors={errors.ProfilePicture || []}
+                      />
 
-                    <FileInput
-                      label="SEC Registration"
-                      id="SEC"
-                      name="SEC"
-                      accept=".pdf,image/*"
-                      maxSize={5120}
-                      required
-                      helpText="PDF or image up to 5MB"
-                      onChange={handleFileChange}
-                      errors={errors.SEC || []}
-                    />
+                      <FileInput
+                        label="SEC Registration"
+                        id="SEC"
+                        name="SEC"
+                        accept=".pdf,image/*"
+                        maxSize={5120}
+                        required
+                        helpText="PDF or image up to 5MB"
+                        onChange={handleFileChange}
+                        errors={errors.SEC || []}
+                      />
 
-                    <FileInput
-                      label="BIR Certificate"
-                      id="BIR"
-                      name="BIR"
-                      accept=".pdf,image/*"
-                      maxSize={5120}
-                      required
-                      helpText="PDF or image up to 5MB"
-                      onChange={handleFileChange}
-                      errors={errors.BIR || []}
-                    />
+                      <FileInput
+                        label="BIR Certificate"
+                        id="BIR"
+                        name="BIR"
+                        accept=".pdf,image/*"
+                        maxSize={5120}
+                        required
+                        helpText="PDF or image up to 5MB"
+                        onChange={handleFileChange}
+                        errors={errors.BIR || []}
+                      />
 
-                    <FileInput
-                      label="Barangay Permit"
-                      id="BarangayPermit"
-                      name="BarangayPermit"
-                      accept=".pdf,image/*"
-                      maxSize={5120}
-                      required
-                      helpText="PDF or image up to 5MB"
-                      onChange={handleFileChange}
-                      errors={errors.BarangayPermit || []}
-                    />
+                      <FileInput
+                        label="Barangay Permit"
+                        id="BarangayPermit"
+                        name="BarangayPermit"
+                        accept=".pdf,image/*"
+                        maxSize={5120}
+                        required
+                        helpText="PDF or image up to 5MB"
+                        onChange={handleFileChange}
+                        errors={errors.BarangayPermit || []}
+                      />
 
-                    <FileInput
-                      label="Authorization Letter"
-                      id="AuthorizationLetter"
-                      name="AuthorizationLetter"
-                      accept=".pdf,image/*"
-                      maxSize={5120}
-                      helpText="PDF or image up to 5MB (optional)"
-                      onChange={handleFileChange}
-                      errors={errors.AuthorizationLetter || []}
-                    />
+                      <FileInput
+                        label="Authorization Letter"
+                        id="AuthorizationLetter"
+                        name="AuthorizationLetter"
+                        accept=".pdf,image/*"
+                        maxSize={5120}
+                        helpText="PDF or image up to 5MB (optional)"
+                        onChange={handleFileChange}
+                        errors={errors.AuthorizationLetter || []}
+                      />
 
-                    <FileInput
-                      label="Representative Government ID"
-                      id="RepresentativeID"
-                      name="RepresentativeID"
-                      accept=".pdf,image/*"
-                      maxSize={5120}
-                      required
-                      helpText="PDF or image up to 5MB"
-                      onChange={handleFileChange}
-                      errors={errors.RepresentativeID || []}
-                    />
+                      <FileInput
+                        label="Representative Government ID"
+                        id="RepresentativeID"
+                        name="RepresentativeID"
+                        accept=".pdf,image/*"
+                        maxSize={5120}
+                        required
+                        helpText="PDF or image up to 5MB"
+                        onChange={handleFileChange}
+                        errors={errors.RepresentativeID || []}
+                      />
+                    </div>
+
+                    <div className="mt-8 flex justify-between">
+                      <Button
+                        onClick={prevStep}
+                        variant="outline"
+                        type="button"
+                        className="flex items-center"
+                      >
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Previous
+                      </Button>
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        disabled={isSubmitting}
+                        className="flex items-center"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <span className="mr-2">Submitting...</span>
+                            <svg
+                              className="animate-spin h-4 w-4 text-white"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
+                            </svg>
+                          </>
+                        ) : (
+                          <>
+                            Register Church
+                            <Upload className="ml-2 h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
-
-                  <div className="mt-8 flex justify-between">
-                    <Button
-                      onClick={prevStep}
-                      variant="outline"
-                      type="button"
-                      className="flex items-center"
-                    >
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Previous
-                    </Button>
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      disabled={isSubmitting}
-                      className="flex items-center"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <span className="mr-2">Submitting...</span>
-                          <svg
-                            className="animate-spin h-4 w-4 text-white"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            ></circle>
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            ></path>
-                          </svg>
-                        </>
-                      ) : (
-                        <>
-                          Register Church
-                          <Upload className="ml-2 h-4 w-4" />
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </form>
+                )}
+              </form>
+            </div>
           </div>
         </div>
       </div>

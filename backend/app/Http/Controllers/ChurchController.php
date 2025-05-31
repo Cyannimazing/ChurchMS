@@ -103,17 +103,17 @@ class ChurchController extends Controller
                     'ParishDetails' => isset($validated['ParishDetails']) ? $validated['ParishDetails'] : null,
                 ];
 
-// Handle profile picture
-if ($request->hasFile('ProfilePicture')) {
-    $file = $request->file('ProfilePicture');
-    $filename = $church->ChurchID . '_ProfilePicture_' . time() . '.' . $file->getClientOriginalExtension();
-    
-    // Store the file
-    Storage::disk('church_documents')->put($filename, file_get_contents($file->path()));
-    
-    // Update profile with path
-    $profileData['ProfilePicturePath'] = $filename;
-}
+                // Handle profile picture
+                if ($request->hasFile('ProfilePicture')) {
+                    $file = $request->file('ProfilePicture');
+                    $filename = $church->ChurchID . '_ProfilePicture_' . time() . '.' . $file->getClientOriginalExtension();
+                    
+                    // Store the file
+                    Storage::disk('church_documents')->put($filename, file_get_contents($file->path()));
+                    
+                    // Update profile with path
+                    $profileData['ProfilePicturePath'] = $filename;
+                }
 
                 // Create the church profile
                 $profile = ChurchProfile::create($profileData);
@@ -126,12 +126,6 @@ if ($request->hasFile('ProfilePicture')) {
                     'AuthorizationLetter' => 'Authorization Letter',
                     'RepresentativeID' => 'Representative Government ID',
                 ];
-
-                // Create document storage directory if it doesn't exist
-                $storageDir = storage_path('app/church_documents');
-                if (!file_exists($storageDir)) {
-                    mkdir($storageDir, 0755, true);
-                }
 
                 // Track uploaded documents
                 $uploadedDocuments = [];
@@ -471,100 +465,94 @@ if ($request->hasFile('ProfilePicture')) {
         }
     }
 
+
     /**
-     * Update church information and documents.
+     * Get church profile picture
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $churchId
-     * @return \Illuminate\Http\JsonResponse
+     * @param int $churchId
+     * @return \Illuminate\Http\Response
      */
-/**
- * Get church profile picture
- *
- * @param int $churchId
- * @return \Illuminate\Http\Response
- */
-public function getProfilePicture($churchId)
-{
-    try {
-        $church = Church::with('profile')->findOrFail($churchId);
-        
-        if (!$church->profile || !$church->profile->ProfilePicturePath) {
-            return response()->json(['error' => 'No profile picture found'], 404);
+    public function getProfilePicture($churchId)
+    {
+        try {
+            $church = Church::with('profile')->findOrFail($churchId);
+            
+            if (!$church->profile || !$church->profile->ProfilePicturePath) {
+                return response()->json(['error' => 'No profile picture found'], 404);
+            }
+
+            $filePath = $church->profile->ProfilePicturePath;
+            if (!Storage::disk('church_documents')->exists($filePath)) {
+                return response()->json(['error' => 'Profile picture file not found'], 404);
+            }
+
+            $fullPath = Storage::disk('church_documents')->path($filePath);
+            
+            // Get file extension and determine MIME type more explicitly
+            $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+            $mimeType = match ($extension) {
+                'jpg', 'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'gif' => 'image/gif',
+                default => mime_content_type($fullPath)
+            };
+
+            // Generate an ETag for caching purposes
+            $lastModified = filemtime($fullPath);
+            $eTag = md5($lastModified . $filePath);
+
+            // Stream the file with proper headers
+            return response()->stream(
+                function() use ($fullPath) {
+                    $stream = fopen($fullPath, 'rb');
+                    fpassthru($stream);
+                    fclose($stream);
+                },
+                200,
+                [
+                    'Content-Type' => $mimeType,
+                    'Content-Disposition' => 'inline',
+                    'Cache-Control' => 'public, max-age=86400', // Cache for 24 hours
+                    'Pragma' => 'public',
+                    'ETag' => $eTag,
+                    'Last-Modified' => gmdate('D, d M Y H:i:s', $lastModified) . ' GMT',
+                    'Access-Control-Allow-Origin' => '*', // Allow cross-origin requests
+                    'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+                    'Access-Control-Allow-Headers' => 'Origin, Content-Type, Accept, Authorization, X-Request-With',
+                    'Access-Control-Allow-Credentials' => 'true',
+                ]
+            );
+        } catch (\Exception $e) {
+            Log::error('Profile picture error: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to retrieve profile picture'], 500);
         }
+    }
 
-        $filePath = $church->profile->ProfilePicturePath;
-        if (!Storage::disk('church_documents')->exists($filePath)) {
-            return response()->json(['error' => 'Profile picture file not found'], 404);
-        }
-
-        $fullPath = Storage::disk('church_documents')->path($filePath);
+    /**
+     * Handle profile picture upload
+     *
+     * @param \Illuminate\Http\UploadedFile $file
+     * @param \App\Models\Church $church
+     * @return string|null
+     */
+    protected function handleProfilePicture($file, $church)
+    {
+        if (!$file) return null;
         
-        // Get file extension and determine MIME type more explicitly
-        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-        $mimeType = match ($extension) {
-            'jpg', 'jpeg' => 'image/jpeg',
-            'png' => 'image/png',
-            'gif' => 'image/gif',
-            default => mime_content_type($fullPath)
-        };
-
-        // Generate an ETag for caching purposes
-        $lastModified = filemtime($fullPath);
-        $eTag = md5($lastModified . $filePath);
-
-        // Stream the file with proper headers
-        return response()->stream(
-            function() use ($fullPath) {
-                $stream = fopen($fullPath, 'rb');
-                fpassthru($stream);
-                fclose($stream);
-            },
-            200,
-            [
-                'Content-Type' => $mimeType,
-                'Content-Disposition' => 'inline',
-                'Cache-Control' => 'public, max-age=86400', // Cache for 24 hours
-                'Pragma' => 'public',
-                'ETag' => $eTag,
-                'Last-Modified' => gmdate('D, d M Y H:i:s', $lastModified) . ' GMT',
-                'Access-Control-Allow-Origin' => '*', // Allow cross-origin requests
-                'Access-Control-Allow-Methods' => 'GET, OPTIONS',
-                'Access-Control-Allow-Headers' => 'Origin, Content-Type, Accept, Authorization, X-Request-With',
-                'Access-Control-Allow-Credentials' => 'true',
-            ]
-        );
-    } catch (\Exception $e) {
-        Log::error('Profile picture error: ' . $e->getMessage());
-        return response()->json(['error' => 'Failed to retrieve profile picture'], 500);
+        $filename = $church->ChurchID . '_ProfilePicture_' . time() . '.' . $file->getClientOriginalExtension();
+        
+        // Delete old profile picture if exists
+        if ($church->profile && $church->profile->ProfilePicturePath) {
+            Storage::disk('church_documents')->delete($church->profile->ProfilePicturePath);
+        }
+        
+        // Store new file
+        Storage::disk('church_documents')->put($filename, file_get_contents($file->path()));
+        
+        return $filename;
     }
-}
 
-/**
- * Handle profile picture upload
- *
- * @param \Illuminate\Http\UploadedFile $file
- * @param \App\Models\Church $church
- * @return string|null
- */
-protected function handleProfilePicture($file, $church)
-{
-    if (!$file) return null;
-    
-    $filename = $church->ChurchID . '_ProfilePicture_' . time() . '.' . $file->getClientOriginalExtension();
-    
-    // Delete old profile picture if exists
-    if ($church->profile && $church->profile->ProfilePicturePath) {
-        Storage::disk('church_documents')->delete($church->profile->ProfilePicturePath);
-    }
-    
-    // Store new file
-    Storage::disk('church_documents')->put($filename, file_get_contents($file->path()));
-    
-    return $filename;
-}
-
-public function update(Request $request, $churchId)
+    public function update(Request $request, $churchId)
     {
         try {
             // Find the church
@@ -617,16 +605,16 @@ public function update(Request $request, $churchId)
                     ]);
                 }
 
-// Handle profile picture
-if ($request->hasFile('ProfilePicture')) {
-    $filename = $this->handleProfilePicture($request->file('ProfilePicture'), $church);
-    
-    if ($filename && $church->profile) {
-        $church->profile()->update([
-            'ProfilePicturePath' => $filename
-        ]);
-    }
-}
+                // Handle profile picture
+                if ($request->hasFile('ProfilePicture')) {
+                    $filename = $this->handleProfilePicture($request->file('ProfilePicture'), $church);
+                    
+                    if ($filename && $church->profile) {
+                        $church->profile()->update([
+                            'ProfilePicturePath' => $filename
+                        ]);
+                    }
+                }
 
                 // Document type mapping
                 $documentTypes = [
