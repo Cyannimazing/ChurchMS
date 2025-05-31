@@ -34,7 +34,14 @@ class ChurchOwnerDocument extends Model
      */
     public function getDocumentUrlAttribute()
     {
-        return $this->DocumentPath ? asset('storage/' . $this->DocumentPath) : null;
+        // Return the API endpoint URL instead of direct storage path
+        // Ensure we always return the API endpoint for consistent document viewing
+        return $this->DocumentID ? url('/api/documents/' . $this->DocumentID) : null;
     }
+
+    /**
+     * Add DocumentUrl to the appends array to ensure it's included in JSON
+     */
+    protected $appends = ['DocumentUrl'];
 }
 ?>

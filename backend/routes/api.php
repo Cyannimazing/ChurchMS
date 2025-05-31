@@ -53,8 +53,12 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::get('/churches', [ChurchController::class, 'index'])->name('churches.index');
     Route::put('/churches/{churchId}/status', [ChurchController::class, 'updateStatus'])->name('churches.updateStatus');
+    Route::put('/churches/{churchId}/publish', [ChurchController::class, 'togglePublish'])->name('churches.togglePublish');
     Route::get('/churches/{churchId}/documents', [ChurchController::class, 'reviewDocuments'])->name('churches.reviewDocuments');
     Route::get('/documents/{documentId}', [ChurchController::class, 'downloadDocument'])->name('documents.download');
+    Route::get('/churches/{churchId}', [ChurchController::class, 'show'])->name('churches.show');
+    Route::get('/churches/{churchId}/profile-picture', [ChurchController::class, 'getProfilePicture'])->name('churches.profilePicture');
+    Route::post('/churches/{churchId}/update', [ChurchController::class, 'update'])->name('churches.update');
 });
 
 //Staff Management

@@ -37,7 +37,7 @@ class DatabaseSeeder extends Seeder
         ], [
             'Price' => 29.99,
             'DurationInMonths' => 1,
-            'MaxChurchesAllowed' => 1,
+            'MaxChurchesAllowed' => 2,
             'Description' => 'Basic plan for church owners',
         ]);
 
@@ -94,45 +94,6 @@ class DatabaseSeeder extends Seeder
             'StartDate' => now(),
             'EndDate' => now()->addMonths(1),
             'Status' => 'Active',
-        ]);
-
-        // Create Church for ChurchOwner
-        $church = Church::firstOrCreate([
-            'ChurchName' => 'Sample Church',
-            'user_id' => $owner->id,
-        ], [
-            'IsPublic' => false,
-            'Latitude' => 14.5995,
-            'Longitude' => 120.9842,
-            'ChurchStatus' => Church::STATUS_ACTIVE,
-        ]);
-
-        // Create ChurchRole for that church to avoid FK errors
-        $churchRole = ChurchRole::firstOrCreate([
-            'ChurchID' => $church->ChurchID,
-            'RoleName' => 'Staff',
-        ]);
-
-        // Create ChurchStaff user linked to the church
-        $staff = User::firstOrCreate(['email' => 'staff@example.com'], [
-            'password' => Hash::make('123123123'),
-            'email_verified_at' => now(),
-        ]);
-        UserProfile::firstOrCreate(['user_id' => $staff->id], [
-            'first_name' => 'Staff',
-            'last_name' => 'User',
-            'system_role_id' => $roles['ChurchStaff'] ?? null,
-        ]);
-        UserContact::firstOrCreate(['user_id' => $staff->id], [
-            'address' => 'Staff Address',
-            'contact_number' => '09181234567',
-        ]);
-
-        // Now link staff user to the church with that church role
-        UserChurchRole::firstOrCreate([
-            'user_id' => $staff->id,
-            'ChurchID' => $church->ChurchID,
-            'RoleID' => $churchRole->RoleID,
         ]);
 
         // Seed permissions

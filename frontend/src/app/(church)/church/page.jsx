@@ -1,18 +1,38 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import axios from "@/lib/axios";
 import DataLoading from "@/components/DataLoading";
-import toast, { Toaster } from "react-hot-toast"; // Import react-hot-toast
-import { Transition } from "@headlessui/react"; // Import Transition from @headlessui/react
+import toast, { Toaster } from "react-hot-toast";
+import { Transition, Menu } from "@headlessui/react";
 import Button from "@/components/Button";
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
+  FileText,
+  Globe,
+  Users,
+  Shield,
+  BookOpen,
+  Settings,
+  AlertCircle,
+  MoreVertical,
+  Edit,
+  Eye,
+  ChevronDown,
+  Upload,
+} from "lucide-react";
+import FileInput from "@/components/Forms/FileInput";
+import Link from "next/link";
 
 const Dashboard = () => {
   const router = useRouter();
   const [churches, setChurches] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [actionLoading, setActionLoading] = useState({});
   const [formData, setFormData] = useState({
     ChurchName: "",
     Latitude: "",
@@ -37,7 +57,6 @@ const Dashboard = () => {
   const fetchChurches = async () => {
     setIsLoadingChurches(true);
     try {
-      await axios.get("/sanctum/csrf-cookie");
       const response = await axios.get("/api/churches/owned");
       setChurches(response.data.churches);
     } catch (err) {
@@ -55,182 +74,141 @@ const Dashboard = () => {
     }
   };
 
+  // Toggle church's public status
+  const togglePublishStatus = async (churchId) => {
+    setActionLoading((prev) => ({ ...prev, [churchId]: true }));
+    try {
+      // Find the church to get its current public status
+      const church = churches.find((c) => c.ChurchID === churchId);
+      if (!church) return;
+
+      // Make API call to toggle status
+      await axios.put(`/api/churches/${churchId}/publish`, {
+        IsPublic: !church.IsPublic,
+      });
+
+      // Update local state
+      setChurches(
+        churches.map((c) => {
+          if (c.ChurchID === churchId) {
+            return { ...c, IsPublic: !c.IsPublic };
+          }
+          return c;
+        })
+      );
+
+      // Show success message
+      toast.success(
+        church.IsPublic
+          ? "Church has been unpublished"
+          : "Church has been published"
+      );
+    } catch (error) {
+      console.error("Error toggling publish status:", error);
+      toast.error("Failed to update publishing status. Please try again.");
+    } finally {
+      setActionLoading((prev) => ({ ...prev, [churchId]: false }));
+    }
+  };
+
+  // View document details
+  const viewDocuments = async (churchId) => {
+    router.push(`/church/documents/${churchId}`);
+  };
+
+  // Navigate to staff management
+  const manageStaff = (churchId, churchName) => {
+    const formattedName = churchName.replace(/\s+/g, "-").toLowerCase();
+    router.push(`/${formattedName}/employee`);
+  };
+
+  // Navigate to role management
+  const manageRoles = (churchId, churchName) => {
+    const formattedName = churchName.replace(/\s+/g, "-").toLowerCase();
+    router.push(`/${formattedName}/role`);
+  };
+
+  // Navigate to sacrament management
+  const manageSacraments = (churchId, churchName) => {
+    const formattedName = churchName.replace(/\s+/g, "-").toLowerCase();
+    router.push(`/${formattedName}/sacrament`);
+  };
+
   const handleManage = (churchName) => {
     const formattedName = churchName.replace(/\s+/g, "-").toLowerCase();
     router.push(`/${formattedName}/dashboard`);
   };
 
-  const handleInputChange = (e) => {
-    const { name, value, type, files } = e.target;
-    if (type === "file" && files[0]) {
-      const maxSizeMB = name === "ProfilePicture" ? 2 : 5;
-      const maxSizeBytes = maxSizeMB * 1024 * 1024;
-      const allowedTypes =
-        name === "ProfilePicture"
-          ? ["image/jpeg", "image/png", "image/jpg"]
-          : ["image/jpeg", "image/png", "image/jpg", "application/pdf"];
+  // Status Badge Component
+  const StatusBadge = ({ status }) => {
+    let bgColor, textColor, icon;
 
-      if (!allowedTypes.includes(files[0].type)) {
-        setError(
-          `Invalid file type for ${name
-            .replace(/([A-Z])/g, " $1")
-            .trim()}. Only ${
-            name === "ProfilePicture" ? "JPEG, PNG, JPG" : "JPEG, PNG, JPG, PDF"
-          } allowed.`
-        );
-        return;
-      }
-      if (files[0].size > maxSizeBytes) {
-        setError(
-          `${name
-            .replace(/([A-Z])/g, " $1")
-            .trim()} file size exceeds ${maxSizeMB}MB limit.`
-        );
-        return;
-      }
+    switch (status) {
+      case "Active":
+        bgColor = "bg-green-100";
+        textColor = "text-green-800";
+        icon = <CheckCircle className="h-4 w-4 mr-1" />;
+        break;
+      case "Pending":
+        bgColor = "bg-yellow-100";
+        textColor = "text-yellow-800";
+        icon = <Clock className="h-4 w-4 mr-1" />;
+        break;
+      case "Rejected":
+        bgColor = "bg-red-100";
+        textColor = "text-red-800";
+        icon = <XCircle className="h-4 w-4 mr-1" />;
+        break;
+      default:
+        bgColor = "bg-gray-100";
+        textColor = "text-gray-800";
+        icon = <AlertCircle className="h-4 w-4 mr-1" />;
     }
-    if (name === "Latitude" && value !== "") {
-      const lat = parseFloat(value);
-      if (lat < -90 || lat > 90) {
-        setError("Latitude must be between -90 and 90.");
-        return;
-      }
-    }
-    if (name === "Longitude" && value !== "") {
-      const lon = parseFloat(value);
-      if (lon < -180 || lon > 180) {
-        setError("Longitude must be between -180 and 180.");
-        return;
-      }
-    }
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "file" ? files[0] : value,
-    }));
-    setError(null);
+
+    return (
+      <span
+        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${bgColor} ${textColor}`}
+      >
+        {icon}
+        {status}
+      </span>
+    );
   };
 
-  const validateStep = () => {
-    if (currentStep === 1) {
-      if (!formData.ChurchName) return "Church Name is required.";
-      if (!formData.Latitude) return "Latitude is required.";
-      if (!formData.Longitude) return "Longitude is required.";
-      const lat = parseFloat(formData.Latitude);
-      const lon = parseFloat(formData.Longitude);
-      if (lat < -90 || lat > 90) return "Latitude must be between -90 and 90.";
-      if (lon < -180 || lon > 180)
-        return "Longitude must be between -180 and 180.";
+  // Document Status Badge Component
+  const DocumentStatusBadge = ({ count }) => {
+    let bgColor, textColor;
+
+    if (count === 0) {
+      bgColor = "bg-red-100";
+      textColor = "text-red-800";
+    } else if (count < 3) {
+      bgColor = "bg-yellow-100";
+      textColor = "text-yellow-800";
+    } else {
+      bgColor = "bg-green-100";
+      textColor = "text-green-800";
     }
-    return null;
-  };
 
-  const handleNext = (e) => {
-    e.preventDefault();
-    console.log("Next button clicked, current step:", currentStep);
-    const stepError = validateStep();
-    if (stepError) {
-      setError(stepError);
-      return;
-    }
-    setCurrentStep((prev) => prev + 1);
-    setError(null);
-  };
-
-  const handleBack = (e) => {
-    e.preventDefault();
-    console.log("Back button clicked, current step:", currentStep);
-    setCurrentStep((prev) => prev - 1);
-    setError(null);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    console.log("Submit button clicked");
-    setError(null);
-    setLoadingChurch(true);
-
-    const data = new FormData();
-    Object.entries(formData).forEach(([key, value]) => {
-      if (value !== null && value !== "") {
-        data.append(key, value);
-      }
-    });
-    data.append("IsPublic", "false");
-
-    try {
-      await axios.get("/sanctum/csrf-cookie");
-      const response = await axios.post("/api/churches", data, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      setShowModal(false);
-      setFormData({
-        ChurchName: "",
-        Latitude: "",
-        Longitude: "",
-        Description: "",
-        ParishDetails: "",
-        ProfilePicture: null,
-        SEC: null,
-        BIR: null,
-        BarangayPermit: null,
-        AuthorizationLetter: null,
-        RepresentativeID: null,
-      });
-      setCurrentStep(1);
-      fetchChurches();
-      // Replace alert with toast notification
-      toast.success("Church created successfully. Awaiting admin approval.", {
-        duration: 4000, // Toast disappears after 4 seconds
-        position: "top-right", // Position the toast
-      });
-    } catch (err) {
-      if (err.response?.status === 422) {
-        const errors = err.response.data.errors;
-        setError(Object.values(errors).flat().join(", "));
-      } else if (err.response?.status === 403) {
-        setError(
-          err.response.data.error ||
-            "You need an active subscription or have reached the maximum number of churches."
-        );
-      } else {
-        setError(
-          err.response?.data?.error ||
-            "Failed to create church. Please try again."
-        );
-      }
-    } finally {
-      setLoadingChurch(false);
-    }
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setCurrentStep(1);
-    setError(null);
-    setFormData({
-      ChurchName: "",
-      Latitude: "",
-      Longitude: "",
-      Description: "",
-      ParishDetails: "",
-      ProfilePicture: null,
-      SEC: null,
-      BIR: null,
-      BarangayPermit: null,
-      AuthorizationLetter: null,
-      RepresentativeID: null,
-    });
+    return (
+      <span
+        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${bgColor} ${textColor}`}
+      >
+        <FileText className="h-4 w-4 mr-1" />
+        {count} Document{count !== 1 ? "s" : ""}
+      </span>
+    );
   };
 
   return (
-    <div className="lg:ml-75 lg:py-12 mx-3 py-20">
+    <div className="lg:ml-75 lg:py-12 mx-3 py-20 ">
       {/* Add Toaster component for toast notifications */}
       <Toaster />
-      <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-        <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-          <div className="p-6 bg-white border-b border-gray-200">
+      <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 min-h-screen">
+        <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg min-h-screen">
+          <div className="p-6 bg-white border-b border-gray-200 min-h-screen">
             <div className="flex justify-between items-center mb-6">
-              <Button>Create Church</Button>
+              <h1 className="text-2xl font-bold text-gray-900">My Churches</h1>
             </div>
 
             {/* Enhanced Error Display with Transition */}
@@ -262,275 +240,297 @@ const Dashboard = () => {
               </div>
             </Transition>
 
-            {/* Modal with Step-by-Step Form */}
-            {showModal && (
-              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-                <div className="bg-white shadow-xl rounded-xl p-6 sm:p-8 max-w-md w-full mx-4">
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-semibold text-gray-900">
-                      Create Church - Step {currentStep} of 3
-                    </h2>
-                    <button
-                      onClick={closeModal}
-                      className="text-gray-500 hover:text-gray-700 font-medium"
-                    >
-                      ✕ Close
-                    </button>
+            {/* Church Cards View */}
+            {isLoadingChurches ? (
+              <div className="flex justify-center py-12">
+                <DataLoading message="Loading your churches..." />
+              </div>
+            ) : churches.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="p-6">
+                  <div className="mx-auto h-12 w-12 text-gray-400 flex items-center justify-center rounded-full bg-gray-100">
+                    <FileText className="h-6 w-6" />
                   </div>
-
-                  {/* Error in Modal with Transition */}
-                  <Transition
-                    show={error}
-                    enter="transition-opacity duration-300"
-                    enterFrom="opacity-0"
-                    enterTo="opacity-100"
-                    leave="transition-opacity duration-300"
-                    leaveFrom="opacity-100"
-                    leaveTo="opacity-0"
-                  >
-                    <div className="mb-6 p-4 bg-red-100 text-red-700 rounded flex items-center">
-                      <svg
-                        className="w-5 h-5 mr-2"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M12 9v2m0 4h.01M12 4a8 8 0 100 16 8 8 0 000-16z"
-                        />
-                      </svg>
-                      <span>{error}</span>
-                    </div>
-                  </Transition>
-
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    {currentStep === 1 && (
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Church Name
-                          </label>
-                          <input
-                            type="text"
-                            name="ChurchName"
-                            value={formData.ChurchName}
-                            onChange={handleInputChange}
-                            required
-                            maxLength="255"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Latitude
-                          </label>
-                          <input
-                            type="number"
-                            name="Latitude"
-                            value={formData.Latitude}
-                            onChange={handleInputChange}
-                            required
-                            min="-90"
-                            max="90"
-                            step="any"
-                            placeholder="e.g., -12.345678"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Longitude
-                          </label>
-                          <input
-                            type="number"
-                            name="Longitude"
-                            value={formData.Longitude}
-                            onChange={handleInputChange}
-                            required
-                            min="-180"
-                            max="180"
-                            step="any"
-                            placeholder="e.g., 123.456789"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {currentStep === 2 && (
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Description (optional)
-                          </label>
-                          <textarea
-                            name="Description"
-                            value={formData.Description}
-                            onChange={handleInputChange}
-                            rows="4"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Parish Details (optional)
-                          </label>
-                          <textarea
-                            name="ParishDetails"
-                            value={formData.ParishDetails}
-                            onChange={handleInputChange}
-                            rows="4"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {currentStep === 3 && (
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Profile Picture (optional, max 2MB)
-                          </label>
-                          <input
-                            type="file"
-                            name="ProfilePicture"
-                            accept="image/jpeg,image/png,image/jpg"
-                            onChange={handleInputChange}
-                            className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                          />
-                        </div>
-                        {[
-                          "SEC",
-                          "BIR",
-                          "BarangayPermit",
-                          "AuthorizationLetter",
-                          "RepresentativeID",
-                        ].map((doc) => (
-                          <div key={doc}>
-                            <label className="block text-sm font-medium text-gray-700">
-                              {doc.replace(/([A-Z])/g, " $1").trim()} (optional,
-                              max 5MB)
-                            </label>
-                            <input
-                              type="file"
-                              name={doc}
-                              accept="image/jpeg,image/png,image/jpg,application/pdf"
-                              onChange={handleInputChange}
-                              className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="flex justify-between">
-                      {currentStep > 1 && (
-                        <button
-                          type="button"
-                          onClick={handleBack}
-                          className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
-                        >
-                          Back
-                        </button>
-                      )}
-                      {currentStep < 3 ? (
-                        <button
-                          type="button"
-                          onClick={handleNext}
-                          className="ml-auto bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-                        >
-                          Next
-                        </button>
-                      ) : (
-                        <button
-                          type="submit"
-                          disabled={loadingChurch}
-                          className="ml-auto bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-blue-300"
-                        >
-                          {loadingChurch ? "Submitting..." : "Create Church"}
-                        </button>
-                      )}
-                    </div>
-                  </form>
+                  <h3 className="mt-3 text-sm font-medium text-gray-900">
+                    No churches found
+                  </h3>
+                  <p className="mt-2 text-sm text-gray-500">
+                    Get started by creating a new church.
+                  </p>
+                  <div className="mt-6">
+                    <Button><Link href={"/registerchurch"}>Create Church</Link></Button>
+                  </div>
                 </div>
               </div>
-            )}
-
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Public
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Documents
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {isLoadingChurches ? (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-4 text-center">
-                        <DataLoading message="Loading churches..." />
-                      </td>
-                    </tr>
-                  ) : churches.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan="5"
-                        className="px-6 py-4 text-center text-gray-500"
-                      >
-                        No churches found. Create one to get started.
-                      </td>
-                    </tr>
-                  ) : (
-                    churches.map((church) => (
-                      <tr key={church.ChurchID}>
-                        <td className="px-6 py-4 whitespace-nowrap">
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {churches.map((church) => (
+                  <div
+                    key={church.ChurchID}
+                    className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200"
+                  >
+                    <div className="p-5">
+                      <div className="flex justify-between items-start">
+                        <h3
+                          className="text-lg font-medium text-gray-900 mb-1 truncate max-w-[80%]"
+                          title={church.ChurchName}
+                        >
                           {church.ChurchName}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {church.ChurchStatus}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {church.IsPublic ? "Yes" : "No"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {church.DocumentCount}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {church.ChurchStatus === "Active" ? (
-                            <button
+                        </h3>
+
+                        {/* Actions Menu */}
+                        <Menu
+                          as="div"
+                          className="relative inline-block text-left"
+                        >
+                          <Menu.Button className="inline-flex items-center p-1 border border-transparent rounded-full text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            <MoreVertical className="h-5 w-5" />
+                          </Menu.Button>
+
+                          <Transition
+                            as={Fragment}
+                            enter="transition ease-out duration-100"
+                            enterFrom="transform opacity-0 scale-95"
+                            enterTo="transform opacity-100 scale-100"
+                            leave="transition ease-in duration-75"
+                            leaveFrom="transform opacity-100 scale-100"
+                            leaveTo="transform opacity-0 scale-95"
+                          >
+                            <Menu.Items className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none z-10">
+                              <div className="py-1">
+                                <Menu.Item>
+                                  {({ active }) => (
+                                    <button
+                                      onClick={() =>
+                                        handleManage(church.ChurchName)
+                                      }
+                                      className={`${
+                                        active
+                                          ? "bg-gray-100 text-gray-900"
+                                          : "text-gray-700"
+                                      } group flex items-center px-4 py-2 text-sm w-full text-left`}
+                                      disabled={
+                                        church.ChurchStatus !== "Active"
+                                      }
+                                    >
+                                      <Eye className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />
+                                      View Dashboard
+                                    </button>
+                                  )}
+                                </Menu.Item>
+                                <Menu.Item>
+                                  {({ active }) => (
+                                    <button
+                                      onClick={() =>
+                                        router.push(
+                                          `/church/edit/${church.ChurchID}`
+                                        )
+                                      }
+                                      className={`${
+                                        active
+                                          ? "bg-gray-100 text-gray-900"
+                                          : "text-gray-700"
+                                      } group flex items-center px-4 py-2 text-sm w-full text-left`}
+                                    >
+                                      <Edit className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />
+                                      Edit Church
+                                    </button>
+                                  )}
+                                </Menu.Item>
+                              </div>
+
+                              <div className="py-1">
+                                <Menu.Item>
+                                  {({ active }) => (
+                                    <button
+                                      onClick={() =>
+                                        manageStaff(
+                                          church.ChurchID,
+                                          church.ChurchName
+                                        )
+                                      }
+                                      className={`${
+                                        active
+                                          ? "bg-gray-100 text-gray-900"
+                                          : "text-gray-700"
+                                      } group flex items-center px-4 py-2 text-sm w-full text-left`}
+                                      disabled={
+                                        church.ChurchStatus !== "Active"
+                                      }
+                                    >
+                                      <Users className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />
+                                      Manage Staff
+                                    </button>
+                                  )}
+                                </Menu.Item>
+                                <Menu.Item>
+                                  {({ active }) => (
+                                    <button
+                                      onClick={() =>
+                                        manageRoles(
+                                          church.ChurchID,
+                                          church.ChurchName
+                                        )
+                                      }
+                                      className={`${
+                                        active
+                                          ? "bg-gray-100 text-gray-900"
+                                          : "text-gray-700"
+                                      } group flex items-center px-4 py-2 text-sm w-full text-left`}
+                                      disabled={
+                                        church.ChurchStatus !== "Active"
+                                      }
+                                    >
+                                      <Shield className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />
+                                      Manage Roles
+                                    </button>
+                                  )}
+                                </Menu.Item>
+                                <Menu.Item>
+                                  {({ active }) => (
+                                    <button
+                                      onClick={() =>
+                                        manageSacraments(
+                                          church.ChurchID,
+                                          church.ChurchName
+                                        )
+                                      }
+                                      className={`${
+                                        active
+                                          ? "bg-gray-100 text-gray-900"
+                                          : "text-gray-700"
+                                      } group flex items-center px-4 py-2 text-sm w-full text-left`}
+                                      disabled={
+                                        church.ChurchStatus !== "Active"
+                                      }
+                                    >
+                                      <BookOpen className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />
+                                      Manage Sacraments
+                                    </button>
+                                  )}
+                                </Menu.Item>
+                              </div>
+
+                              <div className="py-1">
+                                <Menu.Item>
+                                  {({ active }) => (
+                                    <button
+                                      onClick={() =>
+                                        viewDocuments(church.ChurchID)
+                                      }
+                                      className={`${
+                                        active
+                                          ? "bg-gray-100 text-gray-900"
+                                          : "text-gray-700"
+                                      } group flex items-center px-4 py-2 text-sm w-full text-left`}
+                                    >
+                                      <FileText className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />
+                                      View Documents
+                                    </button>
+                                  )}
+                                </Menu.Item>
+                              </div>
+                            </Menu.Items>
+                          </Transition>
+                        </Menu>
+                      </div>
+
+                      {/* Status Badges */}
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <StatusBadge status={church.ChurchStatus} />
+                        {church.IsPublic && (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <Globe className="h-4 w-4 mr-1" />
+                            Public
+                          </span>
+                        )}
+                        <DocumentStatusBadge count={church.DocumentCount} />
+                      </div>
+
+                      {/* Church Description */}
+                      <p
+                        className="mt-3 text-sm text-gray-500 line-clamp-2"
+                        title={church.Description || "No description available"}
+                      >
+                        {church.Description || "No description available"}
+                      </p>
+
+                      {/* Church Actions */}
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {church.ChurchStatus === "Active" && (
+                          <>
+                            <Button
                               onClick={() => handleManage(church.ChurchName)}
-                              className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
+                              variant="primary"
+                              className="text-xs"
                             >
-                              Manage
-                            </button>
-                          ) : (
-                            <span className="text-gray-500">Inactive</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                              <Eye className="h-3 w-3 mr-1" />
+                              Dashboard
+                            </Button>
+
+                            <Button
+                              onClick={() =>
+                                togglePublishStatus(church.ChurchID)
+                              }
+                              variant={
+                                church.IsPublic ? "secondary" : "outline"
+                              }
+                              className="text-xs"
+                              disabled={actionLoading[church.ChurchID]}
+                            >
+                              {actionLoading[church.ChurchID] ? (
+                                <span className="flex items-center">
+                                  <svg
+                                    className="animate-spin h-3 w-3 mr-1"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <circle
+                                      className="opacity-25"
+                                      cx="12"
+                                      cy="12"
+                                      r="10"
+                                      stroke="currentColor"
+                                      strokeWidth="4"
+                                    ></circle>
+                                    <path
+                                      className="opacity-75"
+                                      fill="currentColor"
+                                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                    ></path>
+                                  </svg>
+                                  Processing...
+                                </span>
+                              ) : (
+                                <span className="flex items-center">
+                                  <Globe className="h-3 w-3 mr-1" />
+                                  {church.IsPublic ? "Unpublish" : "Publish"}
+                                </span>
+                              )}
+                            </Button>
+                          </>
+                        )}
+
+                        {church.ChurchStatus === "Pending" && (
+                          <div className="text-xs text-yellow-600 flex items-center mt-1">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Awaiting admin approval
+                          </div>
+                        )}
+
+                        {church.ChurchStatus === "Rejected" && (
+                          <div className="text-xs text-red-600 flex items-center mt-1">
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                            Application rejected - Contact admin
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -11,7 +11,7 @@ class ChurchProfile extends Model
     protected $fillable = [
         'Description',
         'ParishDetails',
-        'ProfilePictureData',
+        'ProfilePicturePath',
     ];
 
     /**
