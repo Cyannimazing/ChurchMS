@@ -11,7 +11,7 @@ import {
   useMapEvents,
   useMap,
 } from "react-leaflet";
-import L from 'leaflet';
+import L from "leaflet";
 import Link from "next/link";
 import {
   Church,
@@ -63,8 +63,8 @@ const ChurchEditPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImageLoading, setIsImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
-  const [imageErrorMessage, setImageErrorMessage] = useState('');
-  const [profileImageUrl, setProfileImageUrl] = useState('');
+  const [imageErrorMessage, setImageErrorMessage] = useState("");
+  const [profileImageUrl, setProfileImageUrl] = useState("");
   const [imageLoadAttempts, setImageLoadAttempts] = useState(0);
   const [errors, setErrors] = useState({});
   const [error, setError] = useState(null);
@@ -115,14 +115,16 @@ const ChurchEditPage = () => {
   // Fix Leaflet marker icon issue
   useEffect(() => {
     // only execute this on the client
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       // Fix the Leaflet icon issue
       delete L.Icon.Default.prototype._getIconUrl;
-      
+
       L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-        iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+        iconRetinaUrl:
+          "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+        iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+        shadowUrl:
+          "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
       });
     }
   }, []);
@@ -165,25 +167,28 @@ const ChurchEditPage = () => {
         if (response.data.church.ProfilePicturePath) {
           setIsImageLoading(true);
           setImageError(false);
-          setImageErrorMessage('');
+          setImageErrorMessage("");
           setImageLoadAttempts(0);
           // Create a URL with a timestamp and nonce to prevent caching
           const timestamp = new Date().getTime();
           const nonce = Math.random().toString(36).substring(2, 15);
-          
+
           // Get the backend URL from environment variable
-          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
-          
+          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+
           // Construct the full URL with the backend URL
           const imageUrl = `${backendUrl}/api/churches/${churchId}/profile-picture?v=${timestamp}&nonce=${nonce}`;
           setProfileImageUrl(imageUrl);
           console.log("Profile picture path found, URL:", imageUrl);
-          console.log("Profile picture path:", response.data.church.ProfilePicturePath);
+          console.log(
+            "Profile picture path:",
+            response.data.church.ProfilePicturePath
+          );
         } else {
           setIsImageLoading(false);
           setImageError(true);
-          setImageErrorMessage('No profile picture available for this church');
-          setProfileImageUrl('');
+          setImageErrorMessage("No profile picture available for this church");
+          setProfileImageUrl("");
           console.log("No profile picture path found in church data");
         }
 
@@ -611,7 +616,6 @@ const ChurchEditPage = () => {
       data.append("ParishDetails", formData.ParishDetails);
       data.append("Latitude", formData.Latitude);
       data.append("Longitude", formData.Longitude);
-      // Remove method spoofing since we're using POST directly
 
       // Append profile picture if selected
       if (formData.ProfilePicture) {
@@ -671,7 +675,7 @@ const ChurchEditPage = () => {
       // Redirect after delay
       setTimeout(() => {
         router.push("/church");
-      }, 3000);
+      }, 2000);
     } catch (err) {
       console.error("Error updating church:", err);
 
@@ -757,12 +761,6 @@ const ChurchEditPage = () => {
                   Your church information has been updated and is awaiting admin
                   approval. You will be redirected shortly.
                 </p>
-                <Button
-                  onClick={() => router.push("/church")}
-                  variant="primary"
-                >
-                  Go to Churches
-                </Button>
               </div>
             </div>
           </div>
@@ -878,7 +876,9 @@ const ChurchEditPage = () => {
                                     fallback={
                                       <div className="h-full w-full flex flex-col items-center justify-center bg-gray-50">
                                         <AlertCircle className="h-10 w-10 text-amber-500 mb-2" />
-                                        <span className="text-xs text-amber-600 text-center px-2">Image load error</span>
+                                        <span className="text-xs text-amber-600 text-center px-2">
+                                          Image load error
+                                        </span>
                                       </div>
                                     }
                                   >
@@ -888,29 +888,46 @@ const ChurchEditPage = () => {
                                       className="h-full w-full object-cover"
                                       referrerPolicy="origin"
                                       onLoad={() => {
-                                        console.log("Profile picture loaded successfully");
+                                        console.log(
+                                          "Profile picture loaded successfully"
+                                        );
                                         setIsImageLoading(false);
                                         setImageError(false);
-                                        setImageErrorMessage('');
+                                        setImageErrorMessage("");
                                       }}
                                       onError={(e) => {
-                                        console.log("Profile picture failed to load, attempt:", imageLoadAttempts + 1);
+                                        console.log(
+                                          "Profile picture failed to load, attempt:",
+                                          imageLoadAttempts + 1
+                                        );
                                         // Automatically retry once with a new URL to bypass cache
                                         if (imageLoadAttempts < 1) {
-                                          setImageLoadAttempts(prev => prev + 1);
-                                          const retryTimestamp = new Date().getTime();
-                                          const retryNonce = Math.random().toString(36).substring(2, 15);
-                                          
+                                          setImageLoadAttempts(
+                                            (prev) => prev + 1
+                                          );
+                                          const retryTimestamp =
+                                            new Date().getTime();
+                                          const retryNonce = Math.random()
+                                            .toString(36)
+                                            .substring(2, 15);
+
                                           // Get the backend URL from environment variable
-                                          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
-                                          
+                                          const backendUrl =
+                                            process.env
+                                              .NEXT_PUBLIC_BACKEND_URL || "";
+
                                           // Construct the full retry URL
                                           const retryUrl = `${backendUrl}/api/churches/${churchId}/profile-picture?v=${retryTimestamp}&nonce=${retryNonce}&retry=true`;
-                                          console.log("Retrying with URL:", retryUrl);
+                                          console.log(
+                                            "Retrying with URL:",
+                                            retryUrl
+                                          );
                                           setProfileImageUrl(retryUrl);
                                         } else {
                                           setImageError(true);
-                                          setImageErrorMessage('Unable to load the profile image');
+                                          setImageErrorMessage(
+                                            "Unable to load the profile image"
+                                          );
                                           setIsImageLoading(false);
                                         }
                                       }}
@@ -923,7 +940,8 @@ const ChurchEditPage = () => {
                               <div className="h-full w-full flex flex-col items-center justify-center bg-gray-50">
                                 <Church className="h-12 w-12 text-gray-400 mb-2" />
                                 <span className="text-xs text-gray-500 text-center px-2">
-                                  {imageErrorMessage || 'No profile image available'}
+                                  {imageErrorMessage ||
+                                    "No profile image available"}
                                 </span>
                               </div>
                             )}
@@ -931,10 +949,14 @@ const ChurchEditPage = () => {
                               <div className="absolute inset-0 bg-gray-100 bg-opacity-70 flex flex-col items-center justify-center z-10">
                                 <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-2"></div>
                                 <span className="text-xs text-gray-600">
-                                  {imageLoadAttempts > 0 ? 'Retrying image load...' : 'Loading image...'}
+                                  {imageLoadAttempts > 0
+                                    ? "Retrying image load..."
+                                    : "Loading image..."}
                                 </span>
                                 {imageLoadAttempts > 0 && (
-                                  <span className="text-xs text-gray-500 mt-1">Attempt {imageLoadAttempts + 1}/2</span>
+                                  <span className="text-xs text-gray-500 mt-1">
+                                    Attempt {imageLoadAttempts + 1}/2
+                                  </span>
                                 )}
                               </div>
                             )}
@@ -961,34 +983,43 @@ const ChurchEditPage = () => {
                               <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 mr-2 flex-shrink-0" />
                               <div>
                                 <p className="text-xs text-amber-700">
-                                  {imageErrorMessage || 'Current profile picture could not be loaded. Please upload a new one or try reloading.'}
+                                  {imageErrorMessage ||
+                                    "Current profile picture could not be loaded. Please upload a new one or try reloading."}
                                 </p>
                                 <div className="mt-2 flex space-x-3">
-                                  <button 
+                                  <button
                                     type="button"
                                     className="text-xs px-2 py-1 bg-indigo-50 text-indigo-600 hover:text-indigo-800 rounded-md flex items-center"
                                     onClick={() => {
                                       // Try to refresh the image with a new cache-busting parameter
                                       setIsImageLoading(true);
                                       setImageError(false);
-                                      setImageErrorMessage('');
+                                      setImageErrorMessage("");
                                       setImageLoadAttempts(0);
-                                      const refreshTimestamp = new Date().getTime();
-                                      const refreshNonce = Math.random().toString(36).substring(2, 15);
-                                      
+                                      const refreshTimestamp =
+                                        new Date().getTime();
+                                      const refreshNonce = Math.random()
+                                        .toString(36)
+                                        .substring(2, 15);
+
                                       // Get the backend URL from environment variable
-                                      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || '';
-                                      
+                                      const backendUrl =
+                                        process.env.NEXT_PUBLIC_BACKEND_URL ||
+                                        "";
+
                                       // Construct the full refresh URL
                                       const refreshUrl = `${backendUrl}/api/churches/${churchId}/profile-picture?v=${refreshTimestamp}&nonce=${refreshNonce}&force=true`;
-                                      console.log("Refreshing with URL:", refreshUrl);
+                                      console.log(
+                                        "Refreshing with URL:",
+                                        refreshUrl
+                                      );
                                       setProfileImageUrl(refreshUrl);
                                     }}
                                   >
                                     <RefreshCcw className="h-3 w-3 mr-1" />
                                     Reload image
                                   </button>
-                                  <label 
+                                  <label
                                     htmlFor="ProfilePicture"
                                     className="text-xs px-2 py-1 bg-indigo-50 text-indigo-600 hover:text-indigo-800 rounded-md cursor-pointer flex items-center"
                                   >

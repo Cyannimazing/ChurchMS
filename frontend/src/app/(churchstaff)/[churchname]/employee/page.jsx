@@ -116,7 +116,13 @@ const validateStep = (step, form, editStaffId, roles) => {
       errors.address = "Address must not exceed 255 characters.";
     }
   } else if (step === 3) {
-    if (form.role_id && !roles.some((role) => role.RoleID === form.role_id)) {
+    // Require role_id for new staff; remove this if role is optional
+    if (!editStaffId && !form.role_id) {
+      errors.role_id = "A role is required for new staff.";
+    } else if (
+      form.role_id &&
+      !roles.some((role) => role.RoleID === Number(form.role_id))
+    ) {
       errors.role_id = "Selected role is invalid.";
     }
   }

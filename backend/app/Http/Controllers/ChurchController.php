@@ -127,6 +127,12 @@ class ChurchController extends Controller
                     'RepresentativeID' => 'Representative Government ID',
                 ];
 
+                // Create document storage directory if it doesn't exist
+                $storageDir = storage_path('app/church_documents');
+                if (!file_exists($storageDir)) {
+                    mkdir($storageDir, 0755, true);
+                }
+
                 // Track uploaded documents
                 $uploadedDocuments = [];
 

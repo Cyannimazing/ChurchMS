@@ -15,7 +15,7 @@
                     ->onDelete('cascade');
                 $table->text('Description')->nullable();
                 $table->text('ParishDetails')->nullable();
-                $table->binary('ProfilePictureData')->nullable();
+                $table->string('ProfilePicturePath')->nullable();
                 $table->timestamps();
             });
         }
