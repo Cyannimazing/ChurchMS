@@ -46,7 +46,11 @@ const SubscriptionPlans = () => {
     e.preventDefault();
     setErrors({});
     setIsSubmitting(true);
-    toast.loading(editingPlanId ? "Updating plan..." : "Creating plan...");
+
+    // Store the toast ID to dismiss it later
+    const toastId = toast.loading(
+      editingPlanId ? "Updating plan..." : "Creating plan..."
+    );
 
     const request = editingPlanId
       ? axios.put(`/api/subscription-plans/${editingPlanId}`, form)
@@ -60,11 +64,12 @@ const SubscriptionPlans = () => {
               plan.PlanID === editingPlanId ? response.data : plan
             )
           );
-          toast.success("Plan updated successfully!");
+          toast.success("Plan updated successfully!", { id: toastId });
         } else {
           setPlans([...plans, response.data]);
-          toast.success("Plan created successfully!");
+          toast.success("Plan created successfully!", { id: toastId });
         }
+        // Reset form and close modal
         setForm({
           PlanName: "",
           Price: "",
@@ -78,10 +83,10 @@ const SubscriptionPlans = () => {
       .catch((error) => {
         if (error.response?.status === 422) {
           setErrors(error.response.data.errors);
-          toast.error("Please fix the errors in the form");
+          toast.error("Please fix the errors in the form", { id: toastId });
         } else {
           console.error("Error saving plan:", error);
-          toast.error("Failed to save plan");
+          toast.error("Failed to save plan", { id: toastId });
         }
       })
       .finally(() => {

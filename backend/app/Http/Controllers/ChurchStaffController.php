@@ -45,7 +45,7 @@ class ChurchStaffController extends Controller
             'password' => 'required|string|min:8|confirmed',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            'middle_name' => 'nullable|string|max:255',
+            'middle_name' => 'nullable|string|max:1',
             'contact_number' => 'nullable|string|max:20',
             'address' => 'nullable|string|max:255',
             'role_id' => 'nullable|exists:ChurchRole,RoleID,ChurchID,' . $request->ChurchID,

@@ -22,7 +22,6 @@ const SubscriptionPlans = () => {
     setLoading(true);
     setErrors({});
     try {
-      await axios.get("/sanctum/csrf-cookie");
       const response = await axios.get("/api/subscription-plans");
       console.log("API Response:", response.data);
       if (Array.isArray(response.data)) {
@@ -203,13 +202,15 @@ const SubscriptionPlans = () => {
                       </span>
                     </li>
                   </ul>
-                  <button
+                  <Button
+                  className="w-full"
                     type="button"
                     onClick={() => setSelectedPlan(plan)}
-                    className="text-white font-medium rounded-lg text-sm sm:text-base px-4 sm:px-5 py-2 sm:py-2.5 w-full text-center bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black hover:scale-105 active:scale-95 transition-all duration-300 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-gray-500"
+                    variant="primary"
+                    aria-label={`Select ${plan.PlanName} plan`}
                   >
                     Select
-                  </button>
+                  </Button>
                 </div>
               ))}
             </div>
