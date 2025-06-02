@@ -59,7 +59,7 @@ const Navigation = ({ user }) => {
       badge: null,
     },
     {
-      name: "Register Church",
+      name: "Add Church",
       href: "/registerchurch",
       icon: "M12 5v14m7-7H5m12-5l-5 5 5 5",
       badge: null,
