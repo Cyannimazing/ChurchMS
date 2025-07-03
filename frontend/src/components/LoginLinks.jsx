@@ -16,7 +16,7 @@ const LoginLinks = ({ mobile = false, handleLinkClick }) => {
   // Container classes (unchanged functionality)
   const containerClasses = mobile
     ? "w-full"
-    : "fixed  top-0 right-0 px-6 py-4 hidden lg:block z-[70]";
+    : "fixed  top-0 right-0 px-6 py-5 hidden lg:block z-[70]";
 
   return (
     <div className={containerClasses}>

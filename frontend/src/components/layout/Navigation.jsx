@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
-import LoginLinks from "@/app/LoginLinks";
+import LoginLinks from "@/components/LoginLinks";
 
 const Navigation = () => {
   // State for dropdowns and mobile menu

@@ -10,7 +10,6 @@ export const useChurchManagement = () => {
 
     setIsLoading(true);
     try {
-      await axios.get("/sanctum/csrf-cookie");
       const response = await axios.get("/api/churches");
       if (response.data && Array.isArray(response.data.churches)) {
         setChurches(response.data.churches);
@@ -54,7 +53,6 @@ export const useChurchManagement = () => {
 
     setIsFetchingDocuments(true);
     try {
-      await axios.get("/sanctum/csrf-cookie");
       const response = await axios.get(`/api/churches/${churchId}/documents`);
       if (
         response.data &&
@@ -102,7 +100,6 @@ export const useChurchManagement = () => {
 
     setIsUpdating(true);
     try {
-      await axios.get("/sanctum/csrf-cookie");
       const response = await axios.put(`/api/churches/${churchId}/status`, {
         ChurchStatus: status,
       });
@@ -136,7 +133,6 @@ export const useChurchManagement = () => {
 
   const previewDocument = async ({ documentId }) => {
     try {
-      await axios.get("/sanctum/csrf-cookie");
       const response = await axios.get(`/api/documents/${documentId}`, {
         responseType: "blob",
       });
@@ -167,7 +163,6 @@ export const useChurchManagement = () => {
 
   const downloadDocument = async ({ documentId, documentType }) => {
     try {
-      await axios.get("/sanctum/csrf-cookie");
       const response = await axios.get(`/api/documents/${documentId}`, {
         responseType: "blob",
       });

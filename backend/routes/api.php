@@ -28,6 +28,7 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     
     return $user;
 });
+
 Route::get('/users_list', [UserController::class, 'index'])->middleware('auth:sanctum');
 Route::put('/users/{id}/update-active', [UserController::class, 'updateActiveStatus'])->middleware('auth:sanctum');
 Route::get('/users/{id}', [UserController::class, 'show'])->middleware('auth:sanctum');
