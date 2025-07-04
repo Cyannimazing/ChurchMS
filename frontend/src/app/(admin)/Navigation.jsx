@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/hooks/auth.jsx";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Church } from "lucide-react";
+import ApplicationLogo from "@/components/ApplicationLogo.jsx";
 
 const Navigation = ({ user }) => {
   const pathname = usePathname();
@@ -82,7 +83,7 @@ const Navigation = ({ user }) => {
       badge: null,
     },
     {
-      name: "Users",
+      name: "User",
       href: "/users",
       icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
       badge: null,
@@ -115,7 +116,7 @@ const Navigation = ({ user }) => {
               className="flex items-center p-2 rounded-lg"
             >
               <div className="flex-shrink-0">
-                <div className="h-10 w-10 rounded-full flex items-center justify-center font-medium bg-indigo-100 text-indigo-600">
+                <div className="h-10 w-10 rounded-full flex items-center justify-center font-medium bg-slate-100 text-slate-700">
                   {user?.profile.first_name?.charAt(0) || "U"}
                 </div>
               </div>
@@ -221,6 +222,19 @@ const Navigation = ({ user }) => {
         } ${isMobile ? "mt-16" : "mt-0"}`} // Adjust for top bar height in mobile
       >
         <div className="flex flex-col h-full">
+          {/* Header Section */}
+          <div className="bg-white border-b border-gray-100 p-6">
+            <div className="flex items-center space-x-3">
+              <div className="bg-slate-900 rounded-xl p-2.5">
+                <ApplicationLogo className="h-7 w-7 text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold text-gray-900">System Admin</h1>
+                <p className="text-xs text-gray-500 font-medium">Management System</p>
+              </div>
+            </div>
+          </div>
+
           {/* Navigation */}
           <nav className="flex-1 px-2 py-4 overflow-y-auto">
             <ul className="space-y-1">
@@ -318,8 +332,8 @@ const Navigation = ({ user }) => {
                       onClick={handleNavClick}
                       className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
                         pathname === item.href
-                          ? "bg-indigo-50 text-indigo-600"
-                          : "hover:bg-gray-50 hover:text-indigo-500"
+                          ? "bg-slate-100 text-slate-900 font-medium"
+                          : "text-gray-700 hover:bg-gray-50 hover:text-slate-900"
                       }`}
                     >
                       <svg
@@ -357,7 +371,7 @@ const Navigation = ({ user }) => {
                   className="flex items-center w-full p-2 rounded-lg"
                 >
                   <div className="flex-shrink-0">
-                    <div className="h-10 w-10 rounded-full flex items-center justify-center font-medium bg-indigo-100 text-indigo-600">
+                    <div className="h-10 w-10 rounded-full flex items-center justify-center font-medium bg-slate-100 text-slate-700">
                       {user?.profile.first_name?.charAt(0) || "U"}
                     </div>
                   </div>

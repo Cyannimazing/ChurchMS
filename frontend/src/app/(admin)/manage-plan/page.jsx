@@ -7,9 +7,12 @@ import Input from "@/components/Input.jsx";
 import InputError from "@/components/InputError.jsx";
 import Label from "@/components/Label.jsx";
 import DataLoading from "@/components/DataLoading";
+import Alert from "@/components/Alert";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { useState, useEffect } from "react";
-import { X, Download, Eye, Loader2 } from "lucide-react";
-import { toast, Toaster } from "react-hot-toast";
+import { X, Download, Eye, Loader2, Edit, Trash2 } from "lucide-react";
+import SearchAndPagination from "@/components/SearchAndPagination";
+import { filterAndPaginateData } from "@/utils/tableUtils";
 
 const SubscriptionPlans = () => {
   const [plans, setPlans] = useState([]);
@@ -25,6 +28,34 @@ const SubscriptionPlans = () => {
   });
   const [editingPlanId, setEditingPlanId] = useState(null);
   const [errors, setErrors] = useState({});
+  const [alert, setAlert] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, planId: null, action: null });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+  
+  // Define search fields
+  const searchFields = ['PlanName', 'Description'];
+  
+  // Handle search query change and reset pagination
+  const handleSearchChange = (query) => {
+    setSearchQuery(query);
+    setCurrentPage(1);
+  };
+
+  // Handle page change
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  // Get filtered and paginated data
+  const { data: paginatedPlans, pagination } = filterAndPaginateData(
+    plans,
+    searchQuery,
+    searchFields,
+    currentPage,
+    itemsPerPage
+  );
 
   // Fetch plans
   useEffect(() => {
@@ -37,7 +68,11 @@ const SubscriptionPlans = () => {
       })
       .catch((error) => {
         console.error("Error fetching plans:", error);
-        toast.error("Failed to fetch plans");
+        setAlert({
+          type: 'error',
+          title: 'Error Loading Plans',
+          message: 'Failed to fetch subscription plans'
+        });
         setLoading(false);
       });
   }, []);
@@ -47,10 +82,6 @@ const SubscriptionPlans = () => {
     setErrors({});
     setIsSubmitting(true);
 
-    // Store the toast ID to dismiss it later
-    const toastId = toast.loading(
-      editingPlanId ? "Updating plan..." : "Creating plan..."
-    );
 
     const request = editingPlanId
       ? axios.put(`/api/subscription-plans/${editingPlanId}`, form)
@@ -64,10 +95,18 @@ const SubscriptionPlans = () => {
               plan.PlanID === editingPlanId ? response.data : plan
             )
           );
-          toast.success("Plan updated successfully!", { id: toastId });
+          setAlert({
+            type: 'success',
+            title: 'Plan Updated',
+            message: 'Plan updated successfully!'
+          });
         } else {
           setPlans([...plans, response.data]);
-          toast.success("Plan created successfully!", { id: toastId });
+          setAlert({
+            type: 'success',
+            title: 'Plan Created',
+            message: 'Plan created successfully!'
+          });
         }
         // Reset form and close modal
         setForm({
@@ -83,10 +122,18 @@ const SubscriptionPlans = () => {
       .catch((error) => {
         if (error.response?.status === 422) {
           setErrors(error.response.data.errors);
-          toast.error("Please fix the errors in the form", { id: toastId });
+          setAlert({
+            type: 'error',
+            title: 'Validation Error',
+            message: 'Please fix the errors in the form'
+          });
         } else {
           console.error("Error saving plan:", error);
-          toast.error("Failed to save plan", { id: toastId });
+          setAlert({
+            type: 'error',
+            title: 'Save Failed',
+            message: 'Failed to save plan'
+          });
         }
       })
       .finally(() => {
@@ -107,18 +154,36 @@ const SubscriptionPlans = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = (planId) => {
-    toast.loading("Deleting plan...");
-    axios
-      .delete(`/api/subscription-plans/${planId}`)
-      .then(() => {
-        setPlans(plans.filter((plan) => plan.PlanID !== planId));
-        toast.success("Plan deleted successfully!");
-      })
-      .catch((error) => {
-        console.error("Error deleting plan:", error);
-        toast.error("Cannot delete plan with active subscriptions");
+  const handleDelete = async () => {
+    const { planId } = confirmDialog;
+    try {
+      await axios.delete(`/api/subscription-plans/${planId}`);
+      setPlans(plans.filter((plan) => plan.PlanID !== planId));
+      setAlert({
+        type: 'success',
+        title: 'Plan Deleted',
+        message: 'Plan deleted successfully!'
       });
+    } catch (error) {
+      console.error("Error deleting plan:", error);
+      setAlert({
+        type: 'error',
+        title: 'Delete Failed',
+        message: 'Cannot delete plan with active subscriptions'
+      });
+    } finally {
+      setConfirmDialog({ isOpen: false, planId: null, action: null });
+    }
+  };
+
+  const openDeleteConfirm = (planId, planName) => {
+    setConfirmDialog({
+      isOpen: true,
+      planId,
+      action: 'delete',
+      title: 'Delete Plan',
+      message: `Are you sure you want to delete "${planName}"? This action cannot be undone.`
+    });
   };
 
   const handleOpenModal = () => {
@@ -148,99 +213,161 @@ const SubscriptionPlans = () => {
   };
 
   return (
-    <div className="lg:ml-72 mx-3 py-12">
-      <Toaster position="top-right" />
-      <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-        <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-          <div className="p-6 bg-white border-b border-gray-200">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Manage Subscription Plans
-              </h2>
-              <Button onClick={handleOpenModal}>Create Plan</Button>
-            </div>
-
+    <div className="p-6 w-full h-screen">
+      <div className="max-w-7xl mx-auto h-full">
+        <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
+          <div className="p-6 bg-white border-b border-gray-200 flex-1 overflow-auto">
+            <h1 className="text-2xl font-semibold text-gray-900 mb-6">
+              Manage Subscription Plans
+            </h1>
+            
+            {alert && (
+              <div className="mb-6">
+                <Alert
+                  type={alert.type}
+                  title={alert.title}
+                  message={alert.message}
+                  onClose={() => setAlert(null)}
+                />
+              </div>
+            )}
+            
             {/* Plan List */}
             <div className="mt-6">
-              <h3 className="text-md font-medium text-gray-700 mb-4">
-                Existing Plans
-              </h3>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Price
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Duration
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Max Churches
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {loading ? (
-                      <tr>
-                        <td colSpan={5} className="px-6 py-4">
-                          <DataLoading message="Loading plans..." />
-                        </td>
-                      </tr>
-                    ) : plans.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={5}
-                          className="px-6 py-4 text-center text-gray-500"
-                        >
-                          No plans available.
-                        </td>
-                      </tr>
-                    ) : (
-                      plans.map((plan) => (
-                        <tr
-                          key={plan.PlanID}
-                          className="hover:bg-gray-50 transition-colors"
-                        >
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                            {plan.PlanName}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                            ${plan.Price}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                            {plan.DurationInMonths} months
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                            {plan.MaxChurchesAllowed}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap flex gap-3">
-                            <button
-                              onClick={() => handleEdit(plan)}
-                              className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(plan.PlanID)}
-                              className="text-red-600 hover:text-red-800 flex items-center text-sm"
-                            >
-                              <X className="h-4 w-4 mr-1" />
-                              Delete
-                            </button>
-                          </td>
+                <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900">Subscription Plans</h3>
+                        <p className="mt-1 text-sm text-gray-600">Manage subscription plans and pricing</p>
+                      </div>
+                      <Button onClick={handleOpenModal}>Create Plan</Button>
+                    </div>
+                  </div>
+                  
+                  <div className="px-6 py-4">
+                    <SearchAndPagination
+                      searchQuery={searchQuery}
+                      onSearchChange={handleSearchChange}
+                      currentPage={currentPage}
+                      totalPages={pagination.totalPages}
+                      onPageChange={handlePageChange}
+                      totalItems={pagination.totalItems}
+                      itemsPerPage={itemsPerPage}
+                      placeholder="Search plans..."
+                    />
+                  </div>
+                  
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 table-fixed">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
+                            Plan Details
+                          </th>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
+                            Pricing
+                          </th>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
+                            Duration
+                          </th>
+                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
+                            Limits
+                          </th>
+                          <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
+                            Actions
+                          </th>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {loading ? (
+                          <tr>
+                            <td colSpan={5} className="px-6 py-8">
+                              <DataLoading message="Loading plans..." />
+                            </td>
+                          </tr>
+                        ) : paginatedPlans.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                              {searchQuery ? 'No plans found matching your search.' : 'No plans available.'}
+                            </td>
+                          </tr>
+                        ) : (
+                          paginatedPlans.map((plan) => (
+                            <tr
+                              key={plan.PlanID}
+                              className="hover:bg-gray-50 transition-colors"
+                            >
+                              <td className="px-6 py-4">
+                                <div className="flex items-start space-x-3">
+                                  <div className="flex-shrink-0">
+                                    <div className="h-12 w-12 rounded-lg bg-indigo-100 flex items-center justify-center">
+                                      <span className="text-sm font-medium text-indigo-600">
+                                        {plan.PlanName.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-gray-900 truncate">
+                                      {plan.PlanName}
+                                    </p>
+                                    <div className="flex items-center mt-1 space-x-3 flex-wrap">
+                                      {plan.Description && (
+                                        <span className="text-xs text-gray-400 truncate max-w-xs">
+                                          {plan.Description}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="text-sm text-gray-900 font-medium">
+                                  ${plan.Price}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Per subscription
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="text-sm text-gray-900">
+                                  {plan.DurationInMonths} months
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Subscription period
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  {plan.MaxChurchesAllowed} churches
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex justify-center space-x-2">
+                                  <button
+                                    onClick={() => handleEdit(plan)}
+                                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                                  >
+                                    <Edit className="h-3 w-3 mr-1" />
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => openDeleteConfirm(plan.PlanID, plan.PlanName)}
+                                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                                  >
+                                    <Trash2 className="h-3 w-3 mr-1" />
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -405,6 +532,17 @@ const SubscriptionPlans = () => {
           </div>
         </div>
       )}
+      
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, planId: null, action: null })}
+        onConfirm={handleDelete}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   );
 };

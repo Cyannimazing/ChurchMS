@@ -32,9 +32,9 @@ const AppLayout = ({ children }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-50">
       <Navigation user={user} />
-      <main>{children}</main>
+      <main className="lg:ml-72 transition-all duration-300">{children}</main>
     </div>
   );
 };

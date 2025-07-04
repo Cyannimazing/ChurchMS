@@ -216,10 +216,17 @@ class ChurchController extends Controller
                     'ChurchName' => $church->ChurchName,
                     'ChurchStatus' => $church->ChurchStatus,
                     'IsPublic' => $church->IsPublic,
-                    'Latitude' => $church->Latitude,
-                    'Longitude' => $church->Longitude,
-                    'Description' => $church->profile ? $church->profile->Description : null,
-                    'ParishDetails' => $church->profile ? $church->profile->ParishDetails : null,
+                    'Location' => [
+                        'Latitude' => $church->Latitude,
+                        'Longitude' => $church->Longitude,
+                    ],
+                    'ChurchProfile' => $church->profile ? [
+                        'Description' => $church->profile->Description,
+                        'ParishDetails' => $church->profile->ParishDetails,
+                        'ProfilePictureUrl' => $church->profile->ProfilePicturePath 
+                            ? url('/api/churches/' . $church->ChurchID . '/profile-picture')
+                            : null,
+                    ] : null,
                     'DocumentCount' => $church->documents->count(),
                 ];
             }),
@@ -228,16 +235,39 @@ class ChurchController extends Controller
 
     public function index(Request $request)
     {
-        $churches = Church::with(['owner', 'profile', 'documents'])->get();
+        $churches = Church::with(['owner.profile', 'profile', 'documents'])->get();
 
         return response()->json([
             'churches' => $churches->map(function ($church) {
+                $ownerProfile = $church->owner && $church->owner->profile 
+                    ? $church->owner->profile 
+                    : null;
+                
                 return [
                     'ChurchID' => $church->ChurchID,
                     'ChurchName' => $church->ChurchName,
                     'ChurchStatus' => $church->ChurchStatus,
+                    'IsPublic' => $church->IsPublic,
+                    'Location' => [
+                        'Latitude' => $church->Latitude,
+                        'Longitude' => $church->Longitude,
+                    ],
                     'Owner' => $church->owner ? $church->owner->email : 'N/A',
-                    'Description' => $church->profile ? $church->profile->Description : null,
+                    'OwnerProfile' => $ownerProfile ? [
+                        'FirstName' => $ownerProfile->first_name,
+                        'MiddleName' => $ownerProfile->middle_name,
+                        'LastName' => $ownerProfile->last_name,
+                        'FullName' => trim(($ownerProfile->first_name ?? '') . ' ' . 
+                                        ($ownerProfile->middle_name ?? '') . ' ' . 
+                                        ($ownerProfile->last_name ?? ''))
+                    ] : null,
+                    'ChurchProfile' => $church->profile ? [
+                        'Description' => $church->profile->Description,
+                        'ParishDetails' => $church->profile->ParishDetails,
+                        'ProfilePictureUrl' => $church->profile->ProfilePicturePath 
+                            ? url('/api/churches/' . $church->ChurchID . '/profile-picture')
+                            : null,
+                    ] : null,
                     'DocumentCount' => $church->documents->count(),
                 ];
             }),
@@ -285,11 +315,39 @@ class ChurchController extends Controller
                 ];
             })->toArray();
 
+            // Get church profile and owner information
+            $church->load(['profile', 'owner.profile']);
+            
+            $ownerProfile = $church->owner && $church->owner->profile 
+                ? $church->owner->profile 
+                : null;
+
             return response()->json([
                 'church' => [
                     'ChurchID' => $church->ChurchID,
                     'ChurchName' => $church->ChurchName,
                     'ChurchStatus' => $church->ChurchStatus,
+                    'IsPublic' => $church->IsPublic,
+                    'Location' => [
+                        'Latitude' => $church->Latitude,
+                        'Longitude' => $church->Longitude,
+                    ],
+                    'Owner' => $church->owner ? $church->owner->email : 'N/A',
+                    'OwnerProfile' => $ownerProfile ? [
+                        'FirstName' => $ownerProfile->first_name,
+                        'MiddleName' => $ownerProfile->middle_name,
+                        'LastName' => $ownerProfile->last_name,
+                        'FullName' => trim(($ownerProfile->first_name ?? '') . ' ' . 
+                                        ($ownerProfile->middle_name ?? '') . ' ' . 
+                                        ($ownerProfile->last_name ?? ''))
+                    ] : null,
+                    'ChurchProfile' => $church->profile ? [
+                        'Description' => $church->profile->Description,
+                        'ParishDetails' => $church->profile->ParishDetails,
+                        'ProfilePictureUrl' => $church->profile->ProfilePicturePath 
+                            ? url('/api/churches/' . $church->ChurchID . '/profile-picture')
+                            : null,
+                    ] : null,
                 ],
                 'documents' => $documentData,
             ]);

@@ -5,6 +5,8 @@ import axios from "@/lib/axios";
 import { toast, Toaster } from "react-hot-toast";
 import { Download, Eye, Loader2 } from "lucide-react";
 import DataLoading from "@/components/DataLoading";
+import SearchAndPagination from "@/components/SearchAndPagination";
+import { filterAndPaginateData } from "@/utils/tableUtils";
 
 const Dashboard = () => {
   const [churches, setChurches] = useState([]);
@@ -14,6 +16,37 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [reviewedChurches, setReviewedChurches] = useState(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+  
+  // Define search fields
+  const searchFields = ['ChurchName', 'Owner', 'OwnerProfile.FullName'];
+
+  // Handle search query change and reset pagination
+  const handleSearchChange = (query) => {
+    setSearchQuery(query);
+    setCurrentPage(1);
+  };
+
+  // Handle page change
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  // Filter for pending applications only and order by submission date (first submitted first)
+  const pendingChurches = churches
+    .filter(church => church.ChurchStatus === "Pending")
+    .sort((a, b) => new Date(a.created_at || a.CreatedDate || a.SubmissionDate) - new Date(b.created_at || b.CreatedDate || b.SubmissionDate));
+
+  // Get filtered and paginated data
+  const { data: paginatedChurches, pagination } = filterAndPaginateData(
+    pendingChurches,
+    searchQuery,
+    searchFields,
+    currentPage,
+    itemsPerPage
+  );
 
   // Fetch the list of churches on component mount
   useEffect(() => {
@@ -167,103 +200,168 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="lg:ml-72 mx-3 py-12">
+    <div className="p-6 w-full h-screen">
       <Toaster position="top-right" />
-      <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-        <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-          <div className="p-6 bg-white border-b border-gray-200">
-            <h1 className="text-2xl font-bold mb-6 text-gray-900">
+      <div className="max-w-7xl mx-auto h-full">
+        <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
+          <div className="p-6 bg-white border-b border-gray-200 flex-1 overflow-auto">
+            <h1 className="text-2xl font-semibold text-gray-900 mb-6">
               Application Dashboard
             </h1>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Owner
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Description
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Documents
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody
-                  className="bg-white divide-y divide-gray-200"
-                  aria-live="polite"
-                >
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan={7} className="px-6 py-4">
-                        <DataLoading message="Loading churches..." />
-                      </td>
-                    </tr>
-                  ) : churches.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-6 py-4 text-center">
-                        No churches available.
-                      </td>
-                    </tr>
-                  ) : (
-                    churches.map((church) => (
-                      <tr key={church.ChurchID}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                          {church.ChurchID}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                          {church.ChurchName}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              church.ChurchStatus === "Active"
-                                ? "bg-green-100 text-green-800"
-                                : church.ChurchStatus === "Rejected"
-                                ? "bg-red-100 text-red-800"
-                                : "bg-yellow-100 text-yellow-800"
-                            }`}
-                          >
-                            {church.ChurchStatus}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                          {church.Owner}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-700">
-                          {church.Description || "N/A"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                          {church.DocumentCount}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <button
-                            onClick={() => fetchDocuments(church.ChurchID)}
-                            className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
-                            aria-label={`Review application for ${church.ChurchName}`}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
-                          </button>
-                        </td>
+              <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                  <h3 className="text-lg font-medium text-gray-900">Pending Church Applications</h3>
+                  <p className="mt-1 text-sm text-gray-600">Review pending church registration applications (ordered by submission date)</p>
+                </div>
+                
+                <div className="px-6 py-4">
+                  <SearchAndPagination
+                    searchQuery={searchQuery}
+                    onSearchChange={handleSearchChange}
+                    currentPage={currentPage}
+                    totalPages={pagination.totalPages}
+                    onPageChange={handlePageChange}
+                    totalItems={pagination.totalItems}
+                    itemsPerPage={itemsPerPage}
+                    placeholder="Search pending applications..."
+                  />
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 table-fixed">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">
+                          Church Details
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                          Owner
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                          Status
+                        </th>
+                        <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                          Actions
+                        </th>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody
+                      className="bg-white divide-y divide-gray-200"
+                      aria-live="polite"
+                    >
+                      {isLoading ? (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-8">
+                            <DataLoading message="Loading churches..." />
+                          </td>
+                        </tr>
+                      ) : paginatedChurches.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                            {searchQuery ? 'No pending applications found matching your search.' : 'No pending applications available.'}
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedChurches.map((church) => (
+                          <tr key={church.ChurchID} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-start space-x-3">
+                                <div className="flex-shrink-0">
+                                  {church.ChurchProfile?.ProfilePictureUrl ? (
+                                    <img
+                                      src={church.ChurchProfile.ProfilePictureUrl}
+                                      alt={`${church.ChurchName} profile`}
+                                      className="h-12 w-12 rounded-full object-cover border-2 border-indigo-100"
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'flex';
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div className={`h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center ${church.ChurchProfile?.ProfilePictureUrl ? 'hidden' : ''}`}>
+                                    <span className="text-sm font-medium text-indigo-600">
+                                      {church.ChurchName.charAt(0).toUpperCase()}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 truncate">
+                                    {church.ChurchName}
+                                  </p>
+                                  <div className="flex items-center mt-1 space-x-3 flex-wrap">
+                                    <span className="text-xs text-gray-400">
+                                      {church.DocumentCount} documents
+                                    </span>
+                                    {church.Location?.Latitude && church.Location?.Longitude && (
+                                      <span className="text-xs text-gray-400">
+                                        📍 {typeof church.Location.Latitude === 'number' ? church.Location.Latitude.toFixed(8) : church.Location.Latitude}, {typeof church.Location.Longitude === 'number' ? church.Location.Longitude.toFixed(8) : church.Location.Longitude}
+                                      </span>
+                                    )}
+                                    {church.IsPublic && (
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        Public
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm text-gray-900">
+                                {church.OwnerProfile?.FullName || church.Owner}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {church.OwnerProfile?.FullName ? church.Owner : 'Church Owner'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  church.ChurchStatus === "Active"
+                                    ? "bg-green-100 text-green-800"
+                                    : church.ChurchStatus === "Rejected"
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-yellow-100 text-yellow-800"
+                                }`}
+                              >
+                                {church.ChurchStatus === "Active" && (
+                                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                                {church.ChurchStatus === "Rejected" && (
+                                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                                {church.ChurchStatus === "Pending" && (
+                                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                                {church.ChurchStatus}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex justify-center">
+                                <button
+                                  onClick={() => fetchDocuments(church.ChurchID)}
+                                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                                  aria-label={`Review application for ${church.ChurchName}`}
+                                >
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  Review
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>

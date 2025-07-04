@@ -1,15 +1,24 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Eye, CheckCircle, XCircle } from "lucide-react";
+import { Eye, CheckCircle, XCircle, Edit } from "lucide-react";
 import DataLoading from "@/components/DataLoading";
-import toast from "react-hot-toast";
+import Alert from "@/components/Alert";
+import SearchAndPagination from "@/components/SearchAndPagination";
+import { filterAndPaginateData } from "@/utils/tableUtils";
 import axios from "@/lib/axios";
 import Link from "next/link";
 
 export default function Users() {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadingUserId, setLoadingUserId] = useState(null); // Track loading for specific user
+  const [loadingUserId, setLoadingUserId] = useState(null);
+  const [alert, setAlert] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+  
+  // Define search fields
+  const searchFields = ['full_name', 'email', 'system_role_name'];
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -20,7 +29,11 @@ export default function Users() {
       } catch (error) {
         const errorMessage =
           error.response?.data?.error || "Failed to fetch users";
-        toast.error(errorMessage);
+        setAlert({
+          type: 'error',
+          title: 'Error Loading Users',
+          message: errorMessage
+        });
         console.error("Fetch users error:", {
           status: error.response?.status,
           data: error.response?.data,
@@ -33,98 +46,208 @@ export default function Users() {
     fetchUsers();
   }, []);
 
+  const handleActiveStatusChange = async (userId, newStatus) => {
+    setLoadingUserId(userId);
+    try {
+      const response = await axios.put(`/api/users/${userId}/status`, {
+        is_active: newStatus
+      });
+      setUsers(users.map(user => 
+        user.id === userId ? { ...user, is_active: newStatus } : user
+      ));
+      setAlert({
+        type: 'success',
+        title: 'Status Updated',
+        message: `User status has been ${newStatus ? 'activated' : 'deactivated'} successfully.`
+      });
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || "Failed to update user status";
+      setAlert({
+        type: 'error',
+        title: 'Update Failed',
+        message: errorMessage
+      });
+    } finally {
+      setLoadingUserId(null);
+    }
+  };
+
+  // Handle search query change and reset pagination
+  const handleSearchChange = (query) => {
+    setSearchQuery(query);
+    setCurrentPage(1);
+  };
+
+  // Handle page change
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  // Get filtered and paginated data
+  const { data: paginatedUsers, pagination } = filterAndPaginateData(
+    users,
+    searchQuery,
+    searchFields,
+    currentPage,
+    itemsPerPage
+  );
+
   return (
-    <div className="lg:ml-72 mx-3">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-          <div className="p-6 bg-white border-b border-gray-200">
-            <h1 className="text-2xl font-bold mb-6 text-gray-900">User List</h1>
+    <div className="p-6 w-full h-screen">
+      <div className="max-w-7xl mx-auto h-full">
+        <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
+          <div className="p-6 bg-white border-b border-gray-200 flex-1 overflow-auto">
+            <h1 className="text-2xl font-semibold text-gray-900 mb-6">Users</h1>
+            
+            {alert && (
+              <div className="mb-6">
+                <Alert
+                  type={alert.type}
+                  title={alert.title}
+                  message={alert.message}
+                  onClose={() => setAlert(null)}
+                />
+              </div>
+            )}
+            
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Full Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      System Role
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Active Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody
-                  className="bg-white divide-y divide-gray-200"
-                  aria-live="polite"
-                >
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-4">
-                        <DataLoading message="Loading users..." />
-                      </td>
-                    </tr>
-                  ) : users.length ? (
-                    users.map((user) => (
-                      <tr key={user.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                          {user.full_name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                          {user.system_role_name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button
-                            onClick={() =>
-                              handleActiveStatusChange(user.id, !user.is_active)
-                            }
-                            className={`flex items-center text-sm ${
-                              user.is_active
-                                ? "text-green-600 hover:text-green-800"
-                                : "text-red-600 hover:text-red-800"
-                            }`}
-                            disabled={loadingUserId === user.id}
-                            aria-label={`Toggle active status for ${user.full_name}`}
-                          >
-                            {user.is_active ? (
-                              <>
-                                <CheckCircle className="inline mr-1 h-4 w-4" />
-                                True
-                              </>
-                            ) : (
-                              <>
-                                <XCircle className="inline mr-1 h-4 w-4" />
-                                False
-                              </>
-                            )}
-                          </button>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <Link
-                            href={`/users/${user.id}`}
-                            className="text-blue-600 hover:text-blue-800 flex items-center text-sm"
-                            aria-label={`View details for ${user.full_name}`}
-                          >
-                            <Eye className="mr-1 h-4 w-4" /> View
-                          </Link>
-                        </td>
+              <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                  <h3 className="text-lg font-medium text-gray-900">User Management</h3>
+                  <p className="mt-1 text-sm text-gray-600">Manage system users and their access permissions</p>
+                </div>
+                
+                <div className="px-6 py-4">
+                  <SearchAndPagination
+                    searchQuery={searchQuery}
+                    onSearchChange={handleSearchChange}
+                    currentPage={currentPage}
+                    totalPages={pagination.totalPages}
+                    onPageChange={handlePageChange}
+                    totalItems={pagination.totalItems}
+                    itemsPerPage={itemsPerPage}
+                    placeholder="Search users..."
+                  />
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 table-fixed">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">
+                          User
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                          Role
+                        </th>
+                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                          Status
+                        </th>
+                        <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                          Actions
+                        </th>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan={4}
-                        className="px-6 py-4 text-center text-sm text-gray-700"
-                      >
-                        No users found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody
+                      className="bg-white divide-y divide-gray-200"
+                      aria-live="polite"
+                    >
+                      {isLoading ? (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-8">
+                            <DataLoading message="Loading users..." />
+                          </td>
+                        </tr>
+                      ) : paginatedUsers.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                            {searchQuery ? 'No users found matching your search.' : 'No users available.'}
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedUsers.map((user) => (
+                          <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center space-x-4">
+                                <div className="flex-shrink-0">
+                                  <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                                    <span className="text-sm font-medium text-indigo-600">
+                                      {user.full_name.charAt(0).toUpperCase()}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium text-gray-900 mb-1">
+                                    {user.full_name}
+                                  </div>
+                                  {user.email && (
+                                    <div className="text-xs text-gray-500 flex items-center">
+                                      <svg className="w-3 h-3 mr-1 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
+                                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
+                                      </svg>
+                                      {user.email}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {user.system_role_name}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                System Role
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <button
+                                onClick={() =>
+                                  handleActiveStatusChange(user.id, !user.is_active)
+                                }
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  user.is_active
+                                    ? "bg-green-100 text-green-800 hover:bg-green-200"
+                                    : "bg-red-100 text-red-800 hover:bg-red-200"
+                                } transition-colors`}
+                                disabled={loadingUserId === user.id}
+                                aria-label={`Toggle active status for ${user.full_name}`}
+                              >
+                                {user.is_active ? (
+                                  <>
+                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                    Active
+                                  </>
+                                ) : (
+                                  <>
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    Inactive
+                                  </>
+                                )}
+                              </button>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex justify-center space-x-2">
+                                <Link href={`/users/${user.id}`}>
+                                  <button className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                                    <Eye className="h-3 w-3 mr-1" />
+                                    View
+                                  </button>
+                                </Link>
+                                <Link href={`/users/${user.id}/edit`}>
+                                  <button className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
+                                    <Edit className="h-3 w-3 mr-1" />
+                                    Edit
+                                  </button>
+                                </Link>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>

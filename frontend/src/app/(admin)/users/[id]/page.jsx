@@ -103,8 +103,8 @@ const UserDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="lg:ml-75 lg:py-12 mx-3 py-20">
-        <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
+      <div className="p-6 w-full h-full">
+        <div className="max-w-7xl mx-auto">
           <DataLoading message="Loading user details..." />
         </div>
       </div>
@@ -113,20 +113,22 @@ const UserDetail = () => {
 
   if (!user) {
     return (
-      <div className="lg:ml-75 lg:py-12 mx-3 py-20">
-        <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-          <div className="text-center p-6 text-gray-600">User not found.</div>
+      <div className="p-6 w-full h-full">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-white overflow-hidden shadow-sm rounded-lg">
+            <div className="p-6 text-center text-gray-600">User not found.</div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="lg:ml-75 lg:py-12 mx-3 py-20">
-      <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-        <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-          <div className="p-6 bg-white border-b border-gray-200">
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">
+    <div className="p-6 w-full h-screen">
+      <div className="max-w-7xl mx-auto h-full">
+        <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
+          <div className="p-6 bg-white border-b border-gray-200 flex-1 overflow-auto">
+            <h1 className="text-2xl font-semibold text-gray-900 mb-6">
               User Details
             </h1>
             <div className="space-y-4">
