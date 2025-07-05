@@ -260,22 +260,22 @@ const SubscriptionPlans = () => {
                   </div>
                   
                   <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 table-fixed">
+                    <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Plan Details
                           </th>
-                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Pricing
                           </th>
-                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Duration
                           </th>
-                          <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Limits
                           </th>
-                          <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
+                          <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Actions
                           </th>
                         </tr>
@@ -299,11 +299,11 @@ const SubscriptionPlans = () => {
                               key={plan.PlanID}
                               className="hover:bg-gray-50 transition-colors"
                             >
-                              <td className="px-6 py-4">
+                              <td className="px-4 py-3">
                                 <div className="flex items-start space-x-3">
                                   <div className="flex-shrink-0">
-                                    <div className="h-12 w-12 rounded-lg bg-indigo-100 flex items-center justify-center">
-                                      <span className="text-sm font-medium text-indigo-600">
+                                    <div className="h-10 w-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+                                      <span className="text-xs font-medium text-indigo-600">
                                         {plan.PlanName.charAt(0).toUpperCase()}
                                       </span>
                                     </div>
@@ -312,53 +312,47 @@ const SubscriptionPlans = () => {
                                     <p className="text-sm font-medium text-gray-900 truncate">
                                       {plan.PlanName}
                                     </p>
-                                    <div className="flex items-center mt-1 space-x-3 flex-wrap">
-                                      {plan.Description && (
-                                        <span className="text-xs text-gray-400 truncate max-w-xs">
-                                          {plan.Description}
-                                        </span>
-                                      )}
-                                    </div>
+                                    {plan.Description && (
+                                      <p className="text-xs text-gray-400 truncate mt-1">
+                                        {plan.Description}
+                                      </p>
+                                    )}
                                   </div>
                                 </div>
                               </td>
-                              <td className="px-6 py-4">
+                              <td className="px-4 py-3">
                                 <div className="text-sm text-gray-900 font-medium">
                                   ${plan.Price}
                                 </div>
-                                <div className="text-xs text-gray-500">
-                                  Per subscription
-                                </div>
                               </td>
-                              <td className="px-6 py-4">
+                              <td className="px-4 py-3">
                                 <div className="text-sm text-gray-900">
-                                  {plan.DurationInMonths} months
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  Subscription period
+                                  {plan.DurationInMonths}mo
                                 </div>
                               </td>
-                              <td className="px-6 py-4">
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                  {plan.MaxChurchesAllowed} churches
+                              <td className="px-4 py-3">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  {plan.MaxChurchesAllowed}
                                 </span>
                               </td>
-                              <td className="px-6 py-4">
-                                <div className="flex justify-center space-x-2">
-                                  <button
+                              <td className="px-4 py-3">
+                                <div className="flex justify-center items-center space-x-2">
+                                  <Button
                                     onClick={() => handleEdit(plan)}
-                                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                                    variant="outline"
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 min-h-0 h-auto"
                                   >
                                     <Edit className="h-3 w-3 mr-1" />
                                     Edit
-                                  </button>
-                                  <button
+                                  </Button>
+                                  <Button
                                     onClick={() => openDeleteConfirm(plan.PlanID, plan.PlanName)}
-                                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                                    variant="outline"
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto"
                                   >
                                     <Trash2 className="h-3 w-3 mr-1" />
                                     Delete
-                                  </button>
+                                  </Button>
                                 </div>
                               </td>
                             </tr>
@@ -382,13 +376,14 @@ const SubscriptionPlans = () => {
             role="dialog"
             aria-labelledby="modal-title"
           >
-            <button
+            <Button
               onClick={handleCloseModal}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+              variant="outline"
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 p-1.5 min-h-0 h-auto border-none hover:bg-gray-100"
               aria-label="Close modal"
             >
-              <X className="h-5 w-5" />
-            </button>
+              <X className="h-4 w-4" />
+            </Button>
             <h2
               id="modal-title"
               className="text-xl font-bold text-gray-900 mb-6"
@@ -504,18 +499,19 @@ const SubscriptionPlans = () => {
                   className="mt-2 text-xs text-red-600"
                 />
               </div>
-              <div className="flex justify-end space-x-3">
-                <button
+              <div className="flex justify-end items-center space-x-3">
+                <Button
                   type="button"
                   onClick={handleCloseModal}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                  variant="outline"
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200"
                   disabled={isSubmitting}
                 >
                   Cancel
-                </button>
+                </Button>
                 <Button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium flex items-center"
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (

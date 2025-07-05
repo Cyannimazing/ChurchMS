@@ -7,6 +7,7 @@ import SearchAndPagination from "@/components/SearchAndPagination";
 import { filterAndPaginateData } from "@/utils/tableUtils";
 import axios from "@/lib/axios";
 import Link from "next/link";
+import Button from "@/components/Button";
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -130,19 +131,19 @@ export default function Users() {
                   />
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200 table-fixed">
+                  <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           User
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Role
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
                         </th>
-                        <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
@@ -166,51 +167,39 @@ export default function Users() {
                       ) : (
                         paginatedUsers.map((user) => (
                           <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-6 py-4">
-                              <div className="flex items-center space-x-4">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center space-x-3">
                                 <div className="flex-shrink-0">
-                                  <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                                    <span className="text-sm font-medium text-indigo-600">
+                                  <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
+                                    <span className="text-xs font-medium text-indigo-600">
                                       {user.full_name.charAt(0).toUpperCase()}
                                     </span>
                                   </div>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-sm font-medium text-gray-900 mb-1">
+                                  <div className="text-sm font-medium text-gray-900 truncate">
                                     {user.full_name}
                                   </div>
                                   {user.email && (
-                                    <div className="text-xs text-gray-500 flex items-center">
-                                      <svg className="w-3 h-3 mr-1 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"></path>
-                                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"></path>
-                                      </svg>
+                                    <div className="text-xs text-gray-500 truncate">
                                       {user.email}
                                     </div>
                                   )}
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-4 py-3">
                               <div className="text-sm font-medium text-gray-900">
                                 {user.system_role_name}
                               </div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                System Role
-                              </div>
                             </td>
-                            <td className="px-6 py-4">
-                              <button
-                                onClick={() =>
-                                  handleActiveStatusChange(user.id, !user.is_active)
-                                }
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                                   user.is_active
-                                    ? "bg-green-100 text-green-800 hover:bg-green-200"
-                                    : "bg-red-100 text-red-800 hover:bg-red-200"
-                                } transition-colors`}
-                                disabled={loadingUserId === user.id}
-                                aria-label={`Toggle active status for ${user.full_name}`}
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-red-100 text-red-800"
+                                }`}
                               >
                                 {user.is_active ? (
                                   <>
@@ -223,21 +212,21 @@ export default function Users() {
                                     Inactive
                                   </>
                                 )}
-                              </button>
+                              </span>
                             </td>
-                            <td className="px-6 py-4">
-                              <div className="flex justify-center space-x-2">
+                            <td className="px-4 py-3">
+                              <div className="flex justify-center items-center space-x-2">
                                 <Link href={`/users/${user.id}`}>
-                                  <button className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                                  <Button variant="outline" className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 min-h-0 h-auto">
                                     <Eye className="h-3 w-3 mr-1" />
                                     View
-                                  </button>
+                                  </Button>
                                 </Link>
                                 <Link href={`/users/${user.id}/edit`}>
-                                  <button className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors">
+                                  <Button variant="outline" className="inline-flex items-center px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 min-h-0 h-auto">
                                     <Edit className="h-3 w-3 mr-1" />
                                     Edit
-                                  </button>
+                                  </Button>
                                 </Link>
                               </div>
                             </td>

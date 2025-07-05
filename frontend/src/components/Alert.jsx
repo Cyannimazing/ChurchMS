@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CheckCircle, XCircle, AlertTriangle, X } from 'lucide-react';
 
 const Alert = ({ 
@@ -10,6 +10,8 @@ const Alert = ({
   autoClose = true,
   autoCloseDelay = 5000 // 5 seconds default
 }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
   const getAlertStyles = () => {
     switch (type) {
       case 'success':
@@ -41,19 +43,36 @@ const Alert = ({
 
   const { container, icon: Icon, iconColor } = getAlertStyles();
 
+  // Show animation on mount
+  useEffect(() => {
+    setIsVisible(true);
+  }, []);
+
+  // Handle smooth close
+  const handleClose = () => {
+    setIsLeaving(true);
+    setTimeout(() => {
+      if (onClose) onClose();
+    }, 200); // Wait for animation to complete
+  };
+
   // Auto-dismiss functionality
   useEffect(() => {
-    if (autoClose && onClose && autoCloseDelay > 0) {
+    if (autoClose && autoCloseDelay > 0) {
       const timer = setTimeout(() => {
-        onClose();
+        handleClose();
       }, autoCloseDelay);
 
       return () => clearTimeout(timer);
     }
-  }, [autoClose, onClose, autoCloseDelay]);
+  }, [autoClose, autoCloseDelay]);
 
   return (
-    <div className={`border rounded-lg p-4 ${container} ${className}`}>
+    <div className={`border rounded-lg p-4 transition-all duration-200 ease-in-out transform ${
+      isVisible && !isLeaving 
+        ? 'opacity-100 translate-y-0 scale-100' 
+        : 'opacity-0 -translate-y-2 scale-95'
+    } ${container} ${className}`}>
       <div className="flex">
         <div className="flex-shrink-0">
           <Icon className={`h-5 w-5 ${iconColor}`} />
@@ -74,8 +93,8 @@ const Alert = ({
           <div className="ml-auto pl-3">
             <div className="-mx-1.5 -my-1.5">
               <button
-                onClick={onClose}
-                className={`inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                onClick={handleClose}
+                className={`inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors duration-150 ${
                   type === 'success' ? 'text-green-500 hover:bg-green-100 focus:ring-green-600' :
                   type === 'error' ? 'text-red-500 hover:bg-red-100 focus:ring-red-600' :
                   type === 'warning' ? 'text-yellow-500 hover:bg-yellow-100 focus:ring-yellow-600' :

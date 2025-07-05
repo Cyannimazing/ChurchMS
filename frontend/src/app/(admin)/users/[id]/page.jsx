@@ -1,16 +1,31 @@
 "use client";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import DataLoading from "@/components/DataLoading";
-import toast from "react-hot-toast";
+import Alert from "@/components/Alert";
 import axios from "@/lib/axios";
 import Link from "next/link";
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Shield,
+  Church,
+  CheckCircle,
+  XCircle,
+  ArrowLeft,
+  Edit,
+} from "lucide-react";
+import Button from "@/components/Button";
 
 const UserDetail = () => {
   const { id } = useParams();
+  const router = useRouter();
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [alert, setAlert] = useState(null);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -18,7 +33,11 @@ const UserDetail = () => {
         const response = await axios.get(`/api/users/${id}`);
         setUser(response.data);
       } catch (error) {
-        toast.error(error.response?.data?.error || "Failed to fetch user");
+        setAlert({
+          type: "error",
+          title: "Error Loading User",
+          message: error.response?.data?.error || "Failed to fetch user",
+        });
         console.error("Fetch user error:", {
           status: error.response?.status,
           data: error.response?.data,
@@ -33,47 +52,6 @@ const UserDetail = () => {
     }
   }, [id]);
 
-  const handleActiveStatusChange = async (e) => {
-    const isActive = e.target.value === "true" ? 1 : 0; // Map "true"/"false" to 1/0
-    console.log("Dropdown change triggered:", {
-      isActive,
-      userId: id,
-      currentUserState: user,
-    });
-
-    setIsUpdating(true);
-    try {
-      console.log("Sending PUT request:", { is_active: isActive });
-      const response = await axios.put(`/api/users/${id}/update-active`, {
-        is_active: isActive, // Send 1 or 0
-      });
-      console.log("API response:", response.data);
-
-      setUser((prev) => {
-        let newIsActive;
-        if (response.data.user.is_active === true) {
-          newIsActive = 1;
-        } else if (response.data.user.is_active === false) {
-          newIsActive = 0;
-        }
-        const updatedUser = { ...prev, is_active: newIsActive };
-        console.log("New user state:", updatedUser);
-        return updatedUser;
-      });
-      toast.success("User status updated!");
-    } catch (error) {
-      const errorDetails = {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message,
-      };
-      console.error("Update error:", errorDetails);
-      toast.error(error.response?.data?.message || "Update failed!");
-    } finally {
-      setIsUpdating(false);
-      console.log("isUpdating set to false");
-    }
-  };
   // Compute full name with proper capitalization and middle initial formatting
   const getFullName = (profile) => {
     if (!profile) return "N/A";
@@ -128,87 +106,283 @@ const UserDetail = () => {
       <div className="max-w-7xl mx-auto h-full">
         <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
           <div className="p-6 bg-white border-b border-gray-200 flex-1 overflow-auto">
-            <h1 className="text-2xl font-semibold text-gray-900 mb-6">
-              User Details
-            </h1>
-            <div className="space-y-4">
-              <p>
-                <strong>Full Name:</strong> {getFullName(user.profile)}
-              </p>
-              <p>
-                <strong>Email:</strong> {user.email ?? "N/A"}
-              </p>
-              <p>
-                <strong>Contact Number:</strong>{" "}
-                {user.contact?.contact_number ?? "N/A"}
-              </p>
-              <p>
-                <strong>Address:</strong> {user.contact?.address ?? "N/A"}
-              </p>
-              <p>
-                <strong>First Name:</strong> {user.profile?.first_name ?? "N/A"}
-              </p>
-              <p>
-                <strong>Middle Name:</strong>{" "}
-                {user.profile?.middle_name ?? "N/A"}
-              </p>
-              <p>
-                <strong>Last Name:</strong> {user.profile?.last_name ?? "N/A"}
-              </p>
-              <p>
-                <strong>System Role:</strong>{" "}
-                {user.profile?.system_role?.role_name ?? "N/A"}
-              </p>
-              <p>
-                <strong>Join in:</strong> {formatDate(user.created_at)}
-              </p>
-              {user.profile?.system_role?.role_name === "churchowner" && (
-                <>
-                  <p>
-                    <strong>Church:</strong> {user.church?.name ?? "N/A"}
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-4">
+                <Link href="/users">
+                  <Button
+                    variant="outline"
+                    className="px-3 flex py-2 text-sm font-medium text-gray-700 bg-white border-gray-300"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
+                </Link>
+                <div>
+                  <h1 className="text-2xl font-semibold text-gray-900">
+                    {getFullName(user.profile)}
+                  </h1>
+                  <p className="text-sm text-gray-600 mt-1">
+                    User Details & Information
                   </p>
-                  <p>
-                    <strong>Church Role:</strong>{" "}
-                    {user.churchRole?.name ?? "N/A"}
-                  </p>
-                </>
-              )}
-              <div>
-                <label
-                  htmlFor="is_active"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Active Status
-                </label>
-                <select
-                  id="is_active"
-                  value={user.is_active ? "true" : "false"}
-                  onChange={handleActiveStatusChange}
-                  onClick={() => console.log("Dropdown clicked for user", id)}
-                  className={`mt-1 w-32 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 ${
-                    isUpdating ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
-                  disabled={isUpdating}
-                  aria-label={`Toggle active status for ${getFullName(
-                    user.profile
-                  )}`}
-                >
-                  <option value="true">True</option>
-                  <option value="false">False</option>
-                </select>
-                {isUpdating && (
-                  <span className="ml-2 text-sm text-gray-500">
-                    Updating...
-                  </span>
-                )}
+                </div>
+              </div>
+              <Link href={`/users/${id}/edit`}>
+                <Button variant="action">
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit User
+                </Button>
+              </Link>
+            </div>
+
+            {/* Alert */}
+            {alert && (
+              <div className="mb-6">
+                <Alert
+                  type={alert.type}
+                  title={alert.title}
+                  message={alert.message}
+                  onClose={() => setAlert(null)}
+                />
+              </div>
+            )}
+
+            {/* User Profile Card */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Profile Overview */}
+              <div className="lg:col-span-1">
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <div className="text-center">
+                    <div className="h-24 w-24 rounded-full bg-indigo-100 flex items-center justify-center mx-auto mb-4">
+                      <User className="h-12 w-12 text-indigo-600" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      {getFullName(user.profile)}
+                    </h3>
+                    <div className="flex items-center justify-center mb-4">
+                      <span
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                          user.is_active
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {user.is_active ? (
+                          <>
+                            <CheckCircle className="h-4 w-4 mr-1" /> Active
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="h-4 w-4 mr-1" /> Inactive
+                          </>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-center text-sm text-gray-500">
+                      <Shield className="h-4 w-4 mr-2" />
+                      {user.profile?.system_role?.role_name || "No Role"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* User Details */}
+              <div className="lg:col-span-2">
+                <div className="space-y-6">
+                  {/* Personal Information */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                      <User className="h-5 w-5 mr-2 text-gray-400" />
+                      Personal Information
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          First Name
+                        </label>
+                        <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">
+                          {user.profile?.first_name || "Not provided"}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Last Name
+                        </label>
+                        <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">
+                          {user.profile?.last_name || "Not provided"}
+                        </p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Middle Name
+                        </label>
+                        <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">
+                          {user.profile?.middle_name || "Not provided"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contact Information */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                      <Mail className="h-5 w-5 mr-2 text-gray-400" />
+                      Contact Information
+                    </h4>
+                    <div className="space-y-4">
+                      <div className="flex items-center">
+                        <Mail className="h-4 w-4 text-gray-400 mr-3" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">
+                            Email Address
+                          </p>
+                          <p className="text-sm text-gray-900">
+                            {user.email || "Not provided"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center">
+                        <Phone className="h-4 w-4 text-gray-400 mr-3" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">
+                            Phone Number
+                          </p>
+                          <p className="text-sm text-gray-900">
+                            {user.contact?.contact_number || "Not provided"}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start">
+                        <MapPin className="h-4 w-4 text-gray-400 mr-3 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">
+                            Address
+                          </p>
+                          <p className="text-sm text-gray-900">
+                            {user.contact?.address || "Not provided"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* System Information */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                      <Shield className="h-5 w-5 mr-2 text-gray-400" />
+                      System Information
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          System Role
+                        </label>
+                        <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md capitalize">
+                          {user.profile?.system_role?.role_name ||
+                            "No role assigned"}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Account Status
+                        </label>
+                        <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">
+                          {user.is_active ? "Active" : "Inactive"}
+                        </p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Member Since
+                        </label>
+                        <div className="flex items-center text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">
+                          <Calendar className="h-4 w-4 mr-2 text-gray-400" />
+                          {formatDate(user.created_at)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Church Information - Different displays based on role */}
+                  {user.profile?.system_role?.role_name === "ChurchOwner" && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <Church className="h-5 w-5 mr-2 text-gray-400" />
+                        Owned Churches
+                      </h4>
+                      <div className="space-y-3">
+                        {user.churches && user.churches.length > 0 ? (
+                          user.churches.map((church, index) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between p-3 bg-gray-50 rounded-md border"
+                            >
+                              <div className="flex items-center space-x-3">
+                                <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                                  <Church className="h-4 w-4 text-green-600" />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {church.ChurchName || church.name}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    {church.ChurchStatus || "Active"}
+                                  </p>
+                                </div>
+                              </div>
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                Owner
+                              </span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-gray-500 bg-gray-50 px-3 py-2 rounded-md">
+                            No churches owned
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {user.profile?.system_role?.role_name === "ChurchStaff" && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <Church className="h-5 w-5 mr-2 text-gray-400" />
+                        Church Affiliation
+                      </h4>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Church Name
+                          </label>
+                          <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-md">
+                            <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                              <Church className="h-4 w-4 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {user.church?.ChurchName ||
+                                  "No church assigned"}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {user.church?.ChurchStatus || "Active"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Role in Church
+                          </label>
+                          <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-md">
+                            {user.churchRole?.RoleName || "Staff Member"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-            <Link
-              href="/users"
-              className="mt-4 inline-block text-blue-600 hover:text-blue-800 text-sm"
-            >
-              Back to User List
-            </Link>
           </div>
         </div>
       </div>

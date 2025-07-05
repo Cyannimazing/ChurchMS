@@ -7,6 +7,7 @@ import { Download, Eye, Loader2 } from "lucide-react";
 import DataLoading from "@/components/DataLoading";
 import SearchAndPagination from "@/components/SearchAndPagination";
 import { filterAndPaginateData } from "@/utils/tableUtils";
+import Button from "@/components/Button";
 
 const Dashboard = () => {
   const [churches, setChurches] = useState([]);
@@ -229,19 +230,19 @@ const Dashboard = () => {
                 </div>
                 
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200 table-fixed">
+                  <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Church Details
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Owner
                         </th>
-                        <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
                         </th>
-                        <th className="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
@@ -265,22 +266,22 @@ const Dashboard = () => {
                       ) : (
                         paginatedChurches.map((church) => (
                           <tr key={church.ChurchID} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-6 py-4">
+                            <td className="px-4 py-3">
                               <div className="flex items-start space-x-3">
                                 <div className="flex-shrink-0">
                                   {church.ChurchProfile?.ProfilePictureUrl ? (
                                     <img
                                       src={church.ChurchProfile.ProfilePictureUrl}
                                       alt={`${church.ChurchName} profile`}
-                                      className="h-12 w-12 rounded-full object-cover border-2 border-indigo-100"
+                                      className="h-10 w-10 rounded-full object-cover border-2 border-indigo-100"
                                       onError={(e) => {
                                         e.target.style.display = 'none';
                                         e.target.nextSibling.style.display = 'flex';
                                       }}
                                     />
                                   ) : null}
-                                  <div className={`h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center ${church.ChurchProfile?.ProfilePictureUrl ? 'hidden' : ''}`}>
-                                    <span className="text-sm font-medium text-indigo-600">
+                                  <div className={`h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center ${church.ChurchProfile?.ProfilePictureUrl ? 'hidden' : ''}`}>
+                                    <span className="text-xs font-medium text-indigo-600">
                                       {church.ChurchName.charAt(0).toUpperCase()}
                                     </span>
                                   </div>
@@ -289,17 +290,12 @@ const Dashboard = () => {
                                   <p className="text-sm font-medium text-gray-900 truncate">
                                     {church.ChurchName}
                                   </p>
-                                  <div className="flex items-center mt-1 space-x-3 flex-wrap">
+                                  <div className="flex items-center mt-1 space-x-2 flex-wrap">
                                     <span className="text-xs text-gray-400">
-                                      {church.DocumentCount} documents
+                                      📄 {church.DocumentCount} docs
                                     </span>
-                                    {church.Location?.Latitude && church.Location?.Longitude && (
-                                      <span className="text-xs text-gray-400">
-                                        📍 {typeof church.Location.Latitude === 'number' ? church.Location.Latitude.toFixed(8) : church.Location.Latitude}, {typeof church.Location.Longitude === 'number' ? church.Location.Longitude.toFixed(8) : church.Location.Longitude}
-                                      </span>
-                                    )}
                                     {church.IsPublic && (
-                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                         Public
                                       </span>
                                     )}
@@ -307,17 +303,17 @@ const Dashboard = () => {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm text-gray-900">
+                            <td className="px-4 py-3">
+                              <div className="text-sm text-gray-900 truncate">
                                 {church.OwnerProfile?.FullName || church.Owner}
                               </div>
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-gray-500 truncate">
                                 {church.OwnerProfile?.FullName ? church.Owner : 'Church Owner'}
                               </div>
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-4 py-3">
                               <span
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                                   church.ChurchStatus === "Active"
                                     ? "bg-green-100 text-green-800"
                                     : church.ChurchStatus === "Rejected"
@@ -343,16 +339,17 @@ const Dashboard = () => {
                                 {church.ChurchStatus}
                               </span>
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-4 py-3">
                               <div className="flex justify-center">
-                                <button
+                                <Button
                                   onClick={() => fetchDocuments(church.ChurchID)}
-                                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                                  variant="outline"
+                                  className="inline-flex items-center px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border-indigo-200 min-h-0 h-auto"
                                   aria-label={`Review application for ${church.ChurchName}`}
                                 >
                                   <Eye className="h-3 w-3 mr-1" />
                                   Review
-                                </button>
+                                </Button>
                               </div>
                             </td>
                           </tr>
@@ -418,25 +415,27 @@ const Dashboard = () => {
                           <p className="text-xs text-red-500">File not found</p>
                         )}
                       </div>
-                      <div className="flex gap-2">
-                        <button
+                      <div className="flex items-center space-x-2">
+                        <Button
                           onClick={() => previewDocument(doc.DocumentID)}
-                          className="text-blue-600 hover:text-blue-800 disabled:text-gray-400"
+                          variant="outline"
+                          className="inline-flex items-center justify-center p-1.5 text-blue-600 hover:text-blue-800 disabled:text-gray-400 min-h-0 h-auto border-blue-200 bg-blue-50 hover:bg-blue-100"
                           disabled={doc.FileExists === false}
                           aria-label={`Preview ${doc.DocumentType}`}
                         >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                        <Button
                           onClick={() =>
                             downloadDocument(doc.DocumentID, doc.DocumentType)
                           }
-                          className="text-blue-600 hover:text-blue-800 disabled:text-gray-400"
+                          variant="outline"
+                          className="inline-flex items-center justify-center p-1.5 text-green-600 hover:text-green-800 disabled:text-gray-400 min-h-0 h-auto border-green-200 bg-green-50 hover:bg-green-100"
                           disabled={doc.FileExists === false}
                           aria-label={`Download ${doc.DocumentType}`}
                         >
-                          <Download className="h-4 w-4" />
-                        </button>
+                          <Download className="h-3 w-3" />
+                        </Button>
                       </div>
                     </li>
                   ))}
@@ -449,29 +448,30 @@ const Dashboard = () => {
               <p className="text-sm font-medium text-gray-700 mb-3">
                 Update Application Status
               </p>
-              <div className="flex gap-3">
-                <button
+              <div className="flex items-center space-x-3">
+                <Button
                   onClick={() =>
                     updateStatus(selectedChurch.ChurchID, "Active")
                   }
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                  className="flex-1 inline-flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium"
                   disabled={
                     !reviewedChurches.has(selectedChurch.ChurchID) || isUpdating
                   }
                 >
                   Accept Application
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() =>
                     updateStatus(selectedChurch.ChurchID, "Rejected")
                   }
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                  variant="danger"
+                  className="flex-1 inline-flex items-center justify-center px-3 py-2 text-sm font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
                   disabled={
                     !reviewedChurches.has(selectedChurch.ChurchID) || isUpdating
                   }
                 >
                   Reject Application
-                </button>
+                </Button>
               </div>
               {isUpdating && (
                 <div className="flex justify-center mt-3">
@@ -486,12 +486,13 @@ const Dashboard = () => {
             </div>
 
             {/* Close Button */}
-            <button
+            <Button
               onClick={() => setIsModalOpen(false)}
-              className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium"
+              variant="outline"
+              className="w-full px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm font-medium"
             >
               Close
-            </button>
+            </Button>
           </div>
         </div>
       )}
