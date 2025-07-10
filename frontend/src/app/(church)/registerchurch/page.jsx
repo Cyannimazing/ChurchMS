@@ -10,6 +10,7 @@ import {
   useMapEvents,
   useMap,
 } from "react-leaflet";
+import L from "leaflet";
 import {
   Church,
   Upload,
@@ -55,6 +56,23 @@ const ChurchRegistrationPage = () => {
     loading: false,
     error: null,
   });
+
+  // Fix Leaflet marker icon issue
+  useEffect(() => {
+    // only execute this on the client
+    if (typeof window !== "undefined") {
+      // Fix the Leaflet icon issue
+      delete L.Icon.Default.prototype._getIconUrl;
+
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl:
+          "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+        iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+        shadowUrl:
+          "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+      });
+    }
+  }, []);
 
   // Dynamic import for Leaflet CSS
   useEffect(() => {
@@ -444,12 +462,17 @@ const ChurchRegistrationPage = () => {
   // Success message
   if (submitSuccess) {
     return (
-      <div className="min-h-screen px-4 sm:px-6 lg:ml-75 lg:py-12 mx-3 py-20">
+      <div className="lg:p-6 w-full pt-20">
         <div className="max-w-7xl mx-auto">
-          <div className="bg-white shadow-sm rounded-xl p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-8">
-              <div className="flex flex-col items-center justify-center text-center">
-                <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
+          <div className="bg-white overflow-hidden shadow-sm rounded-lg">
+            <div className="p-6 bg-white border-b border-gray-200">
+              <h1 className="text-2xl font-semibold text-gray-900 text-center">
+                Registration Status
+              </h1>
+            </div>
+            <div className="p-6 flex items-center justify-center min-h-96">
+              <div className="text-center">
+                <CheckCircle className="h-16 w-16 text-green-500 mb-4 mx-auto" />
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
                   Registration Successful!
                 </h2>
@@ -466,63 +489,64 @@ const ChurchRegistrationPage = () => {
   }
 
   return (
-    <div className="min-h-screen px-4 sm:px-6 lg:ml-75 lg:py-12 mx-3 py-20">
+    <div className="lg:p-6 w-full pt-20">
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white shadow-sm rounded-xl p-6 sm:p-8">
-          <div className="mx-20">
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-8">
-              <div className="text-center mb-12 w-full">
-                <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
+        <div className="bg-white overflow-hidden shadow-sm rounded-lg">
+          <div className="p-6 bg-white border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-semibold text-gray-900">
                   Register Your Church
                 </h1>
-                <p className="mt-3 text-lg text-gray-500">
-                  Complete the form below to register your church in our system.
+                <p className="mt-1 text-sm text-gray-600">
+                  Complete the registration process to join our platform
                 </p>
               </div>
+              <div className="text-sm text-gray-500">
+                Step {step} of 3
+              </div>
             </div>
+          </div>
+          <div className="p-6">
 
             {/* Progress Indicator */}
-            <div className="mb-8 relative">
-              <div className="flex items-center justify-between">
-                {/* Connector line container */}
-                <div className="absolute top-5 left-0 w-full h-0.5 bg-gray-200 z-0">
-                  {steps.map(
-                    (s, i) =>
-                      i < steps.length - 1 && (
-                        <div
-                          key={`line-${s.id}`}
-                          className={`absolute top-0 h-0.5 ${
-                            step >= s.id + 1 ? "bg-indigo-600" : "bg-gray-200"
-                          }`}
-                          style={{
-                            left: `${(i / (steps.length - 1)) * 100}%`,
-                            width: `${100 / (steps.length - 1)}%`,
-                          }}
-                        />
-                      )
-                  )}
+            <div className="mb-8">
+              <div className="flex items-center justify-between relative">
+                {/* Progress Line */}
+                <div className="absolute top-5 left-0 w-full h-0.5 bg-gray-200">
+                  <div 
+                    className="h-0.5 bg-blue-600 transition-all duration-300 ease-out"
+                    style={{ width: `${((step - 1) / (steps.length - 1)) * 100}%` }}
+                  />
                 </div>
 
-                {/* Step circles */}
+                {/* Step Indicators */}
                 {steps.map((s, i) => (
-                  <div key={s.id} className="flex-1 relative z-10">
+                  <div key={s.id} className="flex flex-col items-center relative z-10">
                     <div
-                      className={`
-                      w-10 h-10 mx-auto rounded-full flex items-center justify-center
-                      ${step >= s.id ? "bg-indigo-600" : "bg-gray-200"}
-                    `}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center border-2 bg-white transition-all duration-200 ${
+                        step > s.id 
+                          ? "border-blue-600 bg-blue-600 text-white" 
+                          : step === s.id 
+                          ? "border-blue-600 text-blue-600" 
+                          : "border-gray-300 text-gray-400"
+                      }`}
                     >
-                      <span
-                        className={`text-sm font-medium ${
-                          step >= s.id ? "text-white" : "text-gray-500"
-                        }`}
-                      >
-                        {i + 1}
-                      </span>
+                      {step > s.id ? (
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        <span className="text-sm font-medium">{i + 1}</span>
+                      )}
                     </div>
-                    <p className="mt-2 text-xs text-center font-medium text-gray-500">
-                      {s.name}
-                    </p>
+                    <div className="mt-2 text-center">
+                      <p className={`text-xs font-medium ${
+                        step >= s.id ? "text-gray-900" : "text-gray-500"
+                      }`}>
+                        {s.name}
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -544,9 +568,14 @@ const ChurchRegistrationPage = () => {
                 {/* Step 1: Basic Information */}
                 {step === 1 && (
                   <div className="animate-fade-in">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                      Basic Information
-                    </h2>
+                    <div className="mb-6">
+                      <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                        Basic Information
+                      </h2>
+                      <p className="text-sm text-gray-600">
+                        Provide essential details about your church.
+                      </p>
+                    </div>
 
                     <div className="space-y-6">
                       <div>
@@ -563,7 +592,7 @@ const ChurchRegistrationPage = () => {
                             name="ChurchName"
                             value={formData.ChurchName}
                             onChange={handleChange}
-                            className="block w-full pl-10 pr-3 py-2 sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                            className="block w-full pl-10 pr-3 py-2 sm:text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                             placeholder="St. Mary's Catholic Church"
                           />
                         </div>
@@ -584,7 +613,7 @@ const ChurchRegistrationPage = () => {
                             rows={4}
                             value={formData.Description}
                             onChange={handleChange}
-                            className="block w-full sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                            className="block w-full sm:text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                             placeholder="Provide a description of your church, including its mission, history, and community..."
                           />
                         </div>
@@ -605,7 +634,7 @@ const ChurchRegistrationPage = () => {
                             rows={4}
                             value={formData.ParishDetails}
                             onChange={handleChange}
-                            className="block w-full sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                            className="block w-full sm:text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                             placeholder="Provide details about the parish, service schedules, priests, and other relevant information..."
                           />
                         </div>
@@ -619,7 +648,6 @@ const ChurchRegistrationPage = () => {
                     <div className="mt-8 flex justify-end">
                       <Button
                         onClick={nextStep}
-                        variant="primary"
                         type="button"
                         className="flex items-center"
                       >
@@ -633,9 +661,14 @@ const ChurchRegistrationPage = () => {
                 {/* Step 2: Location */}
                 {step === 2 && (
                   <div className="animate-fade-in">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                      Church Location
-                    </h2>
+                    <div className="mb-6">
+                      <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                        Church Location
+                      </h2>
+                      <p className="text-sm text-gray-600">
+                        Set your church's location on the map.
+                      </p>
+                    </div>
 
                     <div className="space-y-6">
                       <div>
@@ -709,7 +742,6 @@ const ChurchRegistrationPage = () => {
                       </Button>
                       <Button
                         onClick={nextStep}
-                        variant="primary"
                         type="button"
                         className="flex items-center"
                       >
@@ -723,9 +755,14 @@ const ChurchRegistrationPage = () => {
                 {/* Step 3: Documents */}
                 {step === 3 && (
                   <div className="animate-fade-in">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                      Church Documents
-                    </h2>
+                    <div className="mb-6">
+                      <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                        Church Documents
+                      </h2>
+                      <p className="text-sm text-gray-600">
+                        Upload required documents for verification.
+                      </p>
+                    </div>
 
                     <div className="space-y-6">
                       <FileInput
@@ -738,7 +775,7 @@ const ChurchRegistrationPage = () => {
                         filePreview={true}
                         helpText="JPG, PNG or JPEG up to 2MB"
                         onChange={handleFileChange}
-                        errors={errors.ProfilePicture || []}
+                        error={errors.ProfilePicture ? errors.ProfilePicture[0] : null}
                       />
 
                       <FileInput
@@ -750,7 +787,7 @@ const ChurchRegistrationPage = () => {
                         required
                         helpText="PDF or image up to 5MB"
                         onChange={handleFileChange}
-                        errors={errors.SEC || []}
+                        error={errors.SEC ? errors.SEC[0] : null}
                       />
 
                       <FileInput

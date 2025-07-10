@@ -76,69 +76,117 @@ const SubscriptionStatus = () => {
   };
 
   return (
-    <div className="lg:ml-75 lg:py-12 mx-3 py-20">
-      <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-        <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+    <div className="lg:p-6 w-full pt-20">
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white overflow-hidden shadow-sm rounded-lg">
           <div className="p-6 bg-white border-b border-gray-200">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold">Your Subscription</h2>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-semibold text-gray-900">
+                  Subscription Management
+                </h1>
+                <p className="mt-1 text-sm text-gray-600">
+                  Manage your current subscription and view subscription history
+                </p>
+              </div>
               <Link href="/plans">
                 <Button>Apply New Subscription</Button>
               </Link>
             </div>
-
-            <div className="mt-6">
+          </div>
+          <div className="p-6">
+            <div>
               {loading ? (
                 <DataLoading message="Loading your subscription status..." />
               ) : currentSub?.active ? (
-                <div className="p-4 border rounded-lg">
-                  <h3 className="text-md font-medium">Current Subscription</h3>
-                  <div className="mt-2 space-y-1">
-                    <p>
-                      <span className="font-medium">Plan:</span>{" "}
-                      {currentSub.active.plan?.PlanName ?? "N/A"}
-                    </p>
-                    <p>
-                      <span className="font-medium">Expires:</span>{" "}
-                      {new Date(currentSub.active.EndDate).toLocaleString()}
-                    </p>
-                    {getWarningMessage() && (
-                      <p className="text-red-600">{getWarningMessage()}</p>
-                    )}
+                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <svg className="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="ml-3 flex-1">
+                      <h3 className="text-lg font-medium text-green-900">Active Subscription</h3>
+                      <div className="mt-2 text-sm text-green-800">
+                        <p className="mb-2">
+                          <span className="font-medium">Plan:</span>{" "}
+                          <span className="font-semibold">{currentSub.active.plan?.PlanName ?? "N/A"}</span>
+                        </p>
+                        <p className="mb-2">
+                          <span className="font-medium">Expires:</span>{" "}
+                          {new Date(currentSub.active.EndDate).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                        {getWarningMessage() && (
+                          <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                            <p className="text-yellow-800 text-sm font-medium">{getWarningMessage()}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-red-600">
-                    No active subscription. Please subscribe to access the
-                    dashboard.
-                  </p>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <svg className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-lg font-medium text-red-900">No Active Subscription</h3>
+                      <p className="mt-1 text-sm text-red-800">
+                        You currently don't have an active subscription. Please subscribe to access all dashboard features.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
 
               {currentSub?.pending && (
-                <div className="mt-6 p-4 border border-yellow-200 rounded-lg">
-                  <h3 className="text-md font-medium">Pending Subscription</h3>
-                  <div className="mt-2 space-y-1">
-                    <p>
-                      <span className="font-medium">Plan:</span>{" "}
-                      {currentSub.pending.plan?.PlanName ?? "N/A"}
-                    </p>
-                    <p>
-                      <span className="font-medium">Starts:</span>{" "}
-                      {currentSub.pending?.StartDate
-                        ? new Date(
-                            currentSub.pending.StartDate
-                          ).toLocaleString()
-                        : "N/A"}
-                    </p>
+                <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <svg className="h-6 w-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="ml-3 flex-1">
+                      <h3 className="text-lg font-medium text-yellow-900">Pending Subscription</h3>
+                      <div className="mt-2 text-sm text-yellow-800">
+                        <p className="mb-2">
+                          <span className="font-medium">Plan:</span>{" "}
+                          <span className="font-semibold">{currentSub.pending.plan?.PlanName ?? "N/A"}</span>
+                        </p>
+                        <p className="mb-3">
+                          <span className="font-medium">Starts:</span>{" "}
+                          {currentSub.pending?.StartDate
+                            ? new Date(currentSub.pending.StartDate).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : "N/A"}
+                        </p>
+                        <Button
+                          onClick={handleCancelPending}
+                          variant="outline"
+                          className="text-red-600 border-red-300 hover:bg-red-50"
+                        >
+                          Cancel Pending Subscription
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                  <Button
-                    onClick={handleCancelPending}
-                    className="mt-3 bg-red-600 hover:bg-red-700"
-                  >
-                    Cancel Pending Subscription
-                  </Button>
                 </div>
               )}
             </div>

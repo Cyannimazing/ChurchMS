@@ -27,6 +27,7 @@ import {
 import Button from "@/components/Button";
 import Label from "@/components/Label";
 import InputError from "@/components/InputError";
+import DataLoading from "@/components/DataLoading";
 import toast, { Toaster } from "react-hot-toast";
 
 // Simple error boundary component for handling image loading errors
@@ -699,15 +700,50 @@ const ChurchEditPage = () => {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen px-4 sm:px-6 lg:ml-75 lg:py-12 mx-3 py-20">
+      <div className="lg:p-6 w-full pt-20">
         <div className="max-w-7xl mx-auto">
-          <div className="bg-white shadow-sm rounded-xl p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-8">
-              <div className="flex flex-col items-center justify-center text-center w-full">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-                <p className="mt-3 text-gray-600">
-                  Loading church information...
-                </p>
+          <div className="bg-white overflow-hidden shadow-sm rounded-lg">
+            <div className="p-6 bg-white border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="mb-4">
+                    <Link
+                      href="/church"
+                      className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Back to Churches
+                    </Link>
+                  </div>
+                  <h1 className="text-2xl font-semibold text-gray-900">
+                    Edit Church Information
+                  </h1>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Update your church details and required documents
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="p-6">
+              {/* Tabs */}
+              <div className="mb-6 border-b border-gray-200">
+                <nav className="-mb-px flex space-x-8">
+                  <button
+                    className="border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                  >
+                    Basic Information
+                  </button>
+                  <button
+                    className="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                  >
+                    Documents
+                  </button>
+                </nav>
+              </div>
+              
+              {/* Loading Content */}
+              <div className="py-12">
+                <DataLoading message="Loading church information..." />
               </div>
             </div>
           </div>
@@ -719,12 +755,20 @@ const ChurchEditPage = () => {
   // Error state
   if (error && !church) {
     return (
-      <div className="min-h-screen px-4 sm:px-6 lg:ml-75 lg:py-12 mx-3 py-20">
+      <div className="lg:p-6 w-full pt-20">
         <div className="max-w-7xl mx-auto">
-          <div className="bg-white shadow-sm rounded-xl p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-8">
-              <div className="flex flex-col items-center justify-center text-center w-full">
-                <div className="bg-red-100 border-l-4 border-red-500 p-4 rounded-md max-w-md w-full">
+          <div className="bg-white overflow-hidden shadow-sm rounded-lg">
+            <div className="p-6 bg-white border-b border-gray-200">
+              <h1 className="text-2xl font-semibold text-gray-900">
+                Edit Church Information
+              </h1>
+              <p className="mt-1 text-sm text-gray-600">
+                Error loading church details
+              </p>
+            </div>
+            <div className="p-6">
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md max-w-md w-full">
                   <div className="flex">
                     <div className="flex-shrink-0">
                       <AlertCircle className="h-5 w-5 text-red-500" />
@@ -748,11 +792,16 @@ const ChurchEditPage = () => {
   // Success state
   if (success) {
     return (
-      <div className="min-h-screen px-4 sm:px-6 lg:ml-75 lg:py-12 mx-3 py-20">
+      <div className="lg:p-6 w-full pt-20">
         <div className="max-w-7xl mx-auto">
-          <div className="bg-white shadow-sm rounded-xl p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-8">
-              <div className="flex flex-col items-center justify-center text-center w-full">
+          <div className="bg-white overflow-hidden shadow-sm rounded-lg">
+            <div className="p-6 bg-white border-b border-gray-200">
+              <h1 className="text-2xl font-semibold text-gray-900">
+                Update Status
+              </h1>
+            </div>
+            <div className="p-6">
+              <div className="flex flex-col items-center justify-center py-12">
                 <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
                   Update Successful!
@@ -770,43 +819,48 @@ const ChurchEditPage = () => {
   }
 
   return (
-    <div className="min-h-screen px-4 sm:px-6 lg:ml-75 lg:py-12 mx-3 py-20">
+    <div className="lg:p-6 w-full pt-20">
       <Toaster />
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white shadow-sm rounded-xl p-6 sm:p-8">
-          <div className="flex flex-col sm:flex-row justify-between items-center mb-8">
-            <div className="mb-8 w-full">
-              <Link
-                href="/church"
-                className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-900"
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Churches
-              </Link>
-              <h1 className="mt-4 text-3xl font-extrabold text-gray-900 sm:text-4xl">
-                Edit Church
-              </h1>
-              <p className="mt-2 text-lg text-gray-500">
-                Update your church information and documents.
-              </p>
-
-              {!canEdit && church && church.ChurchStatus !== "Rejected" && (
-                <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-md">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <AlertCircle className="h-5 w-5 text-yellow-400" />
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm text-yellow-700">
-                        You can only edit documents when your church application
-                        is rejected. Basic information can be updated anytime.
-                      </p>
-                    </div>
+        <div className="bg-white overflow-hidden shadow-sm rounded-lg">
+          <div className="p-6 bg-white border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="mb-4">
+                  <Link
+                    href="/church"
+                    className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800"
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Churches
+                  </Link>
+                </div>
+                <h1 className="text-2xl font-semibold text-gray-900">
+                  Edit Church Information
+                </h1>
+                <p className="mt-1 text-sm text-gray-600">
+                  Update your church details and required documents
+                </p>
+              </div>
+            </div>
+            
+            {!canEdit && church && church.ChurchStatus !== "Rejected" && (
+              <div className="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-md">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <AlertCircle className="h-5 w-5 text-yellow-400" />
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-yellow-700">
+                      You can only edit documents when your church application
+                      is rejected. Basic information can be updated anytime.
+                    </p>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
+          <div className="p-6">
 
           {/* Tabs */}
           <div className="mb-6 border-b border-gray-200">
@@ -815,7 +869,7 @@ const ChurchEditPage = () => {
                 onClick={() => setCurrentTab("info")}
                 className={`${
                   currentTab === "info"
-                    ? "border-indigo-500 text-indigo-600"
+                    ? "border-blue-500 text-blue-600"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
               >
@@ -825,7 +879,7 @@ const ChurchEditPage = () => {
                 onClick={() => setCurrentTab("documents")}
                 className={`${
                   currentTab === "documents"
-                    ? "border-indigo-500 text-indigo-600"
+                    ? "border-blue-500 text-blue-600"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
               >
@@ -1053,7 +1107,7 @@ const ChurchEditPage = () => {
                         name="ChurchName"
                         value={formData.ChurchName}
                         onChange={handleInputChange}
-                        className="block w-full pl-10 pr-3 py-2 sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="block w-full pl-10 pr-3 py-2 sm:text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                         placeholder="St. Mary's Catholic Church"
                       />
                     </div>
@@ -1069,7 +1123,7 @@ const ChurchEditPage = () => {
                         rows={4}
                         value={formData.Description}
                         onChange={handleInputChange}
-                        className="block w-full sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="block w-full sm:text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Provide a description of your church, including its mission, history, and community..."
                       />
                     </div>
@@ -1088,7 +1142,7 @@ const ChurchEditPage = () => {
                         rows={4}
                         value={formData.ParishDetails}
                         onChange={handleInputChange}
-                        className="block w-full sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                        className="block w-full sm:text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Provide details about the parish, service schedules, priests, and other relevant information..."
                       />
                     </div>
@@ -1305,6 +1359,7 @@ const ChurchEditPage = () => {
               </Button>
             </div>
           </form>
+          </div>
         </div>
       </div>
     </div>

@@ -23,6 +23,8 @@ import {
   Eye,
   ChevronDown,
   Upload,
+  Church,
+  Plus,
 } from "lucide-react";
 import FileInput from "@/components/Forms/FileInput";
 import Link from "next/link";
@@ -201,15 +203,78 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="lg:ml-75 lg:py-12 mx-3 py-20 ">
+    <div className="lg:p-6 w-full h-screen pt-20">
       {/* Add Toaster component for toast notifications */}
       <Toaster />
-      <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 min-h-screen">
-        <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg min-h-screen">
-          <div className="p-6 bg-white border-b border-gray-200 min-h-screen">
-            <div className="flex justify-between items-center mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">My Churches</h1>
+      <div className="max-w-7xl mx-auto h-full">
+        <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
+          <div className="p-6 bg-white border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <h1 className="text-2xl font-semibold text-gray-900">
+                My Churches
+              </h1>
+              <div className="flex items-center space-x-4">
+                <div className="text-sm text-gray-500">
+                  Total: <span className="font-medium text-gray-900">{churches.length}</span>
+                </div>
+                <Button>
+                  <Link href="/registerchurch" className="flex items-center">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Church
+                  </Link>
+                </Button>
+              </div>
             </div>
+          </div>
+          <div className="p-6 flex-1">
+            <div className="h-full overflow-y-auto">
+
+            {/* Dashboard Stats Cards */}
+            {!error && churches.length > 0 && (
+              <div className="mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                    <div className="flex items-center">
+                      <div className="p-3 rounded-lg bg-slate-100">
+                        <Church className="h-6 w-6 text-slate-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Total Churches</p>
+                        <p className="text-2xl font-bold text-gray-900">{churches.length}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                    <div className="flex items-center">
+                      <div className="p-3 rounded-lg bg-green-50">
+                        <CheckCircle className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Active Churches</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {churches.filter(church => church.ChurchStatus === 'Active').length}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                    <div className="flex items-center">
+                      <div className="p-3 rounded-lg bg-amber-50">
+                        <Clock className="h-6 w-6 text-amber-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Pending Approval</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {churches.filter(church => church.ChurchStatus === 'Pending').length}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Enhanced Error Display with Transition */}
             <Transition
@@ -221,9 +286,9 @@ const Dashboard = () => {
               leaveFrom="opacity-100"
               leaveTo="opacity-0"
             >
-              <div className="mb-4 p-4 bg-red-100 text-red-700 rounded flex items-center">
+              <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center">
                 <svg
-                  className="w-5 h-5 mr-2"
+                  className="w-5 h-5 mr-3 text-red-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -236,42 +301,50 @@ const Dashboard = () => {
                     d="M12 9v2m0 4h.01M12 4a8 8 0 100 16 8 8 0 000-16z"
                   />
                 </svg>
-                <span>{error}</span>
+                <span className="font-medium">{error}</span>
               </div>
             </Transition>
 
-            {/* Church Cards View */}
-            {isLoadingChurches ? (
-              <div className="flex justify-center py-12">
-                <DataLoading message="Loading your churches..." />
-              </div>
-            ) : churches.length === 0 ? (
-              <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="p-6">
-                  <div className="mx-auto h-12 w-12 text-gray-400 flex items-center justify-center rounded-full bg-gray-100">
-                    <FileText className="h-6 w-6" />
-                  </div>
-                  <h3 className="mt-3 text-sm font-medium text-gray-900">
-                    No churches found
-                  </h3>
-                  <p className="mt-2 text-sm text-gray-500">
-                    Get started by creating a new church.
-                  </p>
-                  <div className="mt-6">
-                    <Button>
-                      <Link href={"/registerchurch"}>Create Church</Link>
-                    </Button>
+              {/* Church Cards View */}
+              {isLoadingChurches ? (
+                <div className="flex justify-center py-12">
+                  <DataLoading message="Loading your churches..." />
+                </div>
+              ) : churches.length === 0 ? (
+                <div className="text-center py-16 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="p-8">
+                    <div className="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-slate-100">
+                      <Church className="h-8 w-8 text-slate-500" />
+                    </div>
+                    <h3 className="mt-4 text-lg font-semibold text-gray-900">
+                      No churches found
+                    </h3>
+                    <p className="mt-2 text-gray-600 max-w-sm mx-auto">
+                      Get started by registering your first church to begin managing your religious community.
+                    </p>
+                    <div className="mt-8">
+                      <Button>
+                        <Link href={"/registerchurch"} className="flex items-center">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Register Your First Church
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {churches.map((church) => (
-                  <div
-                    key={church.ChurchID}
-                    className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200"
-                  >
-                    <div className="p-5">
+              ) : (
+                <div>
+                  <div className="mb-6">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-2">Your Churches</h2>
+                    <p className="text-sm text-gray-600">Manage and monitor all your registered churches</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {churches.map((church) => (
+                      <div
+                        key={church.ChurchID}
+                        className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 hover:border-gray-300"
+                      >
+                        <div className="p-6">
                       <div className="flex justify-between items-start">
                         <h3
                           className="text-lg font-medium text-gray-900 mb-1 truncate max-w-[80%]"
@@ -421,7 +494,7 @@ const Dashboard = () => {
                       <div className="flex flex-wrap gap-2 mt-2">
                         <StatusBadge status={church.ChurchStatus} />
                         {church.IsPublic && (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
                             <Globe className="h-4 w-4 mr-1" />
                             Public
                           </span>
@@ -510,9 +583,11 @@ const Dashboard = () => {
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

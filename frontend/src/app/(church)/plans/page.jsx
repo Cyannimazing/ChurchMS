@@ -93,22 +93,27 @@ const SubscriptionPlans = () => {
   };
 
   return (
-    <div className="min-h-screen px-4 sm:px-6 lg:ml-75 lg:py-12 mx-3 py-20">
+    <div className="lg:p-6 w-full pt-20">
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white shadow-sm rounded-xl p-6 sm:p-8">
-          <div className="flex flex-col sm:flex-row justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4 sm:mb-0">
-              Subscription Plans
-            </h1>
-            <Link href="/subscriptions" className="w-full sm:w-auto">
-              <Button
-                variant="secondary"
-                className="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-md"
-              >
-                ← Back to Status
-              </Button>
-            </Link>
+        <div className="bg-white overflow-hidden shadow-sm rounded-lg">
+          <div className="p-6 bg-white border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-semibold text-gray-900">
+                  Subscription Plans
+                </h1>
+                <p className="mt-1 text-sm text-gray-600">
+                  Choose the perfect plan for your church's needs
+                </p>
+              </div>
+              <Link href="/subscriptions">
+                <Button variant="outline">
+                  ← Back to Status
+                </Button>
+              </Link>
+            </div>
           </div>
+          <div className="p-6">
 
           {Object.keys(errors).length > 0 && !selectedPlan && (
             <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-md">
@@ -134,82 +139,55 @@ const SubscriptionPlans = () => {
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {plans.map((plan) => (
                 <div
                   key={plan.PlanID}
-                  className="w-full p-4 sm:p-5 md:p-6 bg-gradient-to-br from-white to-gray-50 border border-black rounded-2xl shadow-md hover:shadow-lg transition-all duration-300"
+                  className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow duration-200"
                 >
-                  <div className="flex items-baseline justify-center text-gray-900 mb-3 sm:mb-4">
-                    <span className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight">
-                      ${plan.Price}
-                    </span>
-                    <span className="ml-1 text-sm sm:text-base md:text-lg font-normal text-gray-600">
-                      /{plan.DurationInMonths} month
-                      {plan.DurationInMonths !== 1 ? "s" : ""}
-                    </span>
+                  <div className="text-center mb-6">
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                      {plan.PlanName}
+                    </h3>
+                    <div className="mb-4">
+                      <span className="text-4xl font-bold text-gray-900">
+                        ${plan.Price}
+                      </span>
+                      <span className="text-gray-600 ml-1">
+                        /{plan.DurationInMonths} month{plan.DurationInMonths !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    <p className="text-gray-600">
+                      {plan.Description || "Perfect for church management"}
+                    </p>
                   </div>
-                  <h5 className="mb-2 text-base sm:text-lg md:text-xl font-bold text-gray-900 text-center">
-                    {plan.PlanName}
-                  </h5>
-                  <p className="mb-4 sm:mb-5 text-sm sm:text-base text-gray-600 text-center">
-                    {plan.Description || "Test plan for church owners"}
-                  </p>
-                  <ul
-                    role="list"
-                    className="space-y-3 sm:space-y-4 my-5 sm:my-6"
-                  >
-                    <li className="flex items-center">
-                      <svg
-                        className="shrink-0 w-4 h-4 sm:w-5 sm:h-5 text-green-500"
-                        aria-hidden="true"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z" />
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center text-sm text-gray-600">
+                      <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
-                      <span className="text-sm sm:text-base font-normal leading-tight text-gray-900 ml-2 sm:ml-3">
-                        All components included
-                      </span>
-                    </li>
-                    <li className="flex items-center">
-                      <svg
-                        className="shrink-0 w-4 h-4 sm:w-5 sm:h-5 text-green-500"
-                        aria-hidden="true"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z" />
+                      All components included
+                    </div>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
-                      <span className="text-sm sm:text-base font-normal leading-tight text-gray-900 ml-2 sm:ml-3">
-                        Advanced dashboard
-                      </span>
-                    </li>
-                    <li className="flex items-center">
-                      <svg
-                        className="shrink-0 w-4 h-4 sm:w-5 sm:h-5 text-green-500"
-                        aria-hidden="true"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z" />
+                      Advanced dashboard access
+                    </div>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <svg className="w-4 h-4 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
-                      <span className="text-sm sm:text-base font-normal leading-tight text-gray-900 ml-2 sm:ml-3">
-                        Max Churches Supported: {plan.MaxChurchesAllowed}
-                      </span>
-                    </li>
-                  </ul>
+                      Support for {plan.MaxChurchesAllowed} church{plan.MaxChurchesAllowed !== 1 ? 'es' : ''}
+                    </div>
+                  </div>
                   <Button
-                  className="w-full"
+                    className="w-full"
                     type="button"
                     onClick={() => setSelectedPlan(plan)}
-                    variant="primary"
                     aria-label={`Select ${plan.PlanName} plan`}
                   >
-                    Select
+                    Select Plan
                   </Button>
                 </div>
               ))}
@@ -218,19 +196,24 @@ const SubscriptionPlans = () => {
 
           {/* Payment Modal */}
           {selectedPlan && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-              <div className="bg-white shadow-xl rounded-xl p-6 sm:p-8 max-w-md w-full mx-4">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Subscription Details
-                  </h2>
-                  <button
-                    onClick={closePaymentModal}
-                    className="text-gray-500 hover:text-gray-700 font-medium"
-                  >
-                    ✕ Close
-                  </button>
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="bg-white shadow-xl rounded-lg max-w-md w-full">
+                <div className="p-6 border-b border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      Confirm Subscription
+                    </h2>
+                    <button
+                      onClick={closePaymentModal}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
+                <div className="p-6">
 
                 {Object.keys(errors).length > 0 && (
                   <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-md">
@@ -247,15 +230,22 @@ const SubscriptionPlans = () => {
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
                     <Label>Selected Plan</Label>
-                    <div className="mt-2 p-4 bg-gray-50 border rounded-md">
-                      <p className="font-medium text-gray-900">
-                        {selectedPlan.PlanName || "Unnamed Plan"}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        ${selectedPlan.Price || 0} for{" "}
-                        {selectedPlan.DurationInMonths || 0} month
-                        {(selectedPlan.DurationInMonths || 0) !== 1 ? "s" : ""}
-                      </p>
+                    <div className="mt-2 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            {selectedPlan.PlanName || "Unnamed Plan"}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {selectedPlan.DurationInMonths || 0} month{(selectedPlan.DurationInMonths || 0) !== 1 ? "s" : ""} subscription
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-blue-600">
+                            ${selectedPlan.Price || 0}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -268,7 +258,7 @@ const SubscriptionPlans = () => {
                         setForm({ ...form, payment_method: e.target.value })
                       }
                       required
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 p-3"
+                      className="mt-1 block w-full border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 p-3"
                     >
                       <option value="">Select Payment Method</option>
                       <option value="Credit Card">Credit Card</option>
@@ -281,16 +271,28 @@ const SubscriptionPlans = () => {
                     />
                   </div>
 
-                  <Button
-                    type="submit"
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-md transition-colors"
-                  >
-                    Confirm Subscription
-                  </Button>
+                  <div className="flex space-x-3 pt-4">
+                    <Button
+                      type="button"
+                      onClick={closePaymentModal}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="flex-1"
+                    >
+                      Confirm Subscription
+                    </Button>
+                  </div>
                 </form>
+                </div>
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>

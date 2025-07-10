@@ -201,7 +201,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="p-6 w-full h-screen">
+    <div className="lg:p-6 w-full h-screen pt-20">
       <Toaster position="top-right" />
       <div className="max-w-7xl mx-auto h-full">
         <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">

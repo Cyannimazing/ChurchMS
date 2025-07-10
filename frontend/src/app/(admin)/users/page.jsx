@@ -94,7 +94,7 @@ export default function Users() {
   );
 
   return (
-    <div className="p-6 w-full h-screen">
+    <div className="lg:p-6 w-full h-screen pt-20">
       <div className="max-w-7xl mx-auto h-full">
         <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
           <div className="p-6 bg-white border-b border-gray-200 flex-1 overflow-auto">
