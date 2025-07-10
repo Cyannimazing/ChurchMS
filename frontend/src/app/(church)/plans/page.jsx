@@ -93,9 +93,9 @@ const SubscriptionPlans = () => {
   };
 
   return (
-    <div className="lg:p-6 w-full pt-20">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white overflow-hidden shadow-sm rounded-lg">
+    <div className="lg:p-6 w-full h-screen pt-20">
+      <div className="max-w-7xl mx-auto h-full">
+        <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
           <div className="p-6 bg-white border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div>
@@ -113,7 +113,7 @@ const SubscriptionPlans = () => {
               </Link>
             </div>
           </div>
-          <div className="p-6">
+          <div className="p-6 flex-1 flex flex-col items-center justify-start overflow-y-auto">
 
           {Object.keys(errors).length > 0 && !selectedPlan && (
             <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-md">
@@ -139,11 +139,11 @@ const SubscriptionPlans = () => {
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex flex-wrap justify-center gap-6 max-w-4xl my-auto">
               {plans.map((plan) => (
                 <div
                   key={plan.PlanID}
-                  className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow duration-200"
+                  className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow duration-200 w-80 max-w-sm"
                 >
                   <div className="text-center mb-6">
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">

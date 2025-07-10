@@ -6,10 +6,12 @@ import Button from "@/components/Button.jsx";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import DataLoading from "@/components/DataLoading";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 const SubscriptionStatus = () => {
   const [currentSub, setCurrentSub] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   const getWarningMessage = () => {
     if (!currentSub?.active) return null;
@@ -65,20 +67,26 @@ const SubscriptionStatus = () => {
   }, []);
 
   const handleCancelPending = () => {
+    setShowCancelDialog(true);
+  };
+
+  const confirmCancelPending = () => {
     axios
       .delete("/api/church-subscriptions/pending")
       .then(() => {
         setCurrentSub({ ...currentSub, pending: null });
+        setShowCancelDialog(false);
       })
-      .catch((error) =>
-        console.error("Error canceling pending subscription:", error)
-      );
+      .catch((error) => {
+        console.error("Error canceling pending subscription:", error);
+        setShowCancelDialog(false);
+      });
   };
 
   return (
-    <div className="lg:p-6 w-full pt-20">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white overflow-hidden shadow-sm rounded-lg">
+    <div className="lg:p-6 w-full h-screen pt-20">
+      <div className="max-w-7xl mx-auto h-full">
+        <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
           <div className="p-6 bg-white border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div>
@@ -94,7 +102,7 @@ const SubscriptionStatus = () => {
               </Link>
             </div>
           </div>
-          <div className="p-6">
+          <div className="p-6 flex-1">
             <div>
               {loading ? (
                 <DataLoading message="Loading your subscription status..." />
@@ -193,6 +201,18 @@ const SubscriptionStatus = () => {
           </div>
         </div>
       </div>
+      
+      {/* Cancellation Warning Dialog */}
+      <ConfirmDialog
+        isOpen={showCancelDialog}
+        onClose={() => setShowCancelDialog(false)}
+        onConfirm={confirmCancelPending}
+        title="Cancel Pending Subscription"
+        message="Are you sure you want to cancel your pending subscription? This action cannot be undone and you will need to reapply if you change your mind."
+        confirmText="Yes, Cancel Subscription"
+        cancelText="Keep Subscription"
+        type="warning"
+      />
     </div>
   );
 };
