@@ -65,7 +65,7 @@ const Navigation = ({ user }) => {
     <>
       {/* Top Navigation Bar - Only on mobile (<1024px) */}
       {isMobile && (
-        <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md h-16 flex items-center justify-between px-4">
+        <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-lg h-16 flex items-center justify-between px-4">
           <div className="flex items-center">
             <button
               onClick={toggleSidebar}
@@ -87,7 +87,7 @@ const Navigation = ({ user }) => {
               className="flex items-center p-2 rounded-lg"
             >
               <div className="flex-shrink-0">
-                <div className="h-10 w-10 rounded-full flex items-center justify-center font-medium bg-indigo-100 text-indigo-600">
+                <div className="h-10 w-10 rounded-full flex items-center justify-center font-medium bg-slate-100 text-slate-700">
                   {user?.profile.first_name?.charAt(0) || "U"}
                 </div>
               </div>
@@ -184,15 +184,32 @@ const Navigation = ({ user }) => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 bg-white shadow-lg transition-transform duration-300 ease-in-out ${
+        className={`fixed inset-y-0 left-0 z-40 bg-white drop-shadow-lg transition-transform duration-300 ease-in-out ${
           isMobile
             ? isOpen
               ? "translate-x-0 w-72"
               : "-translate-x-full w-72"
-            : "translate-x-0 w-72" // Always visible at lg and above
-        } ${isMobile ? "mt-16" : "mt-0"}`} // Adjust for top bar height in mobile
+            : "translate-x-0 w-72"
+        } ${isMobile ? "mt-16" : "mt-0"}`}
       >
         <div className="flex flex-col h-full">
+          {/* Header Section */}
+          <div className="bg-white border-b border-gray-100 p-6">
+            <div className="flex items-center space-x-3">
+              <div className="bg-slate-900 rounded-xl p-2.5">
+                <ApplicationLogo className="h-7 w-7 text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold text-gray-900">
+                  User Dashboard
+                </h1>
+                <p className="text-xs text-gray-500 font-medium">
+                  Management System
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Navigation */}
           <nav className="flex-1 px-2 py-4 overflow-y-auto">
             <ul className="space-y-1">
@@ -288,10 +305,10 @@ const Navigation = ({ user }) => {
                     <Link
                       href={item.href}
                       onClick={handleNavClick}
-                      className={`flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
+                      className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
                         pathname === item.href
-                          ? "bg-indigo-50 text-indigo-600"
-                          : "hover:bg-gray-50 hover:text-indigo-500"
+                          ? "bg-slate-100 text-slate-900 font-medium"
+                          : "text-gray-700 hover:bg-gray-50 hover:text-slate-900"
                       }`}
                     >
                       <div className="flex items-center">
@@ -331,7 +348,7 @@ const Navigation = ({ user }) => {
                   className="flex items-center w-full p-2 rounded-lg"
                 >
                   <div className="flex-shrink-0">
-                    <div className="h-10 w-10 rounded-full flex items-center justify-center font-medium bg-indigo-100 text-indigo-600">
+                    <div className="h-10 w-10 rounded-full flex items-center justify-center font-medium bg-slate-100 text-slate-700">
                       {user?.profile.first_name?.charAt(0) || "U"}
                     </div>
                   </div>

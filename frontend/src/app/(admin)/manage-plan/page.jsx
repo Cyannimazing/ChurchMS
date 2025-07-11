@@ -405,6 +405,7 @@ const SubscriptionPlans = () => {
                   onChange={(e) =>
                     setForm({ ...form, PlanName: e.target.value })
                   }
+                  placeholder="Enter plan name (e.g., Basic Plan)"
                   required
                   className="block mt-1 w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
                 />
@@ -426,6 +427,7 @@ const SubscriptionPlans = () => {
                   step="0.01"
                   value={form.Price}
                   onChange={(e) => setForm({ ...form, Price: e.target.value })}
+                  placeholder="Enter price (e.g., 29.99)"
                   required
                   className="block mt-1 w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
                 />
@@ -448,6 +450,7 @@ const SubscriptionPlans = () => {
                   onChange={(e) =>
                     setForm({ ...form, DurationInMonths: e.target.value })
                   }
+                  placeholder="Enter duration in months (e.g., 12)"
                   required
                   className="block mt-1 w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
                 />
@@ -470,6 +473,7 @@ const SubscriptionPlans = () => {
                   onChange={(e) =>
                     setForm({ ...form, MaxChurchesAllowed: e.target.value })
                   }
+                  placeholder="Enter max churches (e.g., 5)"
                   required
                   className="block mt-1 w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
                 />
@@ -491,6 +495,7 @@ const SubscriptionPlans = () => {
                   onChange={(e) =>
                     setForm({ ...form, Description: e.target.value })
                   }
+                  placeholder="Enter plan description (e.g., Perfect for small churches with basic features)"
                   className="block mt-1 w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 text-sm"
                   rows="3"
                 />

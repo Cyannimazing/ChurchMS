@@ -15,9 +15,9 @@ const AppointmentPage = () => {
 
   if (!hasAccess) {
     return (
-      <div className="lg:ml-75 lg:py-12 mx-3 py-20">
-        <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-          <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+      <div className="lg:p-6 w-full h-screen pt-20">
+        <div className="max-w-7xl mx-auto h-full">
+          <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
             <div className="p-6 bg-white border-b border-gray-200">
               <h2 className="text-xl font-semibold text-red-600">
                 Unauthorized
@@ -33,11 +33,18 @@ const AppointmentPage = () => {
   }
 
   return (
-    <div className="lg:ml-75 lg:py-12 mx-3 py-20">
-      <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-        <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+    <div className="lg:p-6 w-full h-screen pt-20">
+      <div className="max-w-7xl mx-auto h-full">
+        <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
           <div className="p-6 bg-white border-b border-gray-200">
-            APPOINTMENT PAGE
+            <h1 className="text-2xl font-semibold text-gray-900">
+              Church Appointments
+            </h1>
+          </div>
+          <div className="p-6 flex-1">
+            <p className="text-gray-600">
+              Welcome to the Church Appointment Management System
+            </p>
           </div>
         </div>
       </div>

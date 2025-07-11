@@ -33,9 +33,9 @@ const AppLayout = ({ children }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <Navigation user={user} className="fixed" />
-      <main>{children}</main>
+    <div className="min-h-screen bg-gray-50">
+      <Navigation user={user} />
+      <main className="lg:ml-72 transition-all duration-300">{children}</main>
     </div>
   );
 };
