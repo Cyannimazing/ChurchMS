@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\UserContact;
 use App\Models\SubscriptionPlan;
+use App\Models\SubscriptionTransaction;
 use App\Models\ChurchSubscription;
 use App\Models\Church;
 use App\Models\ChurchRole;
@@ -94,6 +95,34 @@ class DatabaseSeeder extends Seeder
             'StartDate' => now(),
             'EndDate' => now()->addMonths(1),
             'Status' => 'Active',
+        ]);
+
+        // Seed subscription transactions
+        $basicPlan = SubscriptionPlan::where('PlanName', 'Basic Plan')->first();
+        $premiumPlan = SubscriptionPlan::where('PlanName', 'Premium Plan')->first();
+
+        // Initial subscription transaction for owner
+        SubscriptionTransaction::firstOrCreate([
+            'user_id' => $owner->id,
+            'NewPlanID' => $basicPlan->PlanID,
+        ], [
+            'OldPlanID' => null, // First subscription, no old plan
+            'PaymentMethod' => 'Credit Card',
+            'AmountPaid' => $basicPlan->Price,
+            'TransactionDate' => now()->subDays(30),
+            'Notes' => 'Initial subscription to Basic Plan',
+        ]);
+
+        // Upgrade transaction for owner
+        SubscriptionTransaction::firstOrCreate([
+            'user_id' => $owner->id,
+            'OldPlanID' => $basicPlan->PlanID,
+            'NewPlanID' => $premiumPlan->PlanID,
+        ], [
+            'PaymentMethod' => 'PayPal',
+            'AmountPaid' => $premiumPlan->Price,
+            'TransactionDate' => now()->subDays(15),
+            'Notes' => 'Upgraded from Basic to Premium Plan',
         ]);
 
         // Seed permissions

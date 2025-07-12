@@ -73,6 +73,7 @@ class ChurchSubscriptionController extends Controller
             ]);
 
             SubscriptionTransaction::create([
+                'user_id' => $userId,
                 'OldPlanID' => $activeSubscription?->PlanID,
                 'NewPlanID' => $validated['plan_id'],
                 'PaymentMethod' => $validated['payment_method'],
@@ -107,4 +108,5 @@ class ChurchSubscriptionController extends Controller
         $pendingSubscription->delete();
         return response()->noContent();
     }
+
 }

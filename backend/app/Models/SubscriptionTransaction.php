@@ -11,6 +11,7 @@ class SubscriptionTransaction extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'user_id',
         'OldPlanID',
         'NewPlanID',
         'TransactionType',
@@ -28,5 +29,10 @@ class SubscriptionTransaction extends Model
     public function newPlan()
     {
         return $this->belongsTo(SubscriptionPlan::class, 'NewPlanID', 'PlanID');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id', 'id');
     }
 }

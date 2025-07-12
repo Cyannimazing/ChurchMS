@@ -13,6 +13,7 @@ use App\Http\Controllers\UserController;
 //USERS
 Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     Artisan::call('subscriptions:update');
+    Artisan::call('churches:unpublish-expired');
     $user = $request->user()->load(['profile.systemRole', 'contact']);
     
     if ($user->profile->system_role_id == 3) {

@@ -68,6 +68,7 @@ class RegisteredUserController extends Controller
             ]);
 
             SubscriptionTransaction::create([
+                'user_id' => $user->id,
                 'NewPlanID' => $request->subscription_plan_id,
                 'PaymentMethod' => $request->payment_method ?? 'Unknown',
                 'AmountPaid' => $plan->Price,

@@ -11,6 +11,7 @@ return new class extends Migration
     {
         Schema::create('SubscriptionTransaction', function (Blueprint $table) {
             $table->id('SubTransactionID');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->unsignedBigInteger('OldPlanID')->nullable();
             $table->unsignedBigInteger('NewPlanID');
             $table->string('PaymentMethod', 50)->nullable();
