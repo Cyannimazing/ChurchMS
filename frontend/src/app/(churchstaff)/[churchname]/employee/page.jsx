@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import axios from "@/lib/axios";
 import { useRouter, useParams } from "next/navigation";
 import { List, Pencil, Plus, X, Search, Users, Loader2, Edit } from "lucide-react";
-import toast from "react-hot-toast";
+import Alert from "@/components/Alert";
 import { useAuth } from "@/hooks/auth.jsx";
 import DataLoading from "@/components/DataLoading";
 import { Button } from "@/components/Button.jsx";
@@ -59,9 +59,7 @@ const saveStaff = async ({
       data: { ChurchID: churchId, ...form },
     });
     mutate();
-    toast.success(
-      editStaffId ? "Staff updated successfully" : "Staff created successfully"
-    );
+    // Success handled by caller
   } catch (error) {
     setErrors(
       error.response?.data?.errors || [
@@ -176,7 +174,7 @@ const EmployeePage = () => {
   useEffect(() => {
     const loadChurchStaffAndRoles = async () => {
       if (!churchname) {
-        toast.error("No church name provided in URL.");
+        setPageErrors(["No church name provided in URL."]);
         setIsInitialLoading(false);
         return;
       }
@@ -189,10 +187,10 @@ const EmployeePage = () => {
         setRoles(data.roles);
       } catch (err) {
         if (err.response?.status === 401) {
-          toast.error("Please log in to view staff.");
+          setPageErrors(["Please log in to view staff."]);
           router.push("/login");
         } else {
-          toast.error(err.message || "Failed to load data.");
+          setPageErrors([err.message || "Failed to load data."]);
         }
       } finally {
         setIsInitialLoading(false);
@@ -274,7 +272,7 @@ const EmployeePage = () => {
       setErrors({});
       setOpen(true);
     } catch (err) {
-      toast.error(err.message || "Failed to fetch staff details.");
+      setPageErrors([err.message || "Failed to fetch staff details."]);
     }
   };
 
@@ -309,8 +307,10 @@ const EmployeePage = () => {
         },
       });
       setOpen(false);
+      setAlertMessage(editStaffId ? "Staff member updated successfully!" : "Staff member created successfully!");
+      setAlertType("success");
     } catch (err) {
-      toast.error("Failed to save staff.");
+      setPageErrors(["Failed to save staff."]);
     } finally {
       setIsSubmitting(false);
     }
@@ -373,17 +373,13 @@ const EmployeePage = () => {
 
             {alertMessage && (
               <div className="mb-6">
-                <div className={`p-4 rounded-md flex justify-between items-center ${
-                  alertType === "success" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
-                }`}>
-                  <p className="text-sm font-medium">{alertMessage}</p>
-                  <button
-                    onClick={() => setAlertMessage("")}
-                    className="inline-flex text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
+                <Alert
+                  type={alertType}
+                  message={alertMessage}
+                  onClose={() => setAlertMessage("")}
+                  autoClose={true}
+                  autoCloseDelay={5000}
+                />
               </div>
             )}
 

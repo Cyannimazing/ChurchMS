@@ -64,6 +64,7 @@ const Login = () => {
                 value={email}
                 className="block mt-1 w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600 transition-all duration-200"
                 onChange={(event) => setEmail(event.target.value)}
+                placeholder="juan.delacruz@gmail.com..."
                 required
                 autoFocus
               />
@@ -82,6 +83,7 @@ const Login = () => {
                 value={password}
                 className="block mt-1 w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600 transition-all duration-200"
                 onChange={(event) => setPassword(event.target.value)}
+                placeholder="Password@123..."
                 required
                 autoComplete="current-password"
               />

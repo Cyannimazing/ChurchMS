@@ -28,7 +28,7 @@ import Button from "@/components/Button";
 import Label from "@/components/Label";
 import InputError from "@/components/InputError";
 import DataLoading from "@/components/DataLoading";
-import toast, { Toaster } from "react-hot-toast";
+import Alert from "@/components/Alert";
 
 // Simple error boundary component for handling image loading errors
 class ErrorBoundary extends React.Component {
@@ -78,6 +78,8 @@ const ChurchEditPage = () => {
     loading: false,
     error: null,
   });
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertType, setAlertType] = useState("");
 
   // Form state
   const [formData, setFormData] = useState({
@@ -667,8 +669,8 @@ const ChurchEditPage = () => {
       });
 
       // Show success message
-      setSuccess(true);
-      toast.success("Church updated successfully. Awaiting admin approval.");
+      setAlertMessage("Church updated successfully. Awaiting admin approval.");
+      setAlertType("success");
 
       // Log success for debugging
       console.log("Church update successful");
@@ -820,7 +822,6 @@ const ChurchEditPage = () => {
 
   return (
     <div className="lg:p-6 w-full pt-20">
-      <Toaster />
       <div className="max-w-7xl mx-auto">
         <div className="bg-white overflow-hidden shadow-sm rounded-lg">
           <div className="p-6 bg-white border-b border-gray-200">
@@ -895,6 +896,19 @@ const ChurchEditPage = () => {
                 <AlertCircle className="h-5 w-5 text-red-500 mr-2 mt-0.5" />
                 <p className="text-sm text-red-700">{error}</p>
               </div>
+            </div>
+          )}
+
+          {/* Alert display */}
+          {alertMessage && (
+            <div className="mb-6">
+              <Alert
+                type={alertType}
+                message={alertMessage}
+                onClose={() => setAlertMessage("")}
+                autoClose={true}
+                autoCloseDelay={5000}
+              />
             </div>
           )}
 

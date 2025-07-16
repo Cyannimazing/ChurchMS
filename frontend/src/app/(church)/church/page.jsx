@@ -4,7 +4,7 @@ import { useState, useEffect, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import axios from "@/lib/axios";
 import DataLoading from "@/components/DataLoading";
-import toast, { Toaster } from "react-hot-toast";
+import Alert from "@/components/Alert";
 import { Transition, Menu } from "@headlessui/react";
 import Button from "@/components/Button";
 import {
@@ -49,6 +49,7 @@ const Dashboard = () => {
     RepresentativeID: null,
   });
   const [error, setError] = useState(null);
+  const [alert, setAlert] = useState(null);
   const [loadingChurch, setLoadingChurch] = useState(false);
   const [isLoadingChurches, setIsLoadingChurches] = useState(false);
 
@@ -100,14 +101,15 @@ const Dashboard = () => {
       );
 
       // Show success message
-      toast.success(
-        church.IsPublic
+      setAlert({
+        type: 'success',
+        message: church.IsPublic
           ? "Church has been unpublished"
           : "Church has been published"
-      );
+      });
     } catch (error) {
       console.error("Error toggling publish status:", error);
-      toast.error("Failed to update publishing status. Please try again.");
+      setAlert({ type: 'error', message: "Failed to update publishing status. Please try again." });
     } finally {
       setActionLoading((prev) => ({ ...prev, [churchId]: false }));
     }
@@ -204,8 +206,6 @@ const Dashboard = () => {
 
   return (
     <div className="lg:p-6 w-full h-screen pt-20">
-      {/* Add Toaster component for toast notifications */}
-      <Toaster />
       <div className="max-w-7xl mx-auto h-full">
         <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
           <div className="p-6 bg-white border-b border-gray-200">
@@ -505,9 +505,9 @@ const Dashboard = () => {
                       {/* Church Description */}
                       <p
                         className="mt-3 text-sm text-gray-500 line-clamp-2"
-                        title={church.Description || "No description available"}
+                        title={church.ChurchProfile?.Description || "No description available"}
                       >
-                        {church.Description || "No description available"}
+                        {church.ChurchProfile?.Description || "No description available"}
                       </p>
 
                       {/* Church Actions */}

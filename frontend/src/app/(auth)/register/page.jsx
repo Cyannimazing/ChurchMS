@@ -34,6 +34,11 @@ const RegisterPage = () => {
     last_name: "",
     address: "",
     contact_number: "",
+    payment_method: "",
+    // Address components
+    street_address: "",
+    city: "",
+    postal_code: "",
   });
   const [errors, setErrors] = useState({});
 
@@ -108,6 +113,9 @@ const RegisterPage = () => {
     if (roleId === "2" && !selectedPlan) {
       newErrors.subscription_plan_id = ["Please select a subscription plan"];
     }
+    if (roleId === "2" && !formData.payment_method) {
+      newErrors.payment_method = ["Please select a payment method"];
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -119,7 +127,7 @@ const RegisterPage = () => {
     if (role) setRoleId(role);
     if (plan) setSelectedPlan(plan);
     if (role === "2" && plan) setStep(2);
-  }, [searchParams]);
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -131,14 +139,33 @@ const RegisterPage = () => {
     setErrors((prev) => ({ ...prev, [name]: null }));
   };
 
+  const concatenateAddress = () => {
+    const addressParts = [
+      formData.street_address,
+      formData.city,
+      "Davao City, Philippines",
+      formData.postal_code
+    ].filter(part => part && part.trim() !== '');
+    
+    return addressParts.join(', ');
+  };
+
   const submitForm = async (event) => {
     event.preventDefault();
     if (!validateStep4()) return;
 
     const requestData = {
-      ...formData,
+      email: formData.email,
+      password: formData.password,
+      password_confirmation: formData.password_confirmation,
+      first_name: formData.first_name,
+      middle_name: formData.middle_name,
+      last_name: formData.last_name,
+      address: concatenateAddress(), // Use concatenated address
+      contact_number: formData.contact_number,
       role_id: roleId,
       subscription_plan_id: roleId === "2" ? selectedPlan : null,
+      payment_method: roleId === "2" ? formData.payment_method : null,
     };
     try {
       await register({
@@ -287,6 +314,7 @@ const RegisterPage = () => {
                     id="first_name"
                     name="first_name"
                     type="text"
+                    placeholder="Enter first name..."
                     value={formData.first_name}
                     onChange={handleChange}
                     className="block w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600 transition-all duration-200"
@@ -311,6 +339,7 @@ const RegisterPage = () => {
                     id="middle_name"
                     name="middle_name"
                     type="text"
+                    placeholder="Enter middle initial... (OPTIONAL)"
                     maxLength={1}
                     value={formData.middle_name}
                     onChange={handleChange}
@@ -336,6 +365,7 @@ const RegisterPage = () => {
                     id="last_name"
                     name="last_name"
                     type="text"
+                    placeholder="Enter last name..."
                     value={formData.last_name}
                     onChange={handleChange}
                     className="block w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600 transition-all duration-200"
@@ -367,27 +397,86 @@ const RegisterPage = () => {
             <div className="space-y-4">
               <div>
                 <label
-                  htmlFor="address"
+                  htmlFor="street_address"
                   className="block text-sm font-medium text-gray-700"
                 >
-                  Address
+                  Street Address
                 </label>
                 <div className="relative">
-                  <MapPin className="absolute left-3 top-4 w-5 h-5 text-gray-400" />
-                  <textarea
-                    id="address"
-                    name="address"
-                    value={formData.address}
+                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    id="street_address"
+                    name="street_address"
+                    type="text"
+                    placeholder="123 Main Street, Apt 4B..."
+                    value={formData.street_address}
                     onChange={handleChange}
-                    className="block w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600 min-h-[100px] transition-all duration-200"
+                    className="block w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600 transition-all duration-200"
                   />
                 </div>
-                {errors.address && (
-                  <div className="text-red-600 text-sm mt-1">
-                    {errors.address[0]}
-                  </div>
-                )}
               </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="city"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    District/Area in Davao City
+                  </label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      id="city"
+                      name="city"
+                      type="text"
+                      placeholder="Poblacion District, Buhangin District..."
+                      value={formData.city}
+                      onChange={handleChange}
+                      className="block w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600 transition-all duration-200"
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Popular areas: Poblacion, Buhangin, Tugbok, Agdao, Toril, Calinan, Marilog, Talomo
+                  </p>
+                </div>
+                
+                <div>
+                  <label
+                    htmlFor="postal_code"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Postal Code
+                  </label>
+                  <input
+                    id="postal_code"
+                    name="postal_code"
+                    type="text"
+                    placeholder="8000..."
+                    value={formData.postal_code}
+                    onChange={handleChange}
+                    className="block w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600 transition-all duration-200"
+                  />
+                </div>
+              </div>
+              
+              {/* Address Preview */}
+              {(formData.street_address || formData.city) && (
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Address Preview:
+                  </label>
+                  <p className="text-sm text-gray-600">
+                    {concatenateAddress() || "Enter address details above"}
+                  </p>
+                </div>
+              )}
+              
+              {errors.address && (
+                <div className="text-red-600 text-sm mt-1">
+                  {errors.address[0]}
+                </div>
+              )}
               <div>
                 <label
                   htmlFor="contact_number"
@@ -401,6 +490,7 @@ const RegisterPage = () => {
                     id="contact_number"
                     name="contact_number"
                     type="tel"
+                    placeholder="+63 912 345 6789..."
                     value={formData.contact_number}
                     onChange={handleChange}
                     className="block w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600 transition-all duration-200"
@@ -443,6 +533,7 @@ const RegisterPage = () => {
                     id="email"
                     name="email"
                     type="email"
+                    placeholder="juan.delacruz@gmail.com..."
                     value={formData.email}
                     onChange={handleChange}
                     required
@@ -470,6 +561,7 @@ const RegisterPage = () => {
                     type="password"
                     value={formData.password}
                     onChange={handleChange}
+                    placeholder="Password@123..."
                     required
                     autoComplete="new-password"
                     className="block w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600 transition-all duration-200"
@@ -496,6 +588,7 @@ const RegisterPage = () => {
                     type="password"
                     value={formData.password_confirmation}
                     onChange={handleChange}
+                    placeholder="Password@123..."
                     required
                     className="block w-full pl-10 pr-3 py-2 rounded-lg border border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600 transition-all duration-200"
                   />
@@ -506,6 +599,37 @@ const RegisterPage = () => {
                   </div>
                 )}
               </div>
+              
+              {/* Payment Method - Only for Church Owners */}
+              {roleId === "2" && (
+                <div>
+                  <label
+                    htmlFor="payment_method"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Payment Method
+                  </label>
+                  <select
+                    id="payment_method"
+                    name="payment_method"
+                    value={formData.payment_method}
+                    onChange={handleChange}
+                    required
+                    className="block w-full mt-1 px-3 py-2 rounded-lg border border-gray-300 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600 transition-all duration-200"
+                  >
+                    <option value="">Select Payment Method</option>
+                    <option value="Credit Card">Credit Card</option>
+                    <option value="PayPal">PayPal</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                  </select>
+                  {errors.payment_method && (
+                    <div className="text-red-600 text-sm mt-1">
+                      {errors.payment_method[0]}
+                    </div>
+                  )}
+                </div>
+              )}
+              
               {errors.subscription_plan_id && (
                 <div className="text-red-600 text-sm text-center">
                   {errors.subscription_plan_id[0]}
@@ -530,7 +654,7 @@ const RegisterPage = () => {
                       formData.password &&
                       formData.password_confirmation &&
                       formData.password === formData.password_confirmation &&
-                      (roleId === "1" || (roleId === "2" && selectedPlan))
+                      (roleId === "1" || (roleId === "2" && selectedPlan && formData.payment_method))
                     )
                   }
                 >

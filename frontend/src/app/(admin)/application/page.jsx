@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import axios from "@/lib/axios";
-import { toast, Toaster } from "react-hot-toast";
 import { Download, Eye, Loader2 } from "lucide-react";
 import DataLoading from "@/components/DataLoading";
 import SearchAndPagination from "@/components/SearchAndPagination";
 import { filterAndPaginateData } from "@/utils/tableUtils";
 import Button from "@/components/Button";
+import Alert from "@/components/Alert";
 
 const Dashboard = () => {
   const [churches, setChurches] = useState([]);
@@ -19,6 +19,7 @@ const Dashboard = () => {
   const [reviewedChurches, setReviewedChurches] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [alert, setAlert] = useState(null);
   const itemsPerPage = 5;
   
   // Define search fields
@@ -58,7 +59,7 @@ const Dashboard = () => {
       } catch (error) {
         const errorMessage =
           error.response?.data?.error || "Failed to fetch churches";
-        toast.error(errorMessage);
+        setAlert({ type: 'error', message: errorMessage });
         console.error("Fetch churches error:", {
           status: error.response?.status,
           data: error.response?.data,
@@ -89,7 +90,7 @@ const Dashboard = () => {
       const errorMessage = errorData.message
         ? `${errorData.error}: ${errorData.message} (${errorData.file}:${errorData.line})`
         : errorData.error || "Failed to fetch documents";
-      toast.error(errorMessage);
+      setAlert({ type: 'error', message: errorMessage });
       console.error("Fetch documents error:", {
         churchId,
         status: error.response?.status,
@@ -106,7 +107,7 @@ const Dashboard = () => {
       const response = await axios.put(`/api/churches/${churchId}/status`, {
         ChurchStatus: status,
       });
-      toast.success(response.data.message);
+      setAlert({ type: 'success', message: response.data.message });
       setChurches((prev) =>
         prev.map((church) =>
           church.ChurchID === churchId
@@ -121,7 +122,7 @@ const Dashboard = () => {
     } catch (error) {
       const errorMessage =
         error.response?.data?.error || "Failed to update status";
-      toast.error(errorMessage);
+      setAlert({ type: 'error', message: errorMessage });
       console.error("Update status error:", {
         churchId,
         status: error.response?.status,
@@ -155,7 +156,7 @@ const Dashboard = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       const errorMessage = error.message || "Failed to preview document";
-      toast.error(errorMessage);
+      setAlert({ type: 'error', message: errorMessage });
       console.error("Preview document error:", {
         documentId,
         status: error.response?.status,
@@ -190,7 +191,7 @@ const Dashboard = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       const errorMessage = error.message || "Failed to download document";
-      toast.error(errorMessage);
+      setAlert({ type: 'error', message: errorMessage });
       console.error("Download document error:", {
         documentId,
         status: error.response?.status,
@@ -202,13 +203,21 @@ const Dashboard = () => {
 
   return (
     <div className="lg:p-6 w-full h-screen pt-20">
-      <Toaster position="top-right" />
       <div className="max-w-7xl mx-auto h-full">
         <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
           <div className="p-6 bg-white border-b border-gray-200 flex-1 overflow-auto">
             <h1 className="text-2xl font-semibold text-gray-900 mb-6">
               Application Dashboard
             </h1>
+            {alert && (
+              <div className="mb-6">
+                <Alert
+                  type={alert.type}
+                  message={alert.message}
+                  onClose={() => setAlert(null)}
+                />
+              </div>
+            )}
             <div className="overflow-x-auto">
               <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
                 <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">

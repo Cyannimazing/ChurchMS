@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import axios from "@/lib/axios";
 import { useRouter, useParams } from "next/navigation";
 import { List, Pencil, Plus, X, Search, Users, Loader2, Edit } from "lucide-react";
-import toast from "react-hot-toast";
 import { useAuth } from "@/hooks/auth.jsx";
 import DataLoading from "@/components/DataLoading";
 import { Button } from "@/components/Button.jsx";
@@ -56,9 +55,6 @@ const saveRole = async ({ editRoleId, churchId, form, setErrors, mutate }) => {
     const payload = { ChurchID: churchId, ...form };
     const response = await axios({ method, url, data: payload });
     mutate();
-    toast.success(
-      editRoleId ? "Role updated successfully" : "Role created successfully"
-    );
   } catch (error) {
     if (error.response?.status === 422) {
       setErrors(error.response.data.errors || ["Validation failed."]);
@@ -96,7 +92,7 @@ const RolePermissionPage = () => {
   useEffect(() => {
     const loadChurchAndRoles = async () => {
       if (!churchname) {
-        toast.error("No church name provided in URL.");
+        setErrors(["No church name provided in URL."]);
         setIsInitialLoading(false);
         return;
       }
@@ -108,10 +104,10 @@ const RolePermissionPage = () => {
         setFilteredRoles(data.roles);
       } catch (err) {
         if (err.response?.status === 401) {
-          toast.error("Please log in to view roles.");
+          setErrors(["Please log in to view roles."]);
           router.push("/login");
         } else {
-          toast.error(err.message || "Failed to load data.");
+          setErrors([err.message || "Failed to load data."]);
         }
       } finally {
         setIsInitialLoading(false);
@@ -133,10 +129,10 @@ const RolePermissionPage = () => {
       })
       .catch((err) => {
         if (err.response?.status === 401) {
-          toast.error("Please log in to view permissions.");
+          setErrors(["Please log in to view permissions."]);
           router.push("/login");
         } else {
-          toast.error(err.message || "Failed to load permissions.");
+          setErrors([err.message || "Failed to load permissions."]);
         }
       })
       .finally(() => setLoadingPermissions(false));
@@ -183,7 +179,7 @@ const RolePermissionPage = () => {
 
   const handleEdit = async (roleId) => {
     if (!churchId) {
-      toast.error("Church ID not available. Please try again.");
+      setErrors(["Church ID not available. Please try again."]);
       return;
     }
     try {
@@ -196,7 +192,7 @@ const RolePermissionPage = () => {
       setErrors([]);
       setOpen(true);
     } catch (err) {
-      toast.error(err.message || "Failed to fetch role details.");
+      setErrors([err.message || "Failed to fetch role details."]);
     }
   };
 
@@ -212,7 +208,7 @@ const RolePermissionPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!churchId || !form.RoleName.trim()) {
-      toast.error("Church ID or Role Name is missing.");
+      setErrors(["Church ID or Role Name is missing."]);
       return;
     }
     setIsSubmitting(true);
@@ -234,7 +230,7 @@ const RolePermissionPage = () => {
       setAlertMessage(editRoleId ? "Role updated successfully!" : "Role created successfully!");
       setAlertType("success");
     } catch (err) {
-      toast.error(err.response?.data?.error || "Failed to save role.");
+      setErrors([err.response?.data?.error || "Failed to save role."]);
     } finally {
       setIsSubmitting(false);
     }
@@ -254,6 +250,16 @@ const RolePermissionPage = () => {
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [open]);
+
+  // Auto-dismiss alert after 5 seconds
+  useEffect(() => {
+    if (!alertMessage) return;
+    const timeout = setTimeout(() => {
+      setAlertMessage("");
+      setAlertType("");
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, [alertMessage]);
 
   const hasAccess =
     user?.profile?.system_role?.role_name === "ChurchOwner" ||
