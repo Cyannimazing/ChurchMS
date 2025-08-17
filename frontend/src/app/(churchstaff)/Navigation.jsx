@@ -13,7 +13,6 @@ const Navigation = ({ user }) => {
   const { churchname } = useParams();
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [activeSubmenu, setActiveSubmenu] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
@@ -39,61 +38,61 @@ const Navigation = ({ user }) => {
     setIsOpen(!isOpen);
   };
 
-  const toggleSubmenu = (index) => {
-    setActiveSubmenu(activeSubmenu === index ? null : index);
-  };
-
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
   };
 
-  const navItems = [
+  const menuSections = [
     {
-      name: "Dashboard",
-      href: `/${churchname}/dashboard`,
-      icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
-      badge: null,
+      title: "Main Menu",
+      items: [
+        {
+          name: "Dashboard",
+          href: `/${churchname}/dashboard`,
+          icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+          badge: null,
+        },
+        {
+          name: "Appointment",
+          href: `/${churchname}/appointment`,
+          icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+          badge: null,
+          permission: "appointment_list",
+        },
+      ],
     },
     {
-      name: "Manage Employee",
-      icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
-      badge: null,
-      permission: null,
-      submenu: [
+      title: "Entry Control",
+      items: [
         {
           name: "Roles & Permissions",
           href: `/${churchname}/role`,
-          icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+          icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+          badge: null,
           permission: "role_list",
         },
         {
           name: "Employee",
           href: `/${churchname}/employee`,
-          icon: "M12 6v6m0 0v6m0-6h6m-6 0H6",
+          icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m3 5.197H9m6 0v-1a6 6 0 00-3-5.197m0 0V9a3 3 0 00-6 0v5.197",
+          badge: null,
           permission: "employee_list",
         },
+        {
+          name: "Sacrament",
+          href: `/${churchname}/sacrament`,
+          icon: "M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z",
+          badge: null,
+          permission: "sacrament_list",
+        },
+        {
+          name: "Schedule",
+          href: `/${churchname}/schedule`,
+          icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+          badge: null,
+          permission: "schedule_list",
+        },
       ],
-    },
-    {
-      name: "Appointment",
-      href: `/${churchname}/appointment`,
-      icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
-      badge: null,
-      permission: "appointment_list",
-    },
-    {
-      name: "Sacrament",
-      href: `/${churchname}/sacrament`,
-      icon: "M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z",
-      badge: null,
-      permission: "sacrament_list",
-    },
-    {
-      name: "Schedule",
-      href: `/${churchname}/schedule`,
-      icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
-      badge: null,
-      permission: "schedule_list",
     },
   ];
 
@@ -111,20 +110,11 @@ const Navigation = ({ user }) => {
     return "Church Management";
   };
 
-  const filteredNavItems = navItems
-    .filter((item) => {
+  const filteredMenuSections = menuSections.map((section) => ({
+    ...section,
+    items: section.items.filter((item) => {
       if (user?.profile?.system_role?.role_name === "ChurchOwner") {
         return true;
-      }
-      if (item.submenu) {
-        const permittedSubmenu = item.submenu.filter((subItem) =>
-          subItem.permission
-            ? user?.church_role?.permissions?.some(
-                (perm) => perm.PermissionName === subItem.permission
-              )
-            : true
-        );
-        return permittedSubmenu.length > 0;
       }
       return (
         !item.permission ||
@@ -132,25 +122,8 @@ const Navigation = ({ user }) => {
           (perm) => perm.PermissionName === item.permission
         )
       );
-    })
-    .map((item) => {
-      if (
-        item.submenu &&
-        user?.profile?.system_role?.role_name !== "ChurchOwner"
-      ) {
-        return {
-          ...item,
-          submenu: item.submenu.filter((subItem) =>
-            subItem.permission
-              ? user?.church_role?.permissions?.some(
-                  (perm) => perm.PermissionName === subItem.permission
-                )
-              : true
-          ),
-        };
-      }
-      return item;
-    });
+    }),
+  })).filter((section) => section.items.length > 0);
 
   return (
     <>
@@ -301,131 +274,62 @@ const Navigation = ({ user }) => {
 
           {/* Navigation */}
           <nav className="flex-1 px-2 py-4 overflow-y-auto">
-            <ul className="space-y-1">
-              {filteredNavItems.map((item, index) => (
-                <li key={item.name}>
-                  {item.submenu ? (
-                    <>
-                      <button
-                        onClick={() => toggleSubmenu(index)}
-                        className={`flex items-center justify-between w-full px-4 py-3 rounded-lg transition-colors ${
-                          pathname.startsWith(item.href)
-                            ? "bg-indigo-50 text-indigo-600"
-                            : "hover:bg-gray-50 hover:text-indigo-500"
-                        }`}
-                      >
-                        <div className="flex items-center">
-                          <svg
-                            className="w-5 h-5 mr-3"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d={item.icon}
-                            />
-                          </svg>
-                          <span className="font-medium">{item.name}</span>
+            <div className="space-y-6">
+              {filteredMenuSections.map((section, sectionIndex) => (
+                <div key={section.title}>
+                  {/* Section Title */}
+                  <div className="px-4 mb-3">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      {section.title}
+                    </h3>
+                  </div>
+                  
+                  {/* Section Items */}
+                  <ul className="space-y-1">
+                    {section.items.map((item, itemIndex) => (
+                      <li key={item.name}>
+                        <Link
+                          href={item.href}
+                          onClick={handleNavClick}
+                          className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
+                            pathname === item.href
+                              ? "bg-slate-100 text-slate-900 font-medium"
+                              : "text-gray-700 hover:bg-gray-50 hover:text-slate-900"
+                          }`}
+                        >
+                          <div className="flex items-center">
+                            <svg
+                              className="w-5 h-5 mr-3"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d={item.icon}
+                              />
+                            </svg>
+                            <span className="font-medium">{item.name}</span>
+                          </div>
                           {item.badge && (
-                            <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">
                               {item.badge}
                             </span>
                           )}
-                        </div>
-                        <svg
-                          className={`w-4 h-4 transform transition-transform duration-200 ${
-                            activeSubmenu === index ? "rotate-90" : ""
-                          }`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
-                      </button>
-
-                      {activeSubmenu === index && (
-                        <ul className="ml-8 mt-1 space-y-1 text-gray-600">
-                          {item.submenu.map((subItem) => (
-                            <li key={subItem.name}>
-                              <Link
-                                href={subItem.href}
-                                onClick={() => {
-                                  handleNavClick();
-                                  setActiveSubmenu(null);
-                                }}
-                                className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
-                                  pathname === subItem.href
-                                    ? "bg-indigo-50 text-indigo-600"
-                                    : "hover:bg-gray-50 hover:text-indigo-500"
-                                }`}
-                              >
-                                {subItem.icon && (
-                                  <svg
-                                    className="w-4 h-4 mr-3"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d={subItem.icon}
-                                    />
-                                  </svg>
-                                )}
-                                {subItem.name}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </>
-                  ) : (
-                    <Link
-                      href={item.href}
-                      onClick={handleNavClick}
-                      className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
-                        pathname === item.href
-                          ? "bg-slate-100 text-slate-900 font-medium"
-                          : "text-gray-700 hover:bg-gray-50 hover:text-slate-900"
-                      }`}
-                    >
-                      <div className="flex items-center">
-                        <svg
-                          className="w-5 h-5 mr-3"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d={item.icon}
-                          />
-                        </svg>
-                        <span className="font-medium">{item.name}</span>
-                      </div>
-                      {item.badge && (
-                        <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">
-                          {item.badge}
-                        </span>
-                      )}
-                    </Link>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                  
+                  {/* Divider between sections (except for the last section) */}
+                  {sectionIndex < filteredMenuSections.length - 1 && (
+                    <div className="mx-4 mt-6 border-t border-gray-200"></div>
                   )}
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           </nav>
 
           {/* User Profile - Only at lg and above */}

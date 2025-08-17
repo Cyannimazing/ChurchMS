@@ -3,7 +3,7 @@ import React from "react";
 import { useState, useEffect } from "react";
 import axios from "@/lib/axios";
 import { useRouter, useParams } from "next/navigation";
-import { List, Pencil, Plus, X, Search, Users, Loader2, Edit } from "lucide-react";
+import { List, Pencil, Plus, X, Search, Users, Loader2, Edit, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/auth.jsx";
 import DataLoading from "@/components/DataLoading";
 import { Button } from "@/components/Button.jsx";
@@ -11,6 +11,7 @@ import Input from "@/components/Input.jsx";
 import InputError from "@/components/InputError.jsx";
 import Label from "@/components/Label.jsx";
 import SearchAndPagination from "@/components/SearchAndPagination";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 const fetchChurchAndRoles = async (churchName, setErrors) => {
   try {
@@ -87,6 +88,9 @@ const RolePermissionPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [roleToDelete, setRoleToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const itemsPerPage = 5;
 
   useEffect(() => {
@@ -239,6 +243,40 @@ const RolePermissionPage = () => {
   const handleClose = () => {
     setOpen(false);
     setErrors([]);
+  };
+
+  const handleDeleteClick = (role) => {
+    setRoleToDelete(role);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!roleToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await axios.delete(`/api/roles/${roleToDelete.RoleID}`);
+      
+      // Refresh the roles list
+      const data = await fetchChurchAndRoles(churchname, setErrors);
+      setRoles(data.roles);
+      setFilteredRoles(data.roles);
+      
+      setAlertMessage("Role deleted successfully!");
+      setAlertType("success");
+    } catch (error) {
+      setAlertMessage(error.response?.data?.error || "Failed to delete role.");
+      setAlertType("error");
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+      setRoleToDelete(null);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false);
+    setRoleToDelete(null);
   };
 
   useEffect(() => {
@@ -397,6 +435,14 @@ const RolePermissionPage = () => {
                                     <Edit className="h-3 w-3 mr-1" />
                                     Edit
                                   </Button>
+                                  <Button
+                                    onClick={() => handleDeleteClick(role)}
+                                    variant="outline"
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto"
+                                  >
+                                    <Trash2 className="h-3 w-3 mr-1" />
+                                    Delete
+                                  </Button>
                                 </div>
                               </td>
                             </tr>
@@ -540,6 +586,18 @@ const RolePermissionPage = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Role"
+        message={`Are you sure you want to delete the role "${roleToDelete?.RoleName}"? This action cannot be undone.`}
+        confirmText={isDeleting ? "Deleting..." : "Delete Role"}
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   );
 };

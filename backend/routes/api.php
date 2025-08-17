@@ -10,6 +10,7 @@ use App\Http\Controllers\ChurchStaffController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SacramentServiceController;
+use App\Http\Controllers\ScheduleController;
 
 //USERS
 Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
@@ -96,4 +97,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Form configuration management
     Route::post('/sacrament-services/{serviceId}/form-config', [SacramentServiceController::class, 'saveFormConfiguration'])->where('serviceId', '[0-9]+');
     Route::get('/sacrament-services/{serviceId}/form-config', [SacramentServiceController::class, 'getFormConfiguration'])->where('serviceId', '[0-9]+');
+    
+    // Schedule management
+    Route::get('/sacrament-services/{serviceId}/schedules', [ScheduleController::class, 'getServiceSchedules'])->where('serviceId', '[0-9]+');
+    Route::post('/sacrament-services/{serviceId}/schedules', [ScheduleController::class, 'store'])->where('serviceId', '[0-9]+');
+    Route::get('/schedules/{scheduleId}', [ScheduleController::class, 'getSchedule'])->where('scheduleId', '[0-9]+');
+    Route::put('/schedules/{scheduleId}', [ScheduleController::class, 'update'])->where('scheduleId', '[0-9]+');
+    Route::delete('/schedules/{scheduleId}', [ScheduleController::class, 'destroy'])->where('scheduleId', '[0-9]+');
 });

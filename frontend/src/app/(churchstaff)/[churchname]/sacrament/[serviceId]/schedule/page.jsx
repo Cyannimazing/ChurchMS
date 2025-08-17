@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { 
+  ArrowLeft, 
   Plus, 
   Calendar, 
   Clock, 
@@ -10,45 +11,37 @@ import {
   Settings,
   Trash2,
   Edit,
-  Search,
-  Filter
+  Eye
 } from "lucide-react";
 import { Button } from "@/components/Button.jsx";
 import { useAuth } from "@/hooks/auth.jsx";
 import ScheduleModal from "@/components/schedules/ScheduleModal.jsx";
-import ConfirmDialog from "@/components/ConfirmDialog.jsx";
-import DataLoading from "@/components/DataLoading.jsx";
 import axios from "@/lib/axios";
 
-const SchedulePage = () => {
+const ServiceSchedulePage = () => {
   const { user } = useAuth({ middleware: "auth" });
   const router = useRouter();
-  const { churchname } = useParams();
+  const { churchname, serviceId } = useParams();
   
-  const [services, setServices] = useState([]);
+  const [service, setService] = useState(null);
   const [schedules, setSchedules] = useState([]);
-  const [filteredSchedules, setFilteredSchedules] = useState([]);
-  const [selectedService, setSelectedService] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [scheduleToDelete, setScheduleToDelete] = useState(null);
 
   // Check if user has access
   const hasAccess = user?.profile?.system_role?.role_name === "ChurchOwner" ||
     user?.church_role?.permissions?.some(
-      (perm) => perm.PermissionName === "schedule_manage" || perm.PermissionName === "schedule_list"
+      (perm) => perm.PermissionName === "schedule_manage"
     );
 
   useEffect(() => {
     if (hasAccess) {
-      loadData();
+      loadSchedules();
     }
-  }, [churchname, hasAccess]);
+  }, [serviceId, hasAccess]);
 
   // Auto-dismiss alert after 5 seconds
   useEffect(() => {
@@ -60,53 +53,16 @@ const SchedulePage = () => {
     return () => clearTimeout(timeout);
   }, [alertMessage]);
 
-  // Filter schedules when service selection or search term changes
-  useEffect(() => {
-    let filtered = schedules;
-    
-    if (selectedService) {
-      filtered = filtered.filter(schedule => schedule.ServiceID.toString() === selectedService);
-    }
-    
-    if (searchTerm) {
-      filtered = filtered.filter(schedule => 
-        schedule.service?.ServiceName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        schedule.ScheduleID.toString().includes(searchTerm)
-      );
-    }
-    
-    setFilteredSchedules(filtered);
-  }, [schedules, selectedService, searchTerm]);
-
-  const loadData = async () => {
+  const loadSchedules = async () => {
     try {
       setIsLoading(true);
-      
-      // Load all services first
-      const servicesResponse = await axios.get(`/api/sacrament-services/${churchname}`);
-      if (servicesResponse.data?.sacraments) {
-        setServices(servicesResponse.data.sacraments);
+      const response = await axios.get(`/api/sacrament-services/${serviceId}/schedules`);
+      if (response.data.success) {
+        setService(response.data.service);
+        setSchedules(response.data.schedules);
       }
-      
-      // Load all schedules for the church
-      const schedulesPromises = servicesResponse.data.sacraments?.map(service => 
-        axios.get(`/api/sacrament-services/${service.ServiceID}/schedules`).catch(() => ({ data: { schedules: [] } }))
-      ) || [];
-      
-      const schedulesResponses = await Promise.all(schedulesPromises);
-      const allSchedules = schedulesResponses.flatMap((response, index) => {
-        const serviceSchedules = response.data?.schedules || [];
-        return serviceSchedules.map(schedule => ({
-          ...schedule,
-          service: servicesResponse.data.sacraments[index]
-        }));
-      });
-      
-      setSchedules(allSchedules);
-      setFilteredSchedules(allSchedules);
-      
     } catch (error) {
-      console.error("Failed to load data:", error);
+      console.error("Failed to load schedules:", error);
       setAlertMessage("Failed to load schedules. Please try again.");
       setAlertType("error");
     } finally {
@@ -114,28 +70,22 @@ const SchedulePage = () => {
     }
   };
 
-  const handleDeleteClick = (schedule) => {
-    setScheduleToDelete(schedule);
-    setShowDeleteConfirm(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!scheduleToDelete) return;
+  const handleDeleteSchedule = async (scheduleId) => {
+    if (!confirm("Are you sure you want to delete this schedule? This action cannot be undone.")) {
+      return;
+    }
 
     try {
-      const response = await axios.delete(`/api/schedules/${scheduleToDelete.ScheduleID}`);
+      const response = await axios.delete(`/api/schedules/${scheduleId}`);
       if (response.data.success) {
         setAlertMessage("Schedule deleted successfully!");
         setAlertType("success");
-        loadData(); // Reload data
+        loadSchedules(); // Reload schedules
       }
     } catch (error) {
       console.error("Failed to delete schedule:", error);
       setAlertMessage("Failed to delete schedule. Please try again.");
       setAlertType("error");
-    } finally {
-      setShowDeleteConfirm(false);
-      setScheduleToDelete(null);
     }
   };
 
@@ -191,6 +141,23 @@ const SchedulePage = () => {
     );
   }
 
+  if (isLoading) {
+    return (
+      <div className="lg:p-6 w-full h-screen pt-20">
+        <div className="max-w-7xl mx-auto h-full">
+          <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mx-auto mb-4"></div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Schedules</h2>
+                <p className="text-gray-600">Please wait while we load your service schedules...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="lg:p-6 w-full h-screen pt-20">
@@ -198,57 +165,33 @@ const SchedulePage = () => {
         <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
           {/* Header */}
           <div className="p-6 bg-white border-b border-gray-200">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-2xl font-semibold text-gray-900">
-                  Schedule Management
-                </h1>
-                <p className="text-sm text-gray-600">
-                  Manage availability schedules for all church sacrament services
-                </p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <Button
+                  onClick={() => router.push(`/${churchname}/sacrament`)}
+                  variant="outline"
+                  className="flex items-center"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Sacraments
+                </Button>
+                <div>
+                  <h1 className="text-2xl font-semibold text-gray-900">
+                    Schedule Management
+                  </h1>
+                  <p className="text-sm text-gray-600">
+                    {service ? `Configure availability for: ${service.ServiceName}` : 'Loading...'}
+                  </p>
+                </div>
               </div>
               
               <Button
                 onClick={() => setShowCreateModal(true)}
                 className="flex items-center"
-                disabled={services.length === 0}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Schedule
               </Button>
-            </div>
-
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search schedules..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-              <div className="sm:w-64">
-                <div className="relative">
-                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <select
-                    value={selectedService}
-                    onChange={(e) => setSelectedService(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
-                  >
-                    <option value="">All Services</option>
-                    {services.map((service) => (
-                      <option key={service.ServiceID} value={service.ServiceID}>
-                        {service.ServiceName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -270,57 +213,30 @@ const SchedulePage = () => {
           )}
 
           {/* Content */}
-          <div className="flex-1 p-6 overflow-y-auto">
-            {isLoading ? (
-              <div className="py-12">
-                <DataLoading message="Loading schedules..." />
-              </div>
-            ) : services.length === 0 ? (
+          <div className="flex-1 p-6">
+            {schedules.length === 0 ? (
               <div className="text-center py-12">
                 <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Services Available</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Schedules Yet</h3>
                 <p className="text-gray-600 mb-6">
-                  You need to create sacrament services before you can manage schedules.
+                  Get started by creating your first availability schedule for this service.
                 </p>
                 <Button
-                  onClick={() => router.push(`/${churchname}/sacrament`)}
+                  onClick={() => setShowCreateModal(true)}
                   className="flex items-center mx-auto"
                 >
-                  Go to Sacraments
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Schedule
                 </Button>
               </div>
-            ) : filteredSchedules.length === 0 ? (
-              <div className="text-center py-12">
-                <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {searchTerm || selectedService ? 'No Schedules Found' : 'No Schedules Yet'}
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  {searchTerm || selectedService 
-                    ? 'No schedules match your current filters.' 
-                    : 'Get started by creating your first schedule for a service.'}
-                </p>
-                {!searchTerm && !selectedService && (
-                  <Button
-                    onClick={() => setShowCreateModal(true)}
-                    className="flex items-center mx-auto"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Schedule
-                  </Button>
-                )}
-              </div>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredSchedules.map((schedule) => (
-                  <div key={schedule.ScheduleID} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow flex flex-col h-full">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {schedules.map((schedule) => (
+                  <div key={schedule.ScheduleID} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
                     <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {schedule.service?.ServiceName}
-                        </h3>
-                        <p className="text-sm text-gray-500">Schedule #{schedule.ScheduleID}</p>
-                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Schedule #{schedule.ScheduleID}
+                      </h3>
                       <div className="flex items-center space-x-2">
                         <Button
                           onClick={() => setEditingSchedule(schedule)}
@@ -330,7 +246,7 @@ const SchedulePage = () => {
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
-                          onClick={() => handleDeleteClick(schedule)}
+                          onClick={() => handleDeleteSchedule(schedule.ScheduleID)}
                           variant="outline"
                           className="p-2 h-auto min-h-0 text-red-600"
                         >
@@ -339,7 +255,7 @@ const SchedulePage = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-3 flex-grow">
+                    <div className="space-y-3">
                       <div className="flex items-center text-sm text-gray-600">
                         <Calendar className="h-4 w-4 mr-2" />
                         <span>
@@ -371,7 +287,7 @@ const SchedulePage = () => {
                       </div>
                     </div>
 
-                    <div className="mt-auto pt-4 border-t border-gray-100">
+                    <div className="mt-4 pt-4 border-t border-gray-100">
                       <div className="flex items-center justify-between">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           new Date(schedule.StartDate) <= new Date() && 
@@ -402,7 +318,7 @@ const SchedulePage = () => {
         </div>
       </div>
 
-      {/* Create/Edit Schedule Modal */}
+      {/* Create/Edit Schedule Modal would go here */}
       {(showCreateModal || editingSchedule) && (
         <ScheduleModal
           isOpen={showCreateModal || !!editingSchedule}
@@ -411,9 +327,9 @@ const SchedulePage = () => {
             setEditingSchedule(null);
           }}
           schedule={editingSchedule}
-          services={services}
+          serviceId={serviceId}
           onSuccess={() => {
-            loadData();
+            loadSchedules();
             setShowCreateModal(false);
             setEditingSchedule(null);
             setAlertMessage(editingSchedule ? "Schedule updated successfully!" : "Schedule created successfully!");
@@ -421,23 +337,9 @@ const SchedulePage = () => {
           }}
         />
       )}
-
-      {/* Delete Confirmation Dialog */}
-      <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        onClose={() => {
-          setShowDeleteConfirm(false);
-          setScheduleToDelete(null);
-        }}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Schedule"
-        message={`Are you sure you want to delete this schedule for ${scheduleToDelete?.service?.ServiceName}? This action cannot be undone and will permanently remove all associated time slots, recurrences, and fees.`}
-        confirmText="Delete Schedule"
-        cancelText="Cancel"
-        type="danger"
-      />
     </div>
   );
 };
 
-export default SchedulePage;
+
+export default ServiceSchedulePage;

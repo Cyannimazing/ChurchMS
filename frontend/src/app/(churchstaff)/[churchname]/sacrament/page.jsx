@@ -11,6 +11,7 @@ import Input from "@/components/Input.jsx";
 import InputError from "@/components/InputError.jsx";
 import Label from "@/components/Label.jsx";
 import SearchAndPagination from "@/components/SearchAndPagination";
+import ConfirmDialog from "@/components/ConfirmDialog.jsx";
 
 const fetchChurchAndSacraments = async (churchName, setErrors) => {
   try {
@@ -77,7 +78,7 @@ const SacramentPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState("");
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [sacramentToDelete, setSacramentToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoadingEdit, setIsLoadingEdit] = useState(false);
@@ -198,7 +199,7 @@ const SacramentPage = () => {
     }
     const sacrament = sacraments.find(s => s.ServiceID === sacramentId);
     setSacramentToDelete(sacrament);
-    setDeleteConfirmOpen(true);
+    setShowDeleteConfirm(true);
   };
 
   const confirmDelete = async () => {
@@ -214,7 +215,7 @@ const SacramentPage = () => {
       setFilteredSacraments(data.sacraments || []);
       setAlertMessage("Sacrament deleted successfully!");
       setAlertType("success");
-      setDeleteConfirmOpen(false);
+      setShowDeleteConfirm(false);
       setSacramentToDelete(null);
     } catch (err) {
       setErrors([err.response?.data?.error || "Failed to delete sacrament."]);
@@ -224,7 +225,7 @@ const SacramentPage = () => {
   };
 
   const cancelDelete = () => {
-    setDeleteConfirmOpen(false);
+    setShowDeleteConfirm(false);
     setSacramentToDelete(null);
   };
 
@@ -568,57 +569,21 @@ const SacramentPage = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {deleteConfirmOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div
-            className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 p-6 relative"
-            role="dialog"
-            aria-labelledby="delete-modal-title"
-          >
-            <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 rounded-full">
-              <Trash2 className="h-6 w-6 text-red-600" />
-            </div>
-            <h3
-              id="delete-modal-title"
-              className="text-lg font-semibold text-gray-900 text-center mb-2"
-            >
-              Delete Sacrament
-            </h3>
-            <p className="text-sm text-gray-500 text-center mb-6">
-              Are you sure you want to delete "{sacramentToDelete?.ServiceName}"? This action cannot be undone.
-            </p>
-            <div className="flex justify-end items-center space-x-3">
-              <Button
-                type="button"
-                onClick={cancelDelete}
-                variant="outline"
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border-gray-300 hover:bg-gray-50"
-                disabled={isDeleting}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={confirmDelete}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:ring-red-500"
-                disabled={isDeleting}
-              >
-                {isDeleting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setSacramentToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Sacrament"
+        message={`Are you sure you want to delete "${sacramentToDelete?.ServiceName}"? This action cannot be undone and will permanently remove the sacrament and all its associated schedules.`}
+        confirmText={isDeleting ? "Deleting..." : "Delete Sacrament"}
+        cancelText="Cancel"
+        type="danger"
+        isLoading={isDeleting}
+      />
 
     </div>
   );
