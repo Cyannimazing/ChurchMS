@@ -84,4 +84,10 @@ class Church extends Model
     {
         return $this->hasMany(ChurchRole::class, 'ChurchID', 'ChurchID');
     }
+    
+    // Many SacramentServices (sacrament services offered by the church)
+    public function sacramentServices()
+    {
+        return $this->hasMany(SacramentService::class, 'ChurchID', 'ChurchID');
+    }
 }

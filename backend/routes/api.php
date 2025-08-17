@@ -9,6 +9,7 @@ use App\Http\Controllers\ChurchController;
 use App\Http\Controllers\ChurchStaffController;
 use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\SacramentServiceController;
 
 //USERS
 Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
@@ -77,4 +78,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('staff', [ChurchStaffController::class, 'store']);
     Route::get('staff/{staffId}', [ChurchStaffController::class, 'show']);
     Route::put('staff/{staffId}', [ChurchStaffController::class, 'update']);
+});
+
+//Sacrament Services Management
+Route::middleware('auth:sanctum')->group(function () {
+    // CRUD operations for sacrament services
+    Route::post('/sacrament-services', [SacramentServiceController::class, 'store']);
+    Route::put('/sacrament-services/{serviceId}', [SacramentServiceController::class, 'update'])->where('serviceId', '[0-9]+');
+    Route::delete('/sacrament-services/{serviceId}', [SacramentServiceController::class, 'destroy'])->where('serviceId', '[0-9]+');
+    
+    // Get church and its sacrament services (church name route)
+    Route::get('/sacrament-services/{churchName}', [SacramentServiceController::class, 'getChurchAndSacramentServices'])->where('churchName', '[A-Za-z0-9\s\-_]+');
+    
+    // Get a specific sacrament service by ID (numeric route)
+    Route::get('/sacrament-services/{serviceId}', [SacramentServiceController::class, 'show'])->where('serviceId', '[0-9]+');
+    
+    // Form configuration management
+    Route::post('/sacrament-services/{serviceId}/form-config', [SacramentServiceController::class, 'saveFormConfiguration'])->where('serviceId', '[0-9]+');
+    Route::get('/sacrament-services/{serviceId}/form-config', [SacramentServiceController::class, 'getFormConfiguration'])->where('serviceId', '[0-9]+');
 });
