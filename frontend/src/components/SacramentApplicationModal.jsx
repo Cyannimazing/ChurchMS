@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { X, ChevronLeft, ChevronRight, Calendar, Clock, Users } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { X, ChevronLeft, ChevronRight, Calendar, Clock, Users, Upload, FileText, Trash2 } from 'lucide-react'
 import axios from '@/lib/axios'
 
 const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
@@ -26,6 +26,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
   const [formConfig, setFormConfig] = useState({ form_elements: [], requirements: [] })
   const [formLoading, setFormLoading] = useState(false)
   const [formError, setFormError] = useState(null)
+  const [uploadedDocuments, setUploadedDocuments] = useState({})
 
   // Reset modal state when opened
   useEffect(() => {
@@ -96,6 +97,23 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
     setCurrentStep(3)
   }
 
+  const handleFileUpload = (requirementIndex, file) => {
+    if (file) {
+      setUploadedDocuments(prev => ({
+        ...prev,
+        [requirementIndex]: file
+      }))
+    }
+  }
+
+  const removeDocument = (requirementIndex) => {
+    setUploadedDocuments(prev => {
+      const updated = { ...prev }
+      delete updated[requirementIndex]
+      return updated
+    })
+  }
+
   const handleFormSubmit = (e) => {
     e.preventDefault()
     // TODO: Submit application
@@ -103,7 +121,8 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
       church,
       service: selectedService,
       schedule: selectedSchedule,
-      formData
+      formData,
+      documents: uploadedDocuments
     })
     onClose()
   }
@@ -141,27 +160,37 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
     return schedules.filter(schedule => {
       const scheduleDate = new Date(schedule.StartDate)
       
-      // Check if it's an exact date match
-      if (isSameDay(scheduleDate, date)) {
-        return true
-      }
-      
-      // Check for recurring schedules
+      // Only check for recurring schedules - StartDate is just when schedule becomes available
       if (schedule.IsRecurring && schedule.RecurrencePattern) {
-        const pattern = schedule.RecurrencePattern.toLowerCase()
+        const pattern = schedule.RecurrencePattern.toLowerCase().trim()
         
-        // Handle "every [day]" patterns
-        if (pattern.includes('every')) {
+        // Handle "every [day]" patterns with precise matching
+        if (pattern.startsWith('every ')) {
           const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
           
+          // Extract the day part after "every "
+          const dayPart = pattern.replace('every ', '').trim()
+          
+          // Find which day this schedule is for using exact word matching
+          let scheduleDayOfWeek = -1
           for (let i = 0; i < dayNames.length; i++) {
-            if (pattern.includes(dayNames[i])) {
-              // Check if the date falls on the correct day of week
-              if (date.getDay() === i && date >= scheduleDate) {
-                return true
-              }
+            // Use word boundary matching to ensure exact day name match
+            const dayRegex = new RegExp(`\\b${dayNames[i]}\\b`, 'i')
+            if (dayRegex.test(dayPart)) {
+              scheduleDayOfWeek = i
+              break // Only match the first day found
             }
           }
+          
+          // Check if the date falls on the correct day of week AND is after/on start date
+          if (scheduleDayOfWeek !== -1 && date.getDay() === scheduleDayOfWeek && date >= scheduleDate) {
+            return true
+          }
+        }
+      } else {
+        // For non-recurring schedules, only match the exact start date
+        if (isSameDay(scheduleDate, date)) {
+          return true
         }
       }
       
@@ -453,51 +482,74 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
           </div>
         )
 
-      case 'label':
       case 'heading':
-      case 'paragraph':
-        // Get proper font size based on heading size
-        const getHeadingFontSize = (headingSize) => {
+        // Define font sizes for each heading level (exactly like form builder)
+        const getHeadingStyles = (headingSize) => {
           const sizes = {
-            'h1': '32px',  // 2rem
-            'h2': '24px',  // 1.5rem  
-            'h3': '20px',  // 1.25rem
-            'h4': '16px'   // 1rem
+            'h1': { fontSize: '2rem', fontWeight: '700' },      // 32px, bold
+            'h2': { fontSize: '1.5rem', fontWeight: '600' },    // 24px, semibold
+            'h3': { fontSize: '1.25rem', fontWeight: '600' },   // 20px, semibold
+            'h4': { fontSize: '1rem', fontWeight: '500' }       // 16px, medium
           }
-          return sizes[headingSize] || '24px'
+          return sizes[headingSize] || sizes['h2']
         }
         
-        const getHeadingFontWeight = (headingSize) => {
-          const weights = {
-            'h1': '700',  // bold
-            'h2': '600',  // semibold
-            'h3': '600',  // semibold  
-            'h4': '500'   // medium
-          }
-          return weights[headingSize] || '600'
-        }
+        const HeadingTag = field.properties?.size || 'h2'
+        const headingStyles = getHeadingStyles(HeadingTag)
         
-        const actualFontSize = field.type === 'heading' 
-          ? getHeadingFontSize(field.properties?.size || 'h2')
-          : `${textSize}px`
-          
-        const actualFontWeight = field.type === 'heading'
-          ? getHeadingFontWeight(field.properties?.size || 'h2')
-          : 'normal'
+        return (
+          <div key={index} style={{
+            position: 'absolute',
+            left: `${x}px`,
+            top: `${y}px`,
+            width: `${width}px`,
+            height: `${height}px`,
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            {React.createElement(HeadingTag, {
+              style: {
+                textAlign: field.properties?.align || 'left',
+                color: field.properties?.color || '#000000',
+                margin: 0,
+                lineHeight: '1.2',
+                fontSize: headingStyles.fontSize,
+                fontWeight: headingStyles.fontWeight,
+                width: '100%',
+                padding: '0 8px'
+              }
+            }, field.properties?.text || field.label)}
+          </div>
+        )
         
+      case 'paragraph':
         return (
           <div 
             key={index} 
             style={{
               ...commonStyles,
-              fontWeight: actualFontWeight,
-              fontSize: actualFontSize,
+              height: `${height}px`,
+              display: 'flex',
+              alignItems: 'flex-start',
+              lineHeight: '1.4',
+              padding: '8px'
+            }}
+          >
+            {field.properties?.text || field.label}
+          </div>
+        )
+        
+      case 'label':
+        return (
+          <div 
+            key={index} 
+            style={{
+              ...commonStyles,
+              fontSize: `${textSize}px`,
               height: `${height}px`,
               display: 'flex',
               alignItems: 'center',
-              lineHeight: '1.2',
-              margin: 0,
-              padding: 0
+              padding: '8px'
             }}
           >
             {field.properties?.text || field.label}
@@ -512,8 +564,8 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center">
@@ -740,7 +792,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                   {selectedDate && (
                     <div className="border-t border-gray-200 pt-4">
                       <h5 className="font-medium text-gray-900 mb-3">
-                        Available times for {selectedDate.toLocaleDateString()}
+                        Available time
                       </h5>
                       <div className="space-y-2">
                         {getSchedulesForDate(selectedDate).map((schedule) => {
@@ -897,6 +949,90 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                   ) : (
                     <div className="text-center py-8">
                       <p className="text-gray-600">No form configuration found for this service.</p>
+                    </div>
+                  )}
+
+                  {/* Document Submission Section */}
+                  {formConfig.requirements && formConfig.requirements.length > 0 && (
+                    <div className="mt-8 mb-6">
+                      <h4 className="text-lg font-medium text-gray-900 mb-4">Document Submission</h4>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Please upload the required documents for your application. Make sure all files are clear and legible.
+                      </p>
+                      
+                      <div className="space-y-4">
+                        {formConfig.requirements.map((req, index) => (
+                          <div key={index} className="border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1">
+                                <h5 className="font-medium text-gray-900 text-sm">
+                                  {req.description}
+                                  {req.is_mandatory && (
+                                    <span className="text-red-500 ml-1">*</span>
+                                  )}
+                                </h5>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {req.is_mandatory ? 'Required' : 'Optional'} • Accepted formats: PDF, JPG, PNG
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {uploadedDocuments[index] ? (
+                              <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-md p-3">
+                                <div className="flex items-center">
+                                  <FileText className="w-4 h-4 text-green-600 mr-2" />
+                                  <div>
+                                    <p className="text-sm font-medium text-green-800">
+                                      {uploadedDocuments[index].name}
+                                    </p>
+                                    <p className="text-xs text-green-600">
+                                      {(uploadedDocuments[index].size / 1024 / 1024).toFixed(2)} MB
+                                    </p>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeDocument(index)}
+                                  className="text-red-500 hover:text-red-700 transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="border-2 border-dashed border-gray-300 rounded-md p-6">
+                                <div className="text-center">
+                                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                                  <p className="text-sm text-gray-600 mb-2">
+                                    Drop file here or click to browse
+                                  </p>
+                                  <input
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0]
+                                      if (file) {
+                                        handleFileUpload(index, file)
+                                      }
+                                    }}
+                                    className="hidden"
+                                    id={`file-upload-${index}`}
+                                  />
+                                  <label
+                                    htmlFor={`file-upload-${index}`}
+                                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer transition-colors"
+                                  >
+                                    <Upload className="w-4 h-4 mr-2" />
+                                    Choose File
+                                  </label>
+                                  <p className="text-xs text-gray-500 mt-2">
+                                    Max file size: 10MB
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 

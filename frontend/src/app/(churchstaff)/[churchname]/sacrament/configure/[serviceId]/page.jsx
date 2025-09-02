@@ -20,15 +20,18 @@ import {
   Trash2,
   Move,
   RotateCcw,
-  Square
+  Square,
+  X
 } from "lucide-react";
 import { Button } from "@/components/Button.jsx";
+import Alert from "@/components/Alert.jsx";
+import axios from "@/lib/axios";
 import { useAuth } from "@/hooks/auth.jsx";
 
-// Form element types - UPDATED
+// Form element types with container
 const FORM_ELEMENTS = [
   { 
-    id: 'container123', 
+    id: 'container', 
     type: 'container', 
     label: 'Form Container', 
     icon: Square,
@@ -43,7 +46,7 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'heading456', 
+    id: 'heading', 
     type: 'heading', 
     label: 'Title/Heading', 
     icon: Type,
@@ -57,7 +60,7 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'paragraph789', 
+    id: 'paragraph', 
     type: 'paragraph', 
     label: 'Text Block', 
     icon: AlignLeft,
@@ -70,7 +73,7 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'text101', 
+    id: 'text', 
     type: 'text', 
     label: 'Text Input', 
     icon: Type,
@@ -83,7 +86,7 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'textarea202', 
+    id: 'textarea', 
     type: 'textarea', 
     label: 'Text Area', 
     icon: AlignLeft,
@@ -97,7 +100,7 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'email303', 
+    id: 'email', 
     type: 'email', 
     label: 'Email', 
     icon: Mail,
@@ -110,7 +113,7 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'phone404', 
+    id: 'phone', 
     type: 'tel', 
     label: 'Phone', 
     icon: Phone,
@@ -123,22 +126,19 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'container505', 
-    type: 'container', 
-    label: 'Form Container', 
-    icon: Square,
+    id: 'date', 
+    type: 'date', 
+    label: 'Date', 
+    icon: Calendar,
     defaultProps: {
-      width: 600,
-      height: 400,
-      backgroundColor: '#ffffff',
-      borderColor: '#e5e7eb',
-      borderWidth: 2,
-      borderRadius: 8,
-      padding: 20
+      label: 'Date',
+      required: false,
+      width: 300,
+      height: 40
     }
   },
   { 
-    id: 'number606', 
+    id: 'number', 
     type: 'number', 
     label: 'Number', 
     icon: Hash,
@@ -151,7 +151,7 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'select707', 
+    id: 'select', 
     type: 'select', 
     label: 'Dropdown', 
     icon: List,
@@ -164,7 +164,7 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'checkbox808', 
+    id: 'checkbox', 
     type: 'checkbox', 
     label: 'Checkbox', 
     icon: CheckSquare,
@@ -176,7 +176,7 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'radio909', 
+    id: 'radio', 
     type: 'radio', 
     label: 'Radio Button', 
     icon: Circle,
@@ -202,6 +202,12 @@ const FormBuilderPage = () => {
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [requirements, setRequirements] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Alert state
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertType, setAlertType] = useState("");
   
   // Canvas ref
   const canvasRef = useRef(null);
@@ -214,20 +220,120 @@ const FormBuilderPage = () => {
     // Load service name and existing form configuration
     const loadServiceData = async () => {
       try {
-        // TODO: Replace with actual API call
-        setServiceName("Baptism Service"); // Mock data
+        setIsLoading(true);
+        
+        // Load service name from sacraments API (using the correct endpoint structure)
+        const sacramentResponse = await axios.get(`/api/sacrament-services/${churchname}`);
+        const sacrament = sacramentResponse.data.sacraments?.find(s => s.ServiceID.toString() === serviceId);
+        if (sacrament) {
+          setServiceName(sacrament.ServiceName || "Sacrament Service");
+        }
         
         // Load existing form configuration if any
-        // const response = await axios.get(`/api/sacrament-services/${serviceId}/form-config`);
-        // setFormElements(response.data.elements || []);
-        // setRequirements(response.data.requirements || []);
+        try {
+          const configResponse = await axios.get(`/api/sacrament-services/${serviceId}/form-config`);
+          if (configResponse.data) {
+            console.log('Raw backend data:', configResponse.data);
+            console.log('Form elements from backend:', configResponse.data.form_elements);
+            
+            // Transform backend data to frontend format - USE SAVED POSITIONS
+            let containerElement = null;
+            const formElements = [];
+            
+            configResponse.data.form_elements?.forEach((element, index) => {
+              if (element.type === 'container') {
+                // This is the container - use saved position or default
+                containerElement = {
+                  id: Date.now() + Math.random() + index,
+                  type: 'container',
+                  label: element.label,
+                  x: element.properties?.x || 50,
+                  y: element.properties?.y || 50,
+                  width: element.properties?.width || 600,
+                  height: element.properties?.height || 400,
+                  backgroundColor: element.properties?.backgroundColor || '#ffffff',
+                  borderColor: element.properties?.borderColor || '#e5e7eb',
+                  borderWidth: element.properties?.borderWidth || 2,
+                  borderRadius: element.properties?.borderRadius || 8,
+                  padding: element.properties?.padding || 20,
+                  containerId: null,
+                  zIndex: 0
+                };
+                formElements.push(containerElement);
+              } else {
+                // This is a form element - use saved position or calculate default
+                const elementIndex = formElements.filter(el => el.type !== 'container').length;
+                const defaultX = 20 + (elementIndex % 2) * 250; // Two columns inside container
+                const defaultY = 20 + Math.floor(elementIndex / 2) * 80; // Stack vertically
+                
+                formElements.push({
+                  id: Date.now() + Math.random() + index,
+                  type: element.type,
+                  label: element.label,
+                  placeholder: element.placeholder,
+                  required: element.required,
+                  options: element.options || [],
+                  // USE SAVED POSITIONS if available, otherwise use defaults
+                  x: element.properties?.x !== undefined ? element.properties.x : defaultX,
+                  y: element.properties?.y !== undefined ? element.properties.y : defaultY,
+                  width: element.properties?.width || (element.type === 'heading' ? 400 : 200),
+                  height: element.properties?.height || (element.type === 'heading' ? 40 : element.type === 'paragraph' ? 60 : 35),
+                  content: element.properties?.text || (element.type === 'heading' ? 'BAPTISM' : element.type === 'paragraph' ? 'Paragraph text' : ''),
+                  headingSize: element.properties?.size || 'h2',
+                  textAlign: element.properties?.align || 'center',
+                  textColor: element.properties?.color || '#000000',
+                  rows: element.properties?.rows || 3,
+                  backgroundColor: element.properties?.backgroundColor || '#ffffff',
+                  borderColor: element.properties?.borderColor || '#e5e7eb',
+                  borderWidth: element.properties?.borderWidth || 1,
+                  borderRadius: element.properties?.borderRadius || 4,
+                  padding: element.properties?.padding || 10,
+                  containerId: element.properties?.containerId || (containerElement?.id || null),
+                  zIndex: 1
+                });
+              }
+            });
+            
+            const elements = formElements;
+            
+            const reqs = configResponse.data.requirements?.map(req => ({
+              id: Date.now() + Math.random(), // Generate unique ID
+              description: req.description,
+              mandatory: req.is_mandatory
+            })) || [];
+            
+            setFormElements(elements);
+            setRequirements(reqs);
+          }
+        } catch (formError) {
+          // Form config might not exist yet, which is fine for new forms
+          if (formError.response?.status !== 404) {
+            console.error("Failed to load form configuration:", formError);
+          }
+        }
       } catch (error) {
         console.error("Failed to load service data:", error);
+        setAlertMessage('Failed to load service data. Please try again.');
+        setAlertType('error');
+      } finally {
+        setIsLoading(false);
       }
     };
     
-    loadServiceData();
-  }, [serviceId]);
+    if (serviceId && churchname) {
+      loadServiceData();
+    }
+  }, [serviceId, churchname]);
+
+  // Auto-dismiss alert after 5 seconds
+  useEffect(() => {
+    if (!alertMessage) return;
+    const timeout = setTimeout(() => {
+      setAlertMessage("");
+      setAlertType("");
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, [alertMessage]);
 
   // Handle drag start from toolbox
   const handleDragStart = (elementType) => {
@@ -282,29 +388,52 @@ const FormBuilderPage = () => {
               const containerTop = containerEl.y;
               const containerRight = containerEl.x + containerEl.width;
               const containerBottom = containerEl.y + containerEl.height;
+              const padding = containerEl.padding || 20;
 
-              if (x >= containerLeft && x <= containerRight && 
-                  y >= containerTop && y <= containerBottom) {
+              // Check if element center point is inside container
+              const elementCenterX = x + (el.width / 2);
+              const elementCenterY = y + (el.height / 2);
+              
+              if (elementCenterX >= containerLeft && elementCenterX <= containerRight && 
+                  elementCenterY >= containerTop && elementCenterY <= containerBottom) {
                 // Element is now inside this container
                 newContainerId = containerEl.id;
-                const padding = containerEl.padding || 20;
-                newX = x - containerLeft - padding;
-                newY = y - containerTop - padding;
+                // Calculate position relative to container's inner area (accounting for padding)
+                let relativeX = x - containerLeft - padding;
+                let relativeY = y - containerTop - padding;
+                
+                // Apply grid snapping inside containers too (5px grid for finer control)
+                const gridSize = 5;
+                relativeX = Math.round(relativeX / gridSize) * gridSize;
+                relativeY = Math.round(relativeY / gridSize) * gridSize;
+                
+                // Ensure element stays within container bounds
+                const maxX = containerEl.width - (padding * 2) - el.width;
+                const maxY = containerEl.height - (padding * 2) - el.height;
+                relativeX = Math.max(0, Math.min(relativeX, maxX));
+                relativeY = Math.max(0, Math.min(relativeY, maxY));
+                
+                newX = relativeX;
+                newY = relativeY;
                 break;
               }
             }
           }
 
-          // If not inside any container, clear containerId
-          if (newContainerId === el.containerId && !elements.some(containerEl => 
-            containerEl.type === 'container' && 
-            containerEl.id !== elementId &&
-            x >= containerEl.x && x <= (containerEl.x + containerEl.width) &&
-            y >= containerEl.y && y <= (containerEl.y + containerEl.height)
-          )) {
-            newContainerId = null;
+          // If no longer inside a container, clear containerId
+          if (newContainerId === null && el.containerId !== null) {
+            // Moving out of a container - adjust position to global coordinates
             newX = x;
             newY = y;
+            // Apply grid snapping for elements outside containers
+            const gridSize = 10;
+            newX = Math.round(newX / gridSize) * gridSize;
+            newY = Math.round(newY / gridSize) * gridSize;
+          } else if (newContainerId === null) {
+            // Apply grid snapping only for elements outside containers
+            const gridSize = 10;
+            newX = Math.round(newX / gridSize) * gridSize;
+            newY = Math.round(newY / gridSize) * gridSize;
           }
 
           return { ...el, x: newX, y: newY, containerId: newContainerId };
@@ -340,22 +469,65 @@ const FormBuilderPage = () => {
 
   // Save form configuration
   const saveFormConfiguration = async () => {
+    if (isSaving) return; // Prevent multiple saves
+    
     try {
+      setIsSaving(true);
+      
+      // Transform data to match backend expectations
       const formConfig = {
-        serviceId,
-        elements: formElements,
-        requirements
+        service_id: serviceId,
+        form_elements: formElements.map(element => ({
+          type: element.type,
+          label: element.label || element.content || element.text || '',
+          placeholder: element.placeholder || '',
+          required: element.required || false,
+          options: element.options || [],
+          properties: {
+            x: element.x,
+            y: element.y,
+            width: element.width,
+            height: element.height,
+            text: element.content || element.text || '',
+            size: element.headingSize || element.size || '',
+            align: element.textAlign || element.align || '',
+            color: element.textColor || element.color || '',
+            rows: element.rows || null,
+            // Container specific properties
+            backgroundColor: element.backgroundColor || '',
+            borderColor: element.borderColor || '',
+            borderWidth: element.borderWidth || null,
+            borderRadius: element.borderRadius || null,
+            padding: element.padding || null,
+            // Container relationship
+            containerId: element.containerId || null
+          }
+        })),
+        requirements: requirements.map(req => ({
+          description: req.description,
+          is_mandatory: req.mandatory
+        }))
       };
       
       console.log("Saving form configuration:", formConfig);
       
-      // TODO: Replace with actual API call
-      // await axios.post(`/api/sacrament-services/${serviceId}/form-config`, formConfig);
+      // Save form configuration to database
+      const response = await axios.post(`/api/sacrament-services/${serviceId}/form-config`, formConfig);
       
-      alert("Form configuration saved successfully!");
+      setAlertMessage('Form configuration saved successfully!');
+      setAlertType('success');
+      
+      console.log("Form configuration saved:", response.data);
+      
     } catch (error) {
       console.error("Failed to save form configuration:", error);
-      alert("Failed to save form configuration");
+      
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Failed to save form configuration. Please try again.';
+      
+      setAlertMessage(errorMessage);
+      setAlertType('error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -401,12 +573,12 @@ const FormBuilderPage = () => {
   const selectedElementData = formElements.find(el => el.id === selectedElement);
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
+    <div className="fixed inset-0 h-screen flex flex-col bg-gray-100 z-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Button
-            onClick={() => router.push(`/(churchstaff)/${churchname}/sacrament`)}
+            onClick={() => router.push(`/${churchname}/sacrament`)}
             variant="outline"
             className="flex items-center"
           >
@@ -438,12 +610,30 @@ const FormBuilderPage = () => {
         </div>
       </div>
 
+      {/* Alert Message */}
+      {alertMessage && (
+        <div className="mx-6 mt-4">
+          <div className={`p-4 rounded-md flex justify-between items-center ${
+            alertType === "success" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
+          }`}>
+            <p className="text-sm font-medium">{alertMessage}</p>
+            <button
+              onClick={() => setAlertMessage("")}
+              className="inline-flex text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 flex overflow-hidden">
         {/* Toolbox - Hidden in preview mode */}
         {!isPreviewMode && (
           <div className="w-64 bg-white border-r border-gray-200 overflow-y-auto">
             <div className="p-4">
-              <h3 className="text-sm font-medium text-gray-900 mb-4">Form Elements Updated</h3>
+              <h3 className="text-sm font-medium text-gray-900 mb-4">Form Elements NEWEST</h3>
+              {console.log('RENDERING ELEMENTS:', FORM_ELEMENTS.map(el => el.label))}
               <div className="space-y-2">
                 {FORM_ELEMENTS.map((element) => (
                   <div
@@ -536,6 +726,7 @@ const FormBuilderPage = () => {
                 <FormElement
                   key={element.id}
                   element={element}
+                  formElements={formElements}
                   isSelected={selectedElement === element.id}
                   isPreviewMode={isPreviewMode}
                   onClick={handleElementClick}
@@ -575,7 +766,7 @@ const FormBuilderPage = () => {
 };
 
 // Form Element Component
-const FormElement = ({ element, isSelected, isPreviewMode, onClick, onPositionChange, onSizeChange, onPropertyChange }) => {
+const FormElement = ({ element, formElements, isSelected, isPreviewMode, onClick, onPositionChange, onSizeChange, onPropertyChange }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -660,11 +851,22 @@ const FormElement = ({ element, isSelected, isPreviewMode, onClick, onPositionCh
   const handleMouseDown = (e, action = 'drag') => {
     e.stopPropagation();
     
+    const containerElement = formElements?.find(el => el.id === element.containerId);
+    const isInsideContainer = !!containerElement;
+    
+    // Calculate absolute position based on container position if inside one
+    const absoluteX = isInsideContainer 
+      ? (containerElement.x + (containerElement.padding || 20) + element.x)
+      : element.x;
+    const absoluteY = isInsideContainer 
+      ? (containerElement.y + (containerElement.padding || 20) + element.y)
+      : element.y;
+    
     if (action === 'drag') {
       setIsDragging(true);
       setDragStart({
-        x: e.clientX - element.x,
-        y: e.clientY - element.y
+        x: e.clientX - absoluteX,
+        y: e.clientY - absoluteY
       });
     } else if (action === 'resize') {
       setIsResizing(true);
@@ -727,34 +929,57 @@ const FormElement = ({ element, isSelected, isPreviewMode, onClick, onPositionCh
               padding: `${element.padding || 20}px`
             }}
           >
-            <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
-              <div className="text-center">
-                <Square className="h-8 w-8 mx-auto mb-2" />
-                <p className="text-sm">Form Container</p>
-                <p className="text-xs">Elements inside will be positioned relative to this container</p>
-              </div>
-            </div>
+            {/* Grid overlay for alignment inside container */}
+            {!isPreviewMode && (
+              <div 
+                className="absolute inset-0 opacity-5 pointer-events-none"
+                style={{
+                  backgroundImage: `
+                    linear-gradient(to right, #3b82f6 1px, transparent 1px),
+                    linear-gradient(to bottom, #3b82f6 1px, transparent 1px)
+                  `,
+                  backgroundSize: '5px 5px',
+                  margin: `${element.padding || 20}px`
+                }}
+              />
+            )}
           </div>
         );
       
       case 'heading':
-        const HeadingTag = element.headingSize || 'h2';
+        const HeadingTag = element.headingSize || element.size || 'h2';
+        
+        // Define font sizes for each heading level
+        const getHeadingStyles = (headingSize) => {
+          const sizes = {
+            'h1': { fontSize: '2rem', fontWeight: '700' },      // 32px, bold
+            'h2': { fontSize: '1.5rem', fontWeight: '600' },    // 24px, semibold
+            'h3': { fontSize: '1.25rem', fontWeight: '600' },   // 20px, semibold
+            'h4': { fontSize: '1rem', fontWeight: '500' }       // 16px, medium
+          };
+          return sizes[headingSize] || sizes['h2'];
+        };
+        
+        const headingStyles = getHeadingStyles(HeadingTag);
+        
         return (
           <div className="w-full h-full flex items-center">
             <HeadingTag
               className={`w-full px-2 py-1 rounded select-none`}
               style={{ 
-                textAlign: element.textAlign || 'left',
-                color: element.textColor || '#000000',
+                textAlign: element.textAlign || element.align || 'left',
+                color: element.textColor || element.color || '#000000',
                 margin: 0,
                 lineHeight: '1.2',
                 userSelect: 'none',
-                pointerEvents: 'none'
+                pointerEvents: 'none',
+                fontSize: headingStyles.fontSize,
+                fontWeight: headingStyles.fontWeight
               }}
               contentEditable={false}
               suppressContentEditableWarning={true}
             >
-              {element.content || 'Heading Text'}
+              {element.content || element.text || 'Heading Text'}
             </HeadingTag>
           </div>
         );
@@ -870,7 +1095,7 @@ const FormElement = ({ element, isSelected, isPreviewMode, onClick, onPositionCh
 
   return (
     <div
-      className={`absolute ${isSelected && !isPreviewMode ? 'ring-2 ring-blue-500' : ''} ${
+      className={`absolute group ${isSelected && !isPreviewMode ? 'ring-2 ring-blue-500' : ''} ${
         isDragging ? 'z-50' : ''
       }`}
       style={{
@@ -883,7 +1108,7 @@ const FormElement = ({ element, isSelected, isPreviewMode, onClick, onPositionCh
       onClick={(e) => onClick(element.id, e)}
     >
       {/* Element Label */}
-      {!isPreviewMode && element.label && (
+      {!isPreviewMode && element.label && !['heading', 'paragraph', 'container'].includes(element.type) && (
         <div className="text-xs font-medium text-gray-700 mb-1">
           {element.label}
           {element.required && <span className="text-red-500 ml-1">*</span>}
