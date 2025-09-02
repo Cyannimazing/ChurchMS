@@ -593,6 +593,44 @@ class ChurchController extends Controller
     }
 
     /**
+     * Get all public churches for the map display.
+     * This endpoint is publicly accessible and returns only published churches.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPublicChurches()
+    {
+        try {
+            $churches = Church::with(['profile'])
+                ->where('IsPublic', true)
+                ->where('ChurchStatus', Church::STATUS_ACTIVE)
+                ->get();
+
+            return response()->json([
+                'churches' => $churches->map(function ($church) {
+                    return [
+                        'ChurchID' => $church->ChurchID,
+                        'ChurchName' => $church->ChurchName,
+                        'Latitude' => $church->Latitude,
+                        'Longitude' => $church->Longitude,
+                        'Description' => $church->profile ? $church->profile->Description : null,
+                        'ParishDetails' => $church->profile ? $church->profile->ParishDetails : null,
+                        'ProfilePictureUrl' => $church->profile && $church->profile->ProfilePicturePath 
+                            ? url('/api/churches/' . $church->ChurchID . '/profile-picture')
+                            : null,
+                    ];
+                }),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching public churches: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Failed to fetch public churches',
+                'message' => config('app.debug') ? $e->getMessage() : 'Server error'
+            ], 500);
+        }
+    }
+
+    /**
      * Handle profile picture upload
      *
      * @param \Illuminate\Http\UploadedFile $file

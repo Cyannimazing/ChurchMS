@@ -328,6 +328,136 @@ class SacramentServiceController extends Controller
     }
 
     /**
+     * Get sacrament services for a specific church (public endpoint for map)
+     */
+    public function getPublicChurchServices(int $churchId): JsonResponse
+    {
+        try {
+            // Verify church exists and is active and public
+            $church = Church::where('ChurchID', $churchId)
+                          ->where('ChurchStatus', Church::STATUS_ACTIVE)
+                          ->where('IsPublic', true)
+                          ->first();
+
+            if (!$church) {
+                return response()->json([
+                    'error' => 'Church not found or is not available.'
+                ], 404);
+            }
+
+            // Get all sacrament services for this church
+            $sacramentServices = SacramentService::where('ChurchID', $churchId)
+                                                ->orderBy('ServiceName')
+                                                ->get(['ServiceID', 'ServiceName', 'Description']);
+
+            return response()->json([
+                'church' => [
+                    'ChurchID' => $church->ChurchID,
+                    'ChurchName' => $church->ChurchName,
+                ],
+                'services' => $sacramentServices
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while fetching sacrament services.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get schedules for a specific sacrament service (public endpoint)
+     */
+    public function getPublicServiceSchedules(int $serviceId): JsonResponse
+    {
+        try {
+            // Verify service exists and church is public
+            $service = SacramentService::with('church')
+                ->where('ServiceID', $serviceId)
+                ->first();
+
+            if (!$service) {
+                return response()->json([
+                    'error' => 'Sacrament service not found.'
+                ], 404);
+            }
+
+            // Check if church is public and active
+            if (!$service->church || 
+                $service->church->ChurchStatus !== Church::STATUS_ACTIVE || 
+                !$service->church->IsPublic) {
+                return response()->json([
+                    'error' => 'Service not available.'
+                ], 404);
+            }
+
+            // Get schedules with related data
+            $schedules = \App\Models\ServiceSchedule::with(['recurrences', 'times', 'fees'])
+                ->where('ServiceID', $serviceId)
+                ->where('RemainingSlot', '>', 0) // Only show schedules with available slots
+                ->orderBy('StartDate', 'asc')
+                ->get()
+                ->map(function ($schedule) {
+                    // Check if schedule has recurrences to determine if it's recurring
+                    $isRecurring = $schedule->recurrences && $schedule->recurrences->count() > 0;
+                    $recurrencePattern = null;
+                    
+                    if ($isRecurring) {
+                        // Build recurrence pattern string from recurrences
+                        $recurrence = $schedule->recurrences->first();
+                        if ($recurrence) {
+                            $frequency = $recurrence->RecurrenceType ?? '';
+                            $interval = $recurrence->RecurrenceInterval ?? 1;
+                            $dayOfWeek = $recurrence->DayOfWeek;
+                            
+                            if (strtolower($frequency) === 'weekly' && $dayOfWeek !== null) {
+                                $dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                                if (isset($dayNames[$dayOfWeek])) {
+                                    $recurrencePattern = "Every {$dayNames[$dayOfWeek]}";
+                                }
+                            } elseif (strtolower($frequency) === 'daily') {
+                                $recurrencePattern = 'Every Day';
+                            } elseif (strtolower($frequency) === 'monthly') {
+                                $recurrencePattern = 'Every Month';
+                            } else {
+                                $recurrencePattern = ucfirst($frequency);
+                            }
+                        }
+                    }
+                    
+                    return [
+                        'ScheduleID' => $schedule->ScheduleID,
+                        'StartDate' => $schedule->StartDate,
+                        'EndDate' => $schedule->EndDate,
+                        'SlotCapacity' => $schedule->SlotCapacity,
+                        'RemainingSlot' => $schedule->RemainingSlot,
+                        'IsRecurring' => $isRecurring,
+                        'RecurrencePattern' => $recurrencePattern,
+                        'recurrences' => $schedule->recurrences,
+                        'times' => $schedule->times,
+                        'fees' => $schedule->fees
+                    ];
+                });
+
+            return response()->json([
+                'service' => [
+                    'ServiceID' => $service->ServiceID,
+                    'ServiceName' => $service->ServiceName,
+                    'Description' => $service->Description,
+                ],
+                'schedules' => $schedules
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while fetching schedules.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Get form configuration for a sacrament service
      */
     public function getFormConfiguration(int $serviceId): JsonResponse

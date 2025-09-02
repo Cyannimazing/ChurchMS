@@ -19,17 +19,33 @@ import {
   Settings,
   Trash2,
   Move,
-  RotateCcw
+  RotateCcw,
+  Square
 } from "lucide-react";
 import { Button } from "@/components/Button.jsx";
 import { useAuth } from "@/hooks/auth.jsx";
 
-// Form element types
+// Form element types - UPDATED
 const FORM_ELEMENTS = [
   { 
-    id: 'heading', 
+    id: 'container123', 
+    type: 'container', 
+    label: 'Form Container', 
+    icon: Square,
+    defaultProps: {
+      width: 600,
+      height: 400,
+      backgroundColor: '#ffffff',
+      borderColor: '#e5e7eb',
+      borderWidth: 2,
+      borderRadius: 8,
+      padding: 20
+    }
+  },
+  { 
+    id: 'heading456', 
     type: 'heading', 
-    label: 'Heading', 
+    label: 'Title/Heading', 
     icon: Type,
     defaultProps: {
       content: 'Heading Text',
@@ -41,9 +57,9 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'paragraph', 
+    id: 'paragraph789', 
     type: 'paragraph', 
-    label: 'Paragraph', 
+    label: 'Text Block', 
     icon: AlignLeft,
     defaultProps: {
       content: 'Paragraph text content',
@@ -54,7 +70,7 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'text', 
+    id: 'text101', 
     type: 'text', 
     label: 'Text Input', 
     icon: Type,
@@ -67,7 +83,7 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'textarea', 
+    id: 'textarea202', 
     type: 'textarea', 
     label: 'Text Area', 
     icon: AlignLeft,
@@ -81,7 +97,7 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'email', 
+    id: 'email303', 
     type: 'email', 
     label: 'Email', 
     icon: Mail,
@@ -94,7 +110,7 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'phone', 
+    id: 'phone404', 
     type: 'tel', 
     label: 'Phone', 
     icon: Phone,
@@ -107,19 +123,22 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'date', 
-    type: 'date', 
-    label: 'Date', 
-    icon: Calendar,
+    id: 'container505', 
+    type: 'container', 
+    label: 'Form Container', 
+    icon: Square,
     defaultProps: {
-      label: 'Date',
-      required: false,
-      width: 300,
-      height: 40
+      width: 600,
+      height: 400,
+      backgroundColor: '#ffffff',
+      borderColor: '#e5e7eb',
+      borderWidth: 2,
+      borderRadius: 8,
+      padding: 20
     }
   },
   { 
-    id: 'number', 
+    id: 'number606', 
     type: 'number', 
     label: 'Number', 
     icon: Hash,
@@ -132,7 +151,7 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'select', 
+    id: 'select707', 
     type: 'select', 
     label: 'Dropdown', 
     icon: List,
@@ -145,7 +164,7 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'checkbox', 
+    id: 'checkbox808', 
     type: 'checkbox', 
     label: 'Checkbox', 
     icon: CheckSquare,
@@ -157,7 +176,7 @@ const FORM_ELEMENTS = [
     }
   },
   { 
-    id: 'radio', 
+    id: 'radio909', 
     type: 'radio', 
     label: 'Radio Button', 
     icon: Circle,
@@ -246,12 +265,52 @@ const FormBuilderPage = () => {
     setSelectedElement(elementId);
   };
 
-  // Handle element position update
+  // Handle element position update  
   const updateElementPosition = (elementId, x, y) => {
     setFormElements(elements =>
-      elements.map(el =>
-        el.id === elementId ? { ...el, x, y } : el
-      )
+      elements.map(el => {
+        if (el.id === elementId) {
+          // Check if element should be moved into or out of a container
+          let newContainerId = el.containerId;
+          let newX = x;
+          let newY = y;
+
+          // Find if the new position is inside a container
+          for (const containerEl of elements) {
+            if (containerEl.type === 'container' && containerEl.id !== elementId) {
+              const containerLeft = containerEl.x;
+              const containerTop = containerEl.y;
+              const containerRight = containerEl.x + containerEl.width;
+              const containerBottom = containerEl.y + containerEl.height;
+
+              if (x >= containerLeft && x <= containerRight && 
+                  y >= containerTop && y <= containerBottom) {
+                // Element is now inside this container
+                newContainerId = containerEl.id;
+                const padding = containerEl.padding || 20;
+                newX = x - containerLeft - padding;
+                newY = y - containerTop - padding;
+                break;
+              }
+            }
+          }
+
+          // If not inside any container, clear containerId
+          if (newContainerId === el.containerId && !elements.some(containerEl => 
+            containerEl.type === 'container' && 
+            containerEl.id !== elementId &&
+            x >= containerEl.x && x <= (containerEl.x + containerEl.width) &&
+            y >= containerEl.y && y <= (containerEl.y + containerEl.height)
+          )) {
+            newContainerId = null;
+            newX = x;
+            newY = y;
+          }
+
+          return { ...el, x: newX, y: newY, containerId: newContainerId };
+        }
+        return el;
+      })
     );
   };
 
@@ -298,6 +357,21 @@ const FormBuilderPage = () => {
       console.error("Failed to save form configuration:", error);
       alert("Failed to save form configuration");
     }
+  };
+
+  // Add container
+  const addContainer = () => {
+    const containerElement = FORM_ELEMENTS.find(el => el.type === 'container');
+    const newContainer = {
+      id: Date.now(),
+      type: 'container',
+      x: 50,
+      y: 50,
+      ...containerElement.defaultProps,
+      zIndex: formElements.length + 1
+    };
+    setFormElements([...formElements, newContainer]);
+    setSelectedElement(newContainer.id);
   };
 
   // Add requirement
@@ -369,7 +443,7 @@ const FormBuilderPage = () => {
         {!isPreviewMode && (
           <div className="w-64 bg-white border-r border-gray-200 overflow-y-auto">
             <div className="p-4">
-              <h3 className="text-sm font-medium text-gray-900 mb-4">Form Elements</h3>
+              <h3 className="text-sm font-medium text-gray-900 mb-4">Form Elements Updated</h3>
               <div className="space-y-2">
                 {FORM_ELEMENTS.map((element) => (
                   <div
@@ -641,6 +715,28 @@ const FormElement = ({ element, isSelected, isPreviewMode, onClick, onPositionCh
     };
 
     switch (element.type) {
+      case 'container':
+        return (
+          <div 
+            className="w-full h-full border-2 border-dashed relative"
+            style={{
+              backgroundColor: element.backgroundColor || '#ffffff',
+              borderColor: element.borderColor || '#e5e7eb',
+              borderWidth: `${element.borderWidth || 2}px`,
+              borderRadius: `${element.borderRadius || 8}px`,
+              padding: `${element.padding || 20}px`
+            }}
+          >
+            <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
+              <div className="text-center">
+                <Square className="h-8 w-8 mx-auto mb-2" />
+                <p className="text-sm">Form Container</p>
+                <p className="text-xs">Elements inside will be positioned relative to this container</p>
+              </div>
+            </div>
+          </div>
+        );
+      
       case 'heading':
         const HeadingTag = element.headingSize || 'h2';
         return (
@@ -761,14 +857,25 @@ const FormElement = ({ element, isSelected, isPreviewMode, onClick, onPositionCh
     }
   };
 
+  const containerElement = formElements?.find(el => el.id === element.containerId);
+  const isInsideContainer = !!containerElement;
+  
+  // Calculate absolute position based on container position if inside one
+  const absoluteX = isInsideContainer 
+    ? (containerElement.x + (containerElement.padding || 20) + element.x)
+    : element.x;
+  const absoluteY = isInsideContainer 
+    ? (containerElement.y + (containerElement.padding || 20) + element.y)
+    : element.y;
+
   return (
     <div
       className={`absolute ${isSelected && !isPreviewMode ? 'ring-2 ring-blue-500' : ''} ${
         isDragging ? 'z-50' : ''
       }`}
       style={{
-        left: element.x,
-        top: element.y,
+        left: absoluteX,
+        top: absoluteY,
         width: element.width,
         height: element.height,
         zIndex: element.zIndex
@@ -896,8 +1003,80 @@ const PropertiesPanel = ({ element, onUpdate, onDelete }) => {
           </div>
         )}
 
+        {/* Container Properties */}
+        {element.type === 'container' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Background Color
+              </label>
+              <input
+                type="color"
+                value={element.backgroundColor || '#ffffff'}
+                onChange={(e) => onUpdate(element.id, 'backgroundColor', e.target.value)}
+                className="w-full h-10 border border-gray-300 rounded px-1 py-1"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Border Color
+              </label>
+              <input
+                type="color"
+                value={element.borderColor || '#e5e7eb'}
+                onChange={(e) => onUpdate(element.id, 'borderColor', e.target.value)}
+                className="w-full h-10 border border-gray-300 rounded px-1 py-1"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Border Width
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
+                  value={element.borderWidth || 2}
+                  onChange={(e) => onUpdate(element.id, 'borderWidth', parseInt(e.target.value))}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Border Radius
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="50"
+                  value={element.borderRadius || 8}
+                  onChange={(e) => onUpdate(element.id, 'borderRadius', parseInt(e.target.value))}
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Internal Padding
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={element.padding || 20}
+                onChange={(e) => onUpdate(element.id, 'padding', parseInt(e.target.value))}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+              />
+            </div>
+          </>
+        )}
+
         {/* Label (for form inputs) */}
-        {!['heading', 'paragraph'].includes(element.type) && (
+        {!['heading', 'paragraph', 'container'].includes(element.type) && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Label

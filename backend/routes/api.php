@@ -51,9 +51,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
 });
 
 //CHURCHES
+// Public endpoints for map functionality
+Route::get('/churches/{churchId}/sacrament-services', [SacramentServiceController::class, 'getPublicChurchServices'])->name('churches.sacraments.public');
+Route::get('/sacrament-services/{serviceId}/schedules-public', [SacramentServiceController::class, 'getPublicServiceSchedules'])->name('sacraments.schedules.public');
+Route::get('/sacrament-services/{serviceId}/form-config-public', [SacramentServiceController::class, 'getFormConfiguration'])->name('sacraments.form.public');
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/churches', [ChurchController::class, 'store'])->name('churches.store');
     Route::get('/churches/owned', [ChurchController::class, 'showOwnedChurches'])->name('churches.owned');
+    Route::get('/churches/public', [ChurchController::class, 'getPublicChurches'])->name('churches.public');
     
     Route::get('/churches', [ChurchController::class, 'index'])->name('churches.index');
     Route::put('/churches/{churchId}/status', [ChurchController::class, 'updateStatus'])->name('churches.updateStatus');

@@ -230,7 +230,7 @@ const SacramentPage = () => {
   };
 
   const handleConfigure = (sacramentId) => {
-    router.push(`/churchstaff/${churchname}/sacrament/configure/${sacramentId}`);
+    router.push(`/${churchname}/sacrament/configure/${sacramentId}`);
   };
 
   const handleSubmit = async (e) => {
