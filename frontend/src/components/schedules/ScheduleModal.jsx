@@ -13,7 +13,6 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
     startDate: "",
     endDate: "",
     slotCapacity: "",
-    remainingSlot: "",
     recurrences: [{
       recurrenceType: "OneTime",
       dayOfWeek: 0,
@@ -61,7 +60,6 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
         startDate: schedule.StartDate ? schedule.StartDate.split('T')[0] : "",
         endDate: schedule.EndDate ? schedule.EndDate.split('T')[0] : "",
         slotCapacity: schedule.SlotCapacity || "",
-        remainingSlot: schedule.RemainingSlot || "",
         recurrences: schedule.recurrences && schedule.recurrences.length > 0 
           ? schedule.recurrences.map(r => ({
               recurrenceType: r.RecurrenceType,
@@ -98,7 +96,6 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
         startDate: "",
         endDate: "",
         slotCapacity: "",
-        remainingSlot: "",
         recurrences: [{
           recurrenceType: "OneTime",
           dayOfWeek: 0,
@@ -178,7 +175,6 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
         start_date: formData.startDate,
         end_date: formData.endDate || null,
         slot_capacity: parseInt(formData.slotCapacity),
-        remaining_slot: schedule ? formData.remainingSlot : formData.slotCapacity,
         recurrences: formData.recurrences.map(r => ({
           recurrence_type: r.recurrenceType,
           day_of_week: r.recurrenceType !== "OneTime" ? r.dayOfWeek : null,
@@ -408,18 +404,10 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
                       value={formData.slotCapacity}
                       onChange={(e) => {
                         const capacity = parseInt(e.target.value) || 0;
-                        const currentRemaining = parseInt(formData.remainingSlot) || 0;
-                        
-                        // For new schedules, remaining = capacity
-                        // For existing schedules, adjust remaining if it exceeds new capacity
-                        const newRemaining = schedule 
-                          ? Math.min(currentRemaining, capacity) // Don't exceed new capacity
-                          : capacity; // For new schedules, remaining = capacity
                         
                         setFormData({ 
                           ...formData, 
-                          slotCapacity: capacity,
-                          remainingSlot: newRemaining
+                          slotCapacity: capacity
                         });
                       }}
                       className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm placeholder-gray-400 text-gray-900"
@@ -431,26 +419,6 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
                     />
                   </div>
 
-                  {schedule && (
-                    <div>
-                      <Label
-                        htmlFor="remainingSlot"
-                        className="text-sm font-medium text-gray-700"
-                      >
-                        Remaining Slots
-                      </Label>
-                      <Input
-                        id="remainingSlot"
-                        type="number"
-                        min="0"
-                        max={formData.slotCapacity}
-                        placeholder="Enter remaining slots"
-                        value={formData.remainingSlot}
-                        onChange={(e) => setFormData({ ...formData, remainingSlot: e.target.value })}
-                        className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm placeholder-gray-400 text-gray-900"
-                      />
-                    </div>
-                  )}
                 </div>
               </div>
             </div>

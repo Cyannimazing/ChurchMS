@@ -11,6 +11,7 @@ use App\Http\Controllers\RolePermissionController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SacramentServiceController;
 use App\Http\Controllers\ScheduleController;
+use App\Http\Controllers\AppointmentController;
 
 //USERS
 Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
@@ -55,6 +56,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 Route::get('/churches/{churchId}/sacrament-services', [SacramentServiceController::class, 'getPublicChurchServices'])->name('churches.sacraments.public');
 Route::get('/sacrament-services/{serviceId}/schedules-public', [SacramentServiceController::class, 'getPublicServiceSchedules'])->name('sacraments.schedules.public');
 Route::get('/sacrament-services/{serviceId}/form-config-public', [SacramentServiceController::class, 'getFormConfiguration'])->name('sacraments.form.public');
+Route::get('/schedule-remaining-slots', [SacramentServiceController::class, 'getScheduleRemainingSlots'])->name('schedule.remaining.slots');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/churches', [ChurchController::class, 'store'])->name('churches.store');
@@ -110,4 +112,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/schedules/{scheduleId}', [ScheduleController::class, 'getSchedule'])->where('scheduleId', '[0-9]+');
     Route::put('/schedules/{scheduleId}', [ScheduleController::class, 'update'])->where('scheduleId', '[0-9]+');
     Route::delete('/schedules/{scheduleId}', [ScheduleController::class, 'destroy'])->where('scheduleId', '[0-9]+');
+});
+
+//Appointments
+Route::middleware('auth:sanctum')->group(function () {
+    // Submit appointment application
+    Route::post('/appointments', [AppointmentController::class, 'store'])->name('appointments.store');
+    
+    // Get user's appointments
+    Route::get('/appointments', [AppointmentController::class, 'getUserAppointments'])->name('appointments.index');
+    
+    // Get specific appointment details
+    Route::get('/appointments/{appointmentId}', [AppointmentController::class, 'show'])->where('appointmentId', '[0-9]+')->name('appointments.show');
 });

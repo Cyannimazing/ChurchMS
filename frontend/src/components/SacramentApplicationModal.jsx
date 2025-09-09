@@ -8,6 +8,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedService, setSelectedService] = useState(null)
   const [selectedSchedule, setSelectedSchedule] = useState(null)
+  const [selectedScheduleTime, setSelectedScheduleTime] = useState(null)
   const [formData, setFormData] = useState({})
 
   // Step 1: Services
@@ -27,6 +28,8 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
   const [formLoading, setFormLoading] = useState(false)
   const [formError, setFormError] = useState(null)
   const [uploadedDocuments, setUploadedDocuments] = useState({})
+  const [scheduleSlotCounts, setScheduleSlotCounts] = useState({})
+  const [slotsLoading, setSlotsLoading] = useState(false)
 
   // Reset modal state when opened
   useEffect(() => {
@@ -34,9 +37,11 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
       setCurrentStep(1)
       setSelectedService(null)
       setSelectedSchedule(null)
+      setSelectedScheduleTime(null)
       setFormData({})
       setCurrentMonth(new Date())
       setSelectedDate(null)
+      setUploadedDocuments({})
       fetchServices()
     }
   }, [isOpen, church])
@@ -93,6 +98,33 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
 
   const handleScheduleSelect = (schedule) => {
     setSelectedSchedule(schedule)
+    
+    // Check if there's only one time slot and it has available slots
+    if (schedule.times && schedule.times.length === 1) {
+      const singleTimeSlot = schedule.times[0]
+      
+      // Get slot availability for this time slot
+      const dateKey = selectedDate ? selectedDate.toISOString().split('T')[0] : null
+      const slotKey = `${schedule.ScheduleID}_${dateKey}`
+      const slotInfo = scheduleSlotCounts[slotKey]
+      const timeSlotInfo = slotInfo?.time_slots?.find(ts => ts.ScheduleTimeID === singleTimeSlot.ScheduleTimeID)
+      const availableSlots = timeSlotInfo ? timeSlotInfo.RemainingSlots : schedule.SlotCapacity
+      
+      // Only auto-select if slots are available
+      if (availableSlots > 0) {
+        setSelectedScheduleTime(singleTimeSlot)
+        fetchFormConfig(selectedService.ServiceID)
+        setCurrentStep(3)
+        return
+      }
+    }
+    
+    // For multiple time slots or when single slot is unavailable, show time selection
+    // The user will need to manually select from available time slots
+  }
+
+  const handleScheduleTimeSelect = (scheduleTime) => {
+    setSelectedScheduleTime(scheduleTime)
     fetchFormConfig(selectedService.ServiceID)
     setCurrentStep(3)
   }
@@ -114,30 +146,141 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
     })
   }
 
-  const handleFormSubmit = (e) => {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState(null)
+  const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+
+  const handleFormSubmit = async (e) => {
     e.preventDefault()
-    // TODO: Submit application
-    console.log('Application submitted:', {
-      church,
-      service: selectedService,
-      schedule: selectedSchedule,
-      formData,
-      documents: uploadedDocuments
-    })
-    onClose()
+    setIsSubmitting(true)
+    setSubmitError(null)
+    
+    try {
+      // Check if we have required form fields filled
+      const requiredFields = formConfig.form_elements?.filter(field => field.required && field.type !== 'heading' && field.type !== 'paragraph' && field.type !== 'label') || []
+      
+      for (const field of requiredFields) {
+        const fieldKey = `field_${field.InputFieldID}`
+        const fieldValue = formData[fieldKey]
+        if (!fieldValue || (typeof fieldValue === 'string' && fieldValue.trim() === '')) {
+          setSubmitError(`Please fill in the required field: ${field.label}`)
+          setIsSubmitting(false)
+          return
+        }
+      }
+      
+      // Prepare form data for multipart submission
+      const formDataToSubmit = new FormData()
+      
+      // Add basic appointment data
+      formDataToSubmit.append('church_id', church.ChurchID)
+      formDataToSubmit.append('service_id', selectedService.ServiceID)
+      formDataToSubmit.append('schedule_id', selectedSchedule.ScheduleID)
+      formDataToSubmit.append('schedule_time_id', selectedScheduleTime.ScheduleTimeID)
+      
+      // Fix timezone issue by using local date string
+      const year = selectedDate.getFullYear()
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
+      const day = String(selectedDate.getDate()).padStart(2, '0')
+      const localDateString = `${year}-${month}-${day}`
+      formDataToSubmit.append('selected_date', localDateString)
+      
+      // Add form field answers - make sure formData has the right structure
+      console.log('Form data being sent:', formData)
+      formDataToSubmit.append('form_data', JSON.stringify(formData))
+      
+      // Add uploaded documents
+      Object.entries(uploadedDocuments).forEach(([requirementIndex, file]) => {
+        formDataToSubmit.append(`documents[document_${requirementIndex}]`, file)
+      })
+      
+      // Submit to API
+      const response = await axios.post('/api/appointments', formDataToSubmit, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+      
+      setSubmitSuccess(true)
+      setShowSuccessModal(true)
+      // Auto-dismiss success modal and close main modal after short delay
+      setTimeout(() => {
+        setShowSuccessModal(false)
+        setSubmitSuccess(false)
+        onClose()
+      }, 1600)
+      
+    } catch (error) {
+      console.error('Error submitting application:', error)
+      setSubmitError(
+        error.response?.data?.error || 
+        error.response?.data?.message || 
+        'Failed to submit application. Please try again.'
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const formatScheduleDisplay = (schedule) => {
     const startDate = new Date(schedule.StartDate)
-    const times = schedule.times || []
     const fees = schedule.fees || []
     
     return {
       date: startDate.toLocaleDateString(),
-      times: times.map(t => `${t.StartTime} - ${t.EndTime}`).join(', '),
-      availableSlots: schedule.RemainingSlot,
       totalSlots: schedule.SlotCapacity,
       fees: fees.map(f => `${f.FeeType}: ₱${f.Fee}`).join(', ') || 'No fees'
+    }
+  }
+
+  const formatScheduleTimeDisplay = (scheduleTime, schedule) => {
+    // Get slot count for this specific schedule time and selected date
+    const dateKey = selectedDate ? selectedDate.toISOString().split('T')[0] : null
+    const slotKey = `${schedule.ScheduleID}_${dateKey}`
+    const slotInfo = scheduleSlotCounts[slotKey]
+    
+    // Find the specific time slot info
+    const timeSlotInfo = slotInfo?.time_slots?.find(ts => ts.ScheduleTimeID === scheduleTime.ScheduleTimeID)
+    const availableSlots = timeSlotInfo ? timeSlotInfo.RemainingSlots : schedule.SlotCapacity
+    
+    return {
+      time: `${scheduleTime.StartTime} - ${scheduleTime.EndTime}`,
+      availableSlots: availableSlots,
+      totalSlots: schedule.SlotCapacity
+    }
+  }
+
+  const fetchScheduleSlots = async (scheduleId, date) => {
+    try {
+      // Use the actual selected date
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const dateString = `${year}-${month}-${day}`
+      
+      console.log('Fetching slots for:', { scheduleId, dateString })
+      
+      const response = await axios.get('/api/schedule-remaining-slots', {
+        params: {
+          schedule_id: scheduleId,
+          date: dateString
+        }
+      })
+      
+      console.log('Slot API response:', response.data)
+      
+      const slotKey = `${scheduleId}_${dateString}`
+      setScheduleSlotCounts(prev => ({
+        ...prev,
+        [slotKey]: response.data
+      }))
+      
+      return response.data
+    } catch (error) {
+      console.error('Error fetching schedule slots:', error)
+      console.error('Error details:', error.response?.data)
+      return null
     }
   }
 
@@ -207,23 +350,61 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
     newMonth.setMonth(currentMonth.getMonth() + direction)
     setCurrentMonth(newMonth)
     setSelectedDate(null)
+    setSelectedSchedule(null) // Reset schedule selection when month changes
   }
 
-  const selectDate = (date) => {
+  const selectDate = async (date) => {
     const schedulesForDate = getSchedulesForDate(date)
     if (schedulesForDate.length > 0) {
       setSelectedDate(date)
+      setSelectedSchedule(null) // Reset schedule selection when date changes
+      setSlotsLoading(true)
+      
+      try {
+        // Fetch real slot counts for all schedules on this date
+        const promises = schedulesForDate.map(schedule => 
+          fetchScheduleSlots(schedule.ScheduleID, date)
+        )
+        
+        await Promise.all(promises)
+      } catch (error) {
+        console.error('Error fetching slots:', error)
+      } finally {
+        setSlotsLoading(false)
+      }
     }
   }
 
+  const getSlotAvailabilityText = (schedule, date) => {
+    if (!date) return `${schedule.SlotCapacity}/${schedule.SlotCapacity} left`
+    
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const dateKey = `${year}-${month}-${day}`
+    const slotKey = `${schedule.ScheduleID}_${dateKey}`
+    const slotInfo = scheduleSlotCounts[slotKey]
+    
+    if (slotInfo && slotInfo.time_slots && slotInfo.time_slots.length > 0) {
+      // Get the first time slot info to show availability
+      const firstTimeSlot = slotInfo.time_slots[0]
+      const available = firstTimeSlot.RemainingSlots
+      const total = firstTimeSlot.SlotCapacity
+      return `${available}/${total} left`
+    }
+    
+    return `${schedule.SlotCapacity}/${schedule.SlotCapacity} left`
+  }
+
   const renderFormField = (field, index) => {
-    const fieldId = `field_${index}`
-    const value = formData[fieldId] || ''
+    // Use InputFieldID as the key, not index
+    const fieldKey = `field_${field.InputFieldID || index}`
+    const value = formData[fieldKey] || ''
 
     const updateField = (newValue) => {
       setFormData(prev => ({
         ...prev,
-        [fieldId]: newValue
+        [fieldKey]: newValue
       }))
     }
 
@@ -277,7 +458,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
           <div key={index} style={{ position: 'relative' }}>
             {field.label && (
               <label 
-                htmlFor={fieldId} 
+                htmlFor={fieldKey} 
                 style={labelStyles}
               >
                 {field.label}
@@ -286,7 +467,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
             )}
             <input
               type={field.type}
-              id={fieldId}
+              id={fieldKey}
               value={value}
               onChange={(e) => updateField(e.target.value)}
               placeholder={field.placeholder}
@@ -309,7 +490,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
           <div key={index} style={{ position: 'relative' }}>
             {field.label && (
               <label 
-                htmlFor={fieldId} 
+                htmlFor={fieldKey} 
                 style={labelStyles}
               >
                 {field.label}
@@ -317,7 +498,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
               </label>
             )}
             <textarea
-              id={fieldId}
+              id={fieldKey}
               value={value}
               onChange={(e) => updateField(e.target.value)}
               placeholder={field.placeholder}
@@ -346,7 +527,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
           <div key={index} style={{ position: 'relative' }}>
             {field.label && (
               <label 
-                htmlFor={fieldId} 
+                htmlFor={fieldKey} 
                 style={labelStyles}
               >
                 {field.label}
@@ -354,7 +535,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
               </label>
             )}
             <select
-              id={fieldId}
+              id={fieldKey}
               value={value}
               onChange={(e) => updateField(e.target.value)}
               required={field.required}
@@ -405,7 +586,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                   }}>
                     <input
                       type="radio"
-                      name={fieldId}
+                      name={fieldKey}
                       value={option}
                       checked={value === option}
                       onChange={(e) => updateField(e.target.value)}
@@ -462,7 +643,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
           <div key={index}>
             {field.label && (
               <label 
-                htmlFor={fieldId} 
+                htmlFor={fieldKey} 
                 style={labelStyles}
               >
                 {field.label}
@@ -471,7 +652,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
             )}
             <input
               type="date"
-              id={fieldId}
+              id={fieldKey}
               value={value}
               onChange={(e) => updateField(e.target.value)}
               required={field.required}
@@ -791,46 +972,169 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                   {/* Schedule Details for Selected Date */}
                   {selectedDate && (
                     <div className="border-t border-gray-200 pt-4">
-                      <h5 className="font-medium text-gray-900 mb-3">
-                        Available time
-                      </h5>
-                      <div className="space-y-2">
-                        {getSchedulesForDate(selectedDate).map((schedule) => {
-                          const displayInfo = formatScheduleDisplay(schedule)
-                          return (
-                            <div
-                              key={`${schedule.ScheduleID}-${selectedDate.toISOString()}`}
-                              onClick={() => handleScheduleSelect(schedule)}
-                              className="p-3 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all group"
+                      {slotsLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                          <span className="ml-3 text-gray-600">Loading slot availability...</span>
+                        </div>
+                      ) : selectedSchedule ? (
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <h5 className="font-medium text-gray-900">
+                              Select Time Slot
+                            </h5>
+                            <button
+                              onClick={() => setSelectedSchedule(null)}
+                              className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
                             >
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                  <div className="flex items-center text-sm text-gray-700 mb-1">
-                                    <Clock className="w-4 h-4 mr-2" />
-                                    <span className="font-medium">{displayInfo.times}</span>
-                                  </div>
-                                  <div className="flex items-center text-sm text-gray-600 mb-1">
-                                    <Users className="w-4 h-4 mr-2" />
-                                    <span>{displayInfo.availableSlots} of {displayInfo.totalSlots} slots available</span>
-                                    {displayInfo.fees !== 'No fees' && (
-                                      <span className="ml-4">
-                                        <span className="font-medium">Fees:</span> {displayInfo.fees}
-                                      </span>
+                              ← Back to schedules
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            {selectedSchedule.times?.map((scheduleTime) => {
+                              const timeDisplay = formatScheduleTimeDisplay(scheduleTime, selectedSchedule)
+                              const isAvailable = timeDisplay.availableSlots > 0
+                              return (
+                                <div
+                                  key={scheduleTime.ScheduleTimeID}
+                                  onClick={() => isAvailable ? handleScheduleTimeSelect(scheduleTime) : null}
+                                  className={`p-3 border rounded-lg transition-all ${
+                                    isAvailable
+                                      ? 'border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer group'
+                                      : 'border-red-200 bg-red-50 cursor-not-allowed'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center text-sm text-gray-700 mb-1">
+                                        <Clock className="w-4 h-4 mr-2" />
+                                        <span className="font-medium">{timeDisplay.time}</span>
+                                      </div>
+                                      <div className="flex items-center text-sm mb-1">
+                                        <Users className="w-4 h-4 mr-2" />
+                                        <span className={isAvailable ? 'text-gray-600' : 'text-red-600'}>
+                                          {isAvailable
+                                            ? `${timeDisplay.availableSlots} of ${timeDisplay.totalSlots} slots available`
+                                            : 'Fully booked'
+                                          }
+                                        </span>
+                                      </div>
+                                      {selectedSchedule.fees && selectedSchedule.fees.length > 0 && (
+                                        <div className="text-xs text-gray-500">
+                                          <span className="font-medium">Fees:</span> {formatScheduleDisplay(selectedSchedule).fees}
+                                        </div>
+                                      )}
+                                    </div>
+                                    {isAvailable && (
+                                      <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
                                     )}
                                   </div>
-                                  {schedule.IsRecurring && schedule.RecurrencePattern && (
-                                    <div className="flex items-center text-xs text-blue-600">
-                                      <Calendar className="w-3 h-3 mr-1" />
-                                      <span>{schedule.RecurrencePattern}</span>
-                                    </div>
-                                  )}
                                 </div>
-                                <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <h5 className="font-medium text-gray-900 mb-3">
+                            Available Schedules for {selectedDate.toLocaleDateString()}
+                          </h5>
+                          <div className="space-y-2">
+                            {getSchedulesForDate(selectedDate).map((schedule) => {
+                              const displayInfo = formatScheduleDisplay(schedule)
+                              
+                              // Check if schedule has any available slots
+                              const year = selectedDate.getFullYear()
+                              const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
+                              const day = String(selectedDate.getDate()).padStart(2, '0')
+                              const dateKey = `${year}-${month}-${day}`
+                              const slotKey = `${schedule.ScheduleID}_${dateKey}`
+                              const slotInfo = scheduleSlotCounts[slotKey]
+                              
+                              // Check if any time slot has remaining slots
+                              let hasAvailableSlots = true // Default to available
+                              if (slotInfo && slotInfo.time_slots && slotInfo.time_slots.length > 0) {
+                                // If we have slot data, check if any time slot has remaining slots
+                                hasAvailableSlots = slotInfo.time_slots.some(ts => ts.RemainingSlots > 0)
+                              } else {
+                                // Fallback to schedule capacity if slot info not loaded yet
+                                hasAvailableSlots = schedule.SlotCapacity > 0
+                              }
+                              
+                              console.log('Schedule availability check:', {
+                                scheduleId: schedule.ScheduleID,
+                                slotInfo,
+                                hasAvailableSlots,
+                                scheduleCapacity: schedule.SlotCapacity
+                              })
+                              
+                              return (
+                                <div
+                                  key={`${schedule.ScheduleID}-${selectedDate.toISOString()}`}
+                                  onClick={() => hasAvailableSlots ? handleScheduleSelect(schedule) : null}
+                                  className={`p-3 border rounded-lg transition-all ${
+                                    hasAvailableSlots 
+                                      ? 'border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer group'
+                                      : 'border-red-200 bg-red-50 cursor-not-allowed opacity-75'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center text-sm text-gray-700 mb-1">
+                                        <span className="font-medium">Schedule #{schedule.ScheduleID}</span>
+                                        {schedule.IsRecurring && schedule.RecurrencePattern && (
+                                          <span className={`ml-2 text-xs px-2 py-1 rounded ${
+                                            hasAvailableSlots 
+                                              ? 'text-blue-600 bg-blue-50' 
+                                              : 'text-gray-500 bg-gray-100'
+                                          }`}>
+                                            {schedule.RecurrencePattern}
+                                          </span>
+                                        )}
+                                        {!hasAvailableSlots && (
+                                          <span className="ml-2 text-xs text-red-600 bg-red-100 px-2 py-1 rounded font-medium">
+                                            Fully Booked
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center text-sm text-gray-600 mb-1">
+                                        <Clock className="w-4 h-4 mr-2" />
+                                        <span>
+                                          {schedule.times?.length === 1
+                                            ? `${schedule.times[0].StartTime} - ${schedule.times[0].EndTime}`
+                                            : `${schedule.times?.length || 0} time slots available`
+                                          }
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center text-sm text-gray-600">
+                                        <Users className="w-4 w-4 mr-2" />
+                                        <span className={hasAvailableSlots ? 'text-gray-600' : 'text-red-600'}>
+                                          {getSlotAvailabilityText(schedule, selectedDate)}
+                                        </span>
+                                        {displayInfo.fees !== 'No fees' && (
+                                          <span className="ml-4">
+                                            <span className="font-medium">Fees:</span> {displayInfo.fees}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {hasAvailableSlots ? (
+                                      <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                                    ) : (
+                                      <div className="w-4 h-4 text-gray-300">
+                                        <svg viewBox="0 0 24 24" fill="currentColor">
+                                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" opacity="0.3"/>
+                                          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                                        </svg>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1036,13 +1340,41 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                     </div>
                   )}
 
+                  {/* Error Message */}
+                  {submitError && (
+                    <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <X className="h-5 w-5 text-red-400" />
+                        </div>
+                        <div className="ml-3">
+                          <h3 className="text-sm font-medium text-red-800">Submission Failed</h3>
+                          <div className="mt-1 text-sm text-red-700">
+                            {submitError}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+
                   {/* Submit Button */}
                   <div className="mt-6 pt-4 border-t border-gray-200">
                     <button
                       type="submit"
-                      className="w-full inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                      disabled={isSubmitting || submitSuccess}
+                      className="w-full inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
-                      Submit Application
+                      {isSubmitting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Submitting...
+                        </>
+                      ) : submitSuccess ? (
+                        <>Submitted Successfully</>
+                      ) : (
+                        <>Submit Application</>
+                      )}
                     </button>
                   </div>
                 </form>
@@ -1051,6 +1383,29 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
           )}
         </div>
       </div>
+
+      {/* Success Modal - minimal animated check with auto-dismiss */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="relative bg-white rounded-2xl shadow-2xl px-8 py-7 flex flex-col items-center gap-3 animate-[fadeIn_0.18s_ease-out]">
+            <div className="relative h-16 w-16">
+              <svg className="h-16 w-16 text-green-500" viewBox="0 0 52 52">
+                <circle className="success-ring" cx="26" cy="26" r="24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                <path className="success-check" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" d="M14 27 l8 8 l16 -16" />
+              </svg>
+            </div>
+            <div className="text-base font-semibold text-gray-900">Application submitted</div>
+          </div>
+          <style jsx global>{`
+            @keyframes drawRing { to { stroke-dashoffset: 0; } }
+            @keyframes drawCheck { to { stroke-dashoffset: 0; } }
+            @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+            .success-ring { stroke-dasharray: 151; stroke-dashoffset: 151; animation: drawRing 450ms ease-out forwards; }
+            .success-check { stroke-dasharray: 48; stroke-dashoffset: 48; animation: drawCheck 350ms 220ms ease-out forwards; }
+          `}</style>
+        </div>
+      )}
     </div>
   )
 }

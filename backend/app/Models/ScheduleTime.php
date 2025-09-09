@@ -32,6 +32,14 @@ class ScheduleTime extends Model
     }
 
     /**
+     * Get the date-specific slot records for this time slot
+     */
+    public function dateSlots()
+    {
+        return $this->hasMany(ScheduleTimeDateSlot::class, 'ScheduleTimeID', 'ScheduleTimeID');
+    }
+
+    /**
      * Get formatted time range
      */
     public function getTimeRange()

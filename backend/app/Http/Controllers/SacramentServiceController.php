@@ -392,10 +392,9 @@ class SacramentServiceController extends Controller
                 ], 404);
             }
 
-            // Get schedules with related data
+            // Get schedules with related data (don't filter by RemainingSlot here)
             $schedules = \App\Models\ServiceSchedule::with(['recurrences', 'times', 'fees'])
                 ->where('ServiceID', $serviceId)
-                ->where('RemainingSlot', '>', 0) // Only show schedules with available slots
                 ->orderBy('StartDate', 'asc')
                 ->get()
                 ->map(function ($schedule) {
@@ -426,12 +425,12 @@ class SacramentServiceController extends Controller
                         }
                     }
                     
+                    // Frontend will calculate date-specific availability using dynamic slot calculation
                     return [
                         'ScheduleID' => $schedule->ScheduleID,
                         'StartDate' => $schedule->StartDate,
                         'EndDate' => $schedule->EndDate,
                         'SlotCapacity' => $schedule->SlotCapacity,
-                        'RemainingSlot' => $schedule->RemainingSlot,
                         'IsRecurring' => $isRecurring,
                         'RecurrencePattern' => $recurrencePattern,
                         'recurrences' => $schedule->recurrences,
@@ -452,6 +451,77 @@ class SacramentServiceController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'An error occurred while fetching schedules.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get remaining slots for specific schedule times on a specific date
+     */
+    public function getScheduleRemainingSlots(Request $request): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'schedule_id' => 'required|integer',
+                'date' => 'required|date',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => 'Validation failed.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $scheduleId = $request->schedule_id;
+            $date = $request->date;
+
+            // Get the schedule with its times and their date slots using Eloquent relationships
+            $schedule = \App\Models\ServiceSchedule::with([
+                'times.dateSlots' => function ($query) use ($date) {
+                    $query->whereDate('SlotDate', $date);
+                }
+            ])->where('ScheduleID', $scheduleId)->first();
+
+            if (!$schedule) {
+                return response()->json([
+                    'error' => 'Schedule not found.'
+                ], 404);
+            }
+
+            // Process time slots using Eloquent relationships
+            $timeSlots = $schedule->times->map(function ($scheduleTime) use ($schedule) {
+                // Get the date slot for this time (should be only one for the specific date)
+                $dateSlot = $scheduleTime->dateSlots->first();
+                
+                if ($dateSlot) {
+                    return [
+                        'ScheduleTimeID' => $scheduleTime->ScheduleTimeID,
+                        'StartTime' => $scheduleTime->StartTime,
+                        'EndTime' => $scheduleTime->EndTime,
+                        'RemainingSlots' => $dateSlot->RemainingSlots,
+                        'SlotCapacity' => $schedule->SlotCapacity,
+                        'BookedCount' => $schedule->SlotCapacity - $dateSlot->RemainingSlots
+                    ];
+                }
+                
+                return null; // No date slot found for this time/date combination
+            })->filter()->values(); // Remove null entries and reindex
+
+            $totalRemainingSlots = $timeSlots->sum('RemainingSlots');
+
+            return response()->json([
+                'schedule_id' => $scheduleId,
+                'date' => $date,
+                'slot_capacity' => $schedule->SlotCapacity,
+                'total_remaining_slots' => $totalRemainingSlots,
+                'time_slots' => $timeSlots->toArray()
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while fetching remaining slots.',
                 'details' => $e->getMessage()
             ], 500);
         }
@@ -484,6 +554,7 @@ class SacramentServiceController extends Controller
                                                }
                                                
                                                return [
+                                                   'InputFieldID' => $field->InputFieldID,
                                                    'type' => $inputType,
                                                    'label' => $field->Label,
                                                    'placeholder' => $field->Placeholder,

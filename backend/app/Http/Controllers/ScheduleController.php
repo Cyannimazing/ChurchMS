@@ -104,7 +104,6 @@ class ScheduleController extends Controller
                 'StartDate' => $request->start_date,
                 'EndDate' => $request->end_date,
                 'SlotCapacity' => $request->slot_capacity,
-                'RemainingSlot' => $request->slot_capacity, // Initially all slots available
             ]);
 
             // Create recurrence patterns
@@ -180,7 +179,6 @@ class ScheduleController extends Controller
             'start_date' => 'required|date',
             'end_date' => 'nullable|date|after:start_date',
             'slot_capacity' => 'required|integer|min:1|max:1000',
-            'remaining_slot' => 'nullable|integer|min:0',
             
             // Recurrence rules
             'recurrences' => 'required|array|min:1',
@@ -217,7 +215,6 @@ class ScheduleController extends Controller
                 'StartDate' => $request->start_date,
                 'EndDate' => $request->end_date,
                 'SlotCapacity' => $request->slot_capacity,
-                'RemainingSlot' => $request->remaining_slot ?? $request->slot_capacity,
             ]);
 
             // Delete existing related records

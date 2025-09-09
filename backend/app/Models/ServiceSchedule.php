@@ -17,14 +17,12 @@ class ServiceSchedule extends Model
         'StartDate',
         'EndDate',
         'SlotCapacity',
-        'RemainingSlot',
     ];
 
     protected $casts = [
         'StartDate' => 'date',
         'EndDate' => 'date',
         'SlotCapacity' => 'integer',
-        'RemainingSlot' => 'integer',
     ];
 
     /**
@@ -78,10 +76,21 @@ class ServiceSchedule extends Model
     }
 
     /**
-     * Check if there are available slots
+     * Check if there are available slots for a specific date
+     * This method now uses dynamic slot calculation
      */
-    public function hasAvailableSlots()
+    public function hasAvailableSlots($date = null)
     {
-        return $this->RemainingSlot > 0;
+        if (!$date) {
+            $date = now()->toDateString();
+        }
+        
+        // Count existing appointments for this schedule on the given date
+        $bookedSlots = \App\Models\Appointment::where('ScheduleID', $this->ScheduleID)
+            ->whereDate('AppointmentDateTime', $date)
+            ->whereIn('Status', ['Pending', 'Approved'])
+            ->count();
+            
+        return ($this->SlotCapacity - $bookedSlots) > 0;
     }
 }

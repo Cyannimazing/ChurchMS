@@ -17,7 +17,6 @@ return new class extends Migration
             $table->date('StartDate'); // When this availability period starts
             $table->date('EndDate')->nullable(); // When this availability period ends (null = indefinite)
             $table->integer('SlotCapacity'); // How many people can book per time slot
-            $table->integer('RemainingSlot'); // Current available slots (updates with bookings)
             $table->timestamps();
             
             $table->foreign('ServiceID')->references('ServiceID')->on('sacrament_service')->onDelete('cascade');

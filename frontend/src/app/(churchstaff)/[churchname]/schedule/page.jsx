@@ -361,7 +361,7 @@ const SchedulePage = () => {
                       <div className="flex items-center text-sm text-gray-600">
                         <Users className="h-4 w-4 mr-2" />
                         <span>
-                          Capacity: {schedule.SlotCapacity} | Available: {schedule.RemainingSlot}
+                          Capacity: {schedule.SlotCapacity}
                         </span>
                       </div>
 
@@ -385,12 +385,8 @@ const SchedulePage = () => {
                             : 'Inactive'}
                         </span>
                         
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          schedule.RemainingSlot > 0
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {schedule.RemainingSlot > 0 ? 'Available' : 'Full'}
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Available
                         </span>
                       </div>
                     </div>
