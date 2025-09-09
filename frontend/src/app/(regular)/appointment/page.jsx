@@ -50,6 +50,16 @@ const AppointmentPage = () => {
     }
   };
 
+  const formatTime = (time) => {
+    if (!time) return '';
+    // Convert 24-hour format to 12-hour format
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
   return (
     <div className="lg:p-6 w-full h-screen pt-20">
       <div className="max-w-7xl mx-auto h-full">
@@ -113,8 +123,8 @@ const AppointmentPage = () => {
                           <MapPin className="w-4 h-4 mr-2" />
                           <span>{appointment.ChurchName}</span>
                         </div>
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Clock className="w-4 h-4 mr-2" />
+                        <div className="flex items-center text-sm text-gray-600 mb-1">
+                          <Calendar className="w-4 h-4 mr-2" />
                           <span>
                             {new Date(appointment.AppointmentDate).toLocaleDateString('en-US', {
                               year: 'numeric',
@@ -123,6 +133,14 @@ const AppointmentPage = () => {
                             })}
                           </span>
                         </div>
+                        {appointment.StartTime && appointment.EndTime && (
+                          <div className="flex items-center text-sm text-gray-600">
+                            <Clock className="w-4 h-4 mr-2" />
+                            <span>
+                              {formatTime(appointment.StartTime)} - {formatTime(appointment.EndTime)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                     

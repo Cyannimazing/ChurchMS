@@ -277,6 +277,7 @@ class AppointmentController extends Controller
             $appointments = DB::table('Appointment as a')
                              ->join('Church as c', 'a.ChurchID', '=', 'c.ChurchID')
                              ->join('sacrament_service as s', 'a.ServiceID', '=', 's.ServiceID')
+                             ->join('schedule_times as st', 'a.ScheduleTimeID', '=', 'st.ScheduleTimeID')
                              ->where('a.UserID', $user->id)
                              ->orderBy('a.AppointmentDate', 'desc')
                              ->select([
@@ -286,7 +287,9 @@ class AppointmentController extends Controller
                                  'a.Notes',
                                  'c.ChurchName',
                                  's.ServiceName',
-                                 's.Description as ServiceDescription'
+                                 's.Description as ServiceDescription',
+                                 'st.StartTime',
+                                 'st.EndTime'
                              ])
                              ->get();
 
@@ -308,19 +311,11 @@ class AppointmentController extends Controller
     public function show(Request $request, int $appointmentId): JsonResponse
     {
         try {
-            $user = $request->user();
-            if (!$user) {
-                return response()->json([
-                    'error' => 'Authentication required.'
-                ], 401);
-            }
-
-            // Get appointment with related data
+            // Get appointment with related data (no user restriction for church staff)
             $appointment = DB::table('Appointment as a')
                             ->join('Church as c', 'a.ChurchID', '=', 'c.ChurchID')
                             ->join('sacrament_service as s', 'a.ServiceID', '=', 's.ServiceID')
                             ->where('a.AppointmentID', $appointmentId)
-                            ->where('a.UserID', $user->id)
                             ->select([
                                 'a.AppointmentID',
                                 'a.AppointmentDate',
@@ -340,16 +335,7 @@ class AppointmentController extends Controller
                 ], 404);
             }
 
-            // Get form answers
-            $answers = DB::table('AppointmentInputAnswer as aia')
-                        ->join('ServiceInputField as sif', 'aia.InputFieldID', '=', 'sif.InputFieldID')
-                        ->where('aia.AppointmentID', $appointmentId)
-                        ->select([
-                            'sif.Label',
-                            'sif.InputType',
-                            'aia.AnswerText'
-                        ])
-                        ->get();
+            // Skip form answers for now
 
             // Get documents
             $documents = DB::table('AppointmentDocument')
@@ -364,13 +350,151 @@ class AppointmentController extends Controller
 
             return response()->json([
                 'appointment' => $appointment,
-                'answers' => $answers,
                 'documents' => $documents
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'An error occurred while fetching appointment details.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get appointments for a specific church (for church staff)
+     */
+    public function getChurchAppointments(Request $request, $churchName): JsonResponse
+    {
+        try {
+            // Convert URL-friendly church name to proper case (e.g., "humble" to "Humble")
+            $name = str_replace('-', ' ', ucwords($churchName, '-'));
+
+            // Find the church by name (case-insensitive)
+            $church = DB::table('Church')
+                ->whereRaw('LOWER(ChurchName) = ?', [strtolower($name)])
+                ->first();
+
+            if (!$church) {
+                return response()->json(['error' => 'Church not found'], 404);
+            }
+
+            // Get appointments for the church with user and service information
+            $appointments = DB::table('Appointment as a')
+                ->join('users as u', 'a.UserID', '=', 'u.id')
+                ->join('user_profiles as p', 'u.id', '=', 'p.user_id')
+                ->join('sacrament_service as s', 'a.ServiceID', '=', 's.ServiceID')
+                ->join('schedule_times as st', 'a.ScheduleTimeID', '=', 'st.ScheduleTimeID')
+                ->where('a.ChurchID', $church->ChurchID)
+                ->orderBy('a.AppointmentDate', 'desc')
+                ->select([
+                    'a.AppointmentID',
+                    'a.AppointmentDate',
+                    'a.Status',
+                    'a.Notes',
+                    'u.email as UserEmail',
+                    DB::raw("p.first_name || ' ' || COALESCE(p.middle_name || '. ', '') || p.last_name as UserName"),
+                    's.ServiceName',
+                    's.Description as ServiceDescription',
+                    'st.StartTime',
+                    'st.EndTime'
+                ])
+                ->get();
+
+            return response()->json([
+                'ChurchID' => $church->ChurchID,
+                'ChurchName' => $church->ChurchName,
+                'appointments' => $appointments
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while fetching church appointments.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update appointment status
+     */
+    public function updateStatus(Request $request, int $appointmentId): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'status' => 'required|string|in:Pending,Approved,Rejected,Cancelled,Completed'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => 'Invalid status provided.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Update appointment status
+            $updated = DB::table('Appointment')
+                ->where('AppointmentID', $appointmentId)
+                ->update([
+                    'Status' => $request->status
+                ]);
+
+            if (!$updated) {
+                return response()->json([
+                    'error' => 'Appointment not found.'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Appointment status updated successfully.',
+                'status' => $request->status
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while updating appointment status.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Download appointment document
+     */
+    public function downloadDocument(int $documentId)
+    {
+        try {
+            // Get document info
+            $document = DB::table('AppointmentDocument')
+                ->where('DocumentID', $documentId)
+                ->first();
+
+            if (!$document) {
+                return response()->json([
+                    'error' => 'Document not found.'
+                ], 404);
+            }
+
+            // Check if file exists
+            if (!Storage::disk('public')->exists($document->FilePath)) {
+                return response()->json([
+                    'error' => 'File not found on storage.'
+                ], 404);
+            }
+
+            // Return file download response
+            return Storage::disk('public')->download(
+                $document->FilePath,
+                $document->OriginalFileName,
+                [
+                    'Content-Type' => $document->MimeType
+                ]
+            );
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while downloading the document.',
                 'details' => $e->getMessage()
             ], 500);
         }

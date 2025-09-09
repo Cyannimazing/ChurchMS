@@ -124,4 +124,13 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Get specific appointment details
     Route::get('/appointments/{appointmentId}', [AppointmentController::class, 'show'])->where('appointmentId', '[0-9]+')->name('appointments.show');
+    
+    // Get church appointments (for church staff)
+    Route::get('/church-appointments/{churchName}', [AppointmentController::class, 'getChurchAppointments'])->where('churchName', '[A-Za-z0-9\s\-_]+')->name('church.appointments.index');
+    
+    // Update appointment status
+    Route::put('/appointments/{appointmentId}/status', [AppointmentController::class, 'updateStatus'])->where('appointmentId', '[0-9]+')->name('appointments.updateStatus');
+    
+    // Download appointment document
+    Route::get('/appointments/documents/{documentId}', [AppointmentController::class, 'downloadDocument'])->where('documentId', '[0-9]+');
 });

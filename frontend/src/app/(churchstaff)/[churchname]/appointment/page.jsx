@@ -1,10 +1,34 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
+import axios from "@/lib/axios";
+import { useRouter, useParams } from "next/navigation";
+import { Calendar, Clock, MapPin, Users, Eye, Check, X, AlertTriangle, Search, FileText, User, Mail, Phone, MapPin as Location } from "lucide-react";
 import { useAuth } from "@/hooks/auth.jsx";
+import DataLoading from "@/components/DataLoading";
+import SearchAndPagination from "@/components/SearchAndPagination";
+import { Button } from "@/components/Button.jsx";
 
 const AppointmentPage = () => {
   const { user } = useAuth({ middleware: "auth" });
+  const router = useRouter();
+  const { churchname } = useParams();
+  
+  const [appointments, setAppointments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("Pending");
+  const [filteredAppointments, setFilteredAppointments] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+  
+  // Review modal state
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [appointmentDetails, setAppointmentDetails] = useState(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   // Check if user is ChurchOwner or has appointment_list permission
   const hasAccess =
@@ -12,6 +36,189 @@ const AppointmentPage = () => {
     user?.church_role?.permissions?.some(
       (perm) => perm.PermissionName === "appointment_list"
     );
+
+  // Fetch appointments
+  const fetchAppointments = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Clean up church name for API call
+      const sanitizedChurchName = churchname.replace(/:\d+$/, "");
+      
+      // Fetch appointments for this church using church name
+      const response = await axios.get(`/api/church-appointments/${sanitizedChurchName}`);
+      setAppointments(response.data.appointments);
+      setFilteredAppointments(response.data.appointments);
+    } catch (err) {
+      console.error('Error fetching appointments:', err);
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to load appointments';
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (hasAccess && churchname) {
+      fetchAppointments();
+    }
+  }, [hasAccess, churchname]);
+
+  // Filter appointments based on search term and status
+  useEffect(() => {
+    let filtered = [...appointments];
+    
+    // Apply status filter
+    if (statusFilter !== "All") {
+      filtered = filtered.filter(appointment => appointment.Status === statusFilter);
+    }
+    
+    // Apply search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(appointment => (
+        appointment.ServiceName?.toLowerCase().includes(searchLower) ||
+        appointment.UserName?.toLowerCase().includes(searchLower) ||
+        appointment.UserEmail?.toLowerCase().includes(searchLower)
+      ));
+    }
+    
+    // Sort by AppointmentDate ascending (oldest first)
+    filtered.sort((a, b) => new Date(a.AppointmentDate) - new Date(b.AppointmentDate));
+    
+    setFilteredAppointments(filtered);
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, appointments]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentAppointments = filteredAppointments.slice(startIndex, startIndex + itemsPerPage);
+
+  const handleSearch = (term) => {
+    setSearchTerm(term);
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const getStatusBadge = (status) => {
+    const baseClasses = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
+    
+    switch (status) {
+      case 'Pending':
+        return (
+          <span className={`${baseClasses} bg-yellow-100 text-yellow-800`}>
+            <AlertTriangle className="w-3 h-3 mr-1" />
+            Pending
+          </span>
+        );
+      case 'Approved':
+        return (
+          <span className={`${baseClasses} bg-green-100 text-green-800`}>
+            <Check className="w-3 h-3 mr-1" />
+            Approved
+          </span>
+        );
+      case 'Rejected':
+        return (
+          <span className={`${baseClasses} bg-red-100 text-red-800`}>
+            <X className="w-3 h-3 mr-1" />
+            Rejected
+          </span>
+        );
+      case 'Cancelled':
+        return (
+          <span className={`${baseClasses} bg-gray-100 text-gray-800`}>
+            <X className="w-3 h-3 mr-1" />
+            Cancelled
+          </span>
+        );
+      case 'Completed':
+        return (
+          <span className={`${baseClasses} bg-blue-100 text-blue-800`}>
+            <Check className="w-3 h-3 mr-1" />
+            Completed
+          </span>
+        );
+      default:
+        return (
+          <span className={`${baseClasses} bg-gray-100 text-gray-800`}>
+            {status}
+          </span>
+        );
+    }
+  };
+
+  const formatTime = (time) => {
+    if (!time) return 'N/A';
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  // Review modal functions
+  const handleViewAppointment = async (appointment) => {
+    setSelectedAppointment(appointment);
+    setShowReviewModal(true);
+    setIsLoadingDetails(true);
+    
+    try {
+      // Fetch detailed appointment information
+      const response = await axios.get(`/api/appointments/${appointment.AppointmentID}`);
+      setAppointmentDetails(response.data);
+    } catch (err) {
+      console.error('Error fetching appointment details:', err);
+      setError('Failed to load appointment details');
+    } finally {
+      setIsLoadingDetails(false);
+    }
+  };
+
+  const handleCloseReviewModal = () => {
+    setShowReviewModal(false);
+    setSelectedAppointment(null);
+    setAppointmentDetails(null);
+  };
+
+  const handleUpdateAppointmentStatus = async (appointmentId, status) => {
+    setIsUpdatingStatus(true);
+    
+    try {
+      await axios.put(`/api/appointments/${appointmentId}/status`, {
+        status: status
+      });
+      
+      // Update local state
+      const updatedAppointments = appointments.map(apt => 
+        apt.AppointmentID === appointmentId 
+          ? { ...apt, Status: status }
+          : apt
+      );
+      setAppointments(updatedAppointments);
+      setFilteredAppointments(updatedAppointments);
+      
+      // Update selected appointment in modal
+      if (selectedAppointment?.AppointmentID === appointmentId) {
+        setSelectedAppointment({ ...selectedAppointment, Status: status });
+      }
+      
+      // Close modal after successful update
+      setTimeout(() => {
+        handleCloseReviewModal();
+      }, 1000);
+      
+    } catch (err) {
+      console.error('Error updating appointment status:', err);
+      setError('Failed to update appointment status');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   if (!hasAccess) {
     return (
@@ -36,18 +243,396 @@ const AppointmentPage = () => {
     <div className="lg:p-6 w-full h-screen pt-20">
       <div className="max-w-7xl mx-auto h-full">
         <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
-          <div className="p-6 bg-white border-b border-gray-200">
-            <h1 className="text-2xl font-semibold text-gray-900">
+          <div className="p-6 bg-white border-b border-gray-200 flex-1 overflow-auto">
+            <h1 className="text-2xl font-semibold text-gray-900 mb-6">
               Church Appointments
             </h1>
-          </div>
-          <div className="p-6 flex-1">
-            <p className="text-gray-600">
-              Welcome to the Church Appointment Management System
-            </p>
+            
+            <div className="mt-6">
+              <div className="overflow-x-auto">
+                <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900">Appointment Applications</h3>
+                        <p className="mt-1 text-sm text-gray-600">Manage and review sacrament appointment applications from members.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="px-6 py-4 space-y-4">
+                    {/* Status Filter */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="flex items-center space-x-2">
+                        <label htmlFor="status-filter" className="text-sm font-medium text-gray-700">
+                          Filter by Status:
+                        </label>
+                        <select
+                          id="status-filter"
+                          value={statusFilter}
+                          onChange={(e) => setStatusFilter(e.target.value)}
+                          className="px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-gray-400 bg-white cursor-pointer"
+                        >
+                          <option value="All">All</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Approved">Approved</option>
+                          <option value="Rejected">Rejected</option>
+                          <option value="Cancelled">Cancelled</option>
+                          <option value="Completed">Completed</option>
+                        </select>
+                      </div>
+                      
+                      <div className="text-sm text-gray-600">
+                        Showing {filteredAppointments.length} appointment{filteredAppointments.length !== 1 ? 's' : ''}
+                        {statusFilter !== "All" && ` with status: ${statusFilter}`}
+                      </div>
+                    </div>
+                    
+                    {/* Search and Pagination */}
+                    <SearchAndPagination
+                      searchQuery={searchTerm}
+                      onSearchChange={handleSearch}
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                      totalItems={filteredAppointments.length}
+                      itemsPerPage={itemsPerPage}
+                      placeholder="Search appointments..."
+                    />
+                  </div>
+                  
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applicant</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {isLoading ? (
+                          <tr>
+                            <td colSpan={5} className="px-6 py-8">
+                              <DataLoading message="Loading appointments..." />
+                            </td>
+                          </tr>
+                        ) : error ? (
+                          <tr>
+                            <td colSpan={5} className="px-6 py-8 text-center text-red-600">
+                              {error}
+                            </td>
+                          </tr>
+                        ) : currentAppointments.length > 0 ? (
+                          currentAppointments.map((appointment) => (
+                            <tr key={appointment.AppointmentID} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="flex-shrink-0 h-10 w-10">
+                                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                      <Users className="h-5 w-5 text-blue-600" />
+                                    </div>
+                                  </div>
+                                  <div className="ml-4">
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {appointment.UserName || 'Unknown User'}
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                      {appointment.UserEmail || 'No email'}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {appointment.ServiceName}
+                                </div>
+                                {appointment.ServiceDescription && (
+                                  <div className="text-sm text-gray-500 truncate max-w-xs">
+                                    {appointment.ServiceDescription}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center text-sm text-gray-900">
+                                  <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+                                  <div>
+                                    <div className="font-medium">
+                                      {new Date(appointment.AppointmentDate).toLocaleDateString('en-US', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: 'numeric'
+                                      })}
+                                    </div>
+                                    {appointment.StartTime && appointment.EndTime && (
+                                      <div className="text-gray-500 flex items-center">
+                                        <Clock className="w-3 h-3 mr-1" />
+                                        {formatTime(appointment.StartTime)} - {formatTime(appointment.EndTime)}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {getStatusBadge(appointment.Status)}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex justify-center items-center space-x-2">
+                                  <Button
+                                    onClick={() => handleViewAppointment(appointment)}
+                                    variant="outline"
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 min-h-0 h-auto"
+                                  >
+                                    <Eye className="h-3 w-3 mr-1" />
+                                    Review
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                              <div className="flex flex-col items-center">
+                                <Calendar className="h-12 w-12 text-gray-300 mb-2" />
+                                <p>No appointments found.</p>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Review Modal */}
+      {showReviewModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div
+            className="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-auto relative"
+            role="dialog"
+            aria-labelledby="modal-title"
+          >
+            {/* Header */}
+            <div className="relative bg-gray-100 px-4 py-4 rounded-t-lg">
+              <button
+                onClick={handleCloseReviewModal}
+                className="absolute top-4 right-4 text-gray-800 hover:text-gray-900 transition-colors duration-200"
+                aria-label="Close modal"
+              >
+                <X className="h-6 w-6" />
+              </button>
+              <div className="flex items-center space-x-3">
+                <div>
+                  <h2 id="modal-title" className="text-xl font-bold text-gray-800">
+                    Review Appointment
+                  </h2>
+                  <p className="text-gray-600 text-sm mt-1">
+                    {selectedAppointment?.ServiceName} - {selectedAppointment?.UserName}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="px-8 py-6 max-h-[calc(95vh-140px)] overflow-y-auto">
+              {isLoadingDetails ? (
+                <div className="flex items-center justify-center py-12">
+                  <DataLoading message="Loading appointment details..." />
+                </div>
+              ) : (
+                <div className="bg-gray-50 rounded-xl p-6 space-y-6">
+                  {/* Appointment Information Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <div className="h-1 w-8 bg-blue-500 rounded-full"></div>
+                      <h3 className="text-lg font-semibold text-gray-900">Appointment Information</h3>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <h4 className="text-xl font-bold text-gray-900 mb-2">{selectedAppointment?.ServiceName}</h4>
+                          {selectedAppointment?.ServiceDescription && (
+                            <p className="text-gray-600">{selectedAppointment.ServiceDescription}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          {getStatusBadge(selectedAppointment?.Status)}
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <Calendar className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-700 mb-2">Appointment Date</p>
+                            <p className="text-gray-900">
+                              {new Date(selectedAppointment?.AppointmentDate).toLocaleDateString('en-US', {
+                                weekday: 'long',
+                                month: 'long',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </p>
+                            {selectedAppointment?.StartTime && selectedAppointment?.EndTime && (
+                              <p className="text-sm text-gray-600 mt-1">
+                                {formatTime(selectedAppointment.StartTime)} - {formatTime(selectedAppointment.EndTime)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-3">
+                          <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                            <User className="h-5 w-5 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-700 mb-2">Applicant</p>
+                            <p className="text-gray-900">{selectedAppointment?.UserName || 'Unknown User'}</p>
+                            <p className="text-sm text-gray-600">{selectedAppointment?.UserEmail || 'No email provided'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Special Notes Section */}
+                  {selectedAppointment?.Notes && (
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2 mb-4">
+                        <div className="h-1 w-8 bg-amber-500 rounded-full"></div>
+                        <h3 className="text-lg font-semibold text-gray-900">Special Notes</h3>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <p className="text-gray-900 leading-relaxed">{selectedAppointment.Notes}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Application Responses Section */}
+                  {appointmentDetails?.answers && appointmentDetails.answers.length > 0 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2 mb-4">
+                        <div className="h-1 w-8 bg-green-500 rounded-full"></div>
+                        <h3 className="text-lg font-semibold text-gray-900">Application Responses</h3>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {appointmentDetails.answers.map((answer, index) => (
+                          <div key={index} className="bg-white rounded-lg p-4 border-2 border-gray-200 hover:border-gray-300 transition-colors duration-200">
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">{answer.Label}</label>
+                            <p className="text-gray-900 leading-relaxed">{answer.AnswerText}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Submitted Documents Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <div className="h-1 w-8 bg-purple-500 rounded-full"></div>
+                      <h3 className="text-lg font-semibold text-gray-900">Submitted Documents</h3>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      {appointmentDetails?.documents && appointmentDetails.documents.length > 0 ? (
+                        <div className="space-y-3">
+                          {appointmentDetails.documents.map((doc, index) => (
+                            <div key={index} className="bg-white rounded-lg p-4 border-2 border-gray-200 hover:border-gray-300 transition-colors duration-200 flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                  <FileText className="h-5 w-5 text-purple-600" />
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-900">{doc.OriginalFileName}</p>
+                                  <p className="text-sm text-gray-500">
+                                    File size: {(doc.FileSize / 1024).toFixed(1)} KB
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                onClick={async () => {
+                                  try {
+                                    const response = await axios.get(`/api/appointments/documents/${doc.DocumentID}`, {
+                                      responseType: 'blob'
+                                    });
+                                    
+                                    // Create blob URL and download
+                                    const blob = new Blob([response.data]);
+                                    const url = window.URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.download = doc.OriginalFileName;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    window.URL.revokeObjectURL(url);
+                                  } catch (error) {
+                                    console.error('Error downloading document:', error);
+                                    alert('Failed to download document');
+                                  }
+                                }}
+                                variant="outline"
+                                className="px-4 py-2 text-sm font-medium text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100 transition-colors"
+                              >
+                                Download
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="bg-white rounded-lg p-8 border-2 border-gray-200 text-center">
+                          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <FileText className="h-8 w-8 text-gray-400" />
+                          </div>
+                          <p className="text-gray-600">No documents were submitted with this appointment.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            {!isLoadingDetails && selectedAppointment?.Status === 'Pending' && (
+              <div className="flex justify-end space-x-3 px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+                <Button
+                  onClick={() => handleUpdateAppointmentStatus(selectedAppointment.AppointmentID, 'Rejected')}
+                  variant="outline"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200"
+                  disabled={isUpdatingStatus}
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  {isUpdatingStatus ? 'Updating...' : 'Reject'}
+                </Button>
+                <Button
+                  onClick={() => handleUpdateAppointmentStatus(selectedAppointment.AppointmentID, 'Approved')}
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+                  disabled={isUpdatingStatus}
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  {isUpdatingStatus ? 'Updating...' : 'Approve'}
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
