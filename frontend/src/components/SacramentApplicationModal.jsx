@@ -1107,7 +1107,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                                         </span>
                                       </div>
                                       <div className="flex items-center text-sm text-gray-600">
-                                        <Users className="w-4 w-4 mr-2" />
+                                        <Users className="w-4 mr-2" />
                                         <span className={hasAvailableSlots ? 'text-gray-600' : 'text-red-600'}>
                                           {getSlotAvailabilityText(schedule, selectedDate)}
                                         </span>
