@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/auth";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/Button";
 
-const RegisterPage = () => {
+const RegisterForm = () => {
   const { register } = useAuth({
     middleware: "guest",
     redirectIfAuthenticated: "/dashboard",
