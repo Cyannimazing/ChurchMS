@@ -19,7 +19,7 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     Artisan::call('churches:unpublish-expired');
     $user = $request->user()->load(['profile.systemRole', 'contact']);
     
-    if ($user->profile->system_role_id == 3) {
+    if ($user->profile->system_role_id == 3) {  
         $user->load([
             'churchRole.permissions', 'church'
         ]);
@@ -131,6 +131,4 @@ Route::middleware('auth:sanctum')->group(function () {
     // Update appointment status
     Route::put('/appointments/{appointmentId}/status', [AppointmentController::class, 'updateStatus'])->where('appointmentId', '[0-9]+')->name('appointments.updateStatus');
     
-    // Download appointment document
-    Route::get('/appointments/documents/{documentId}', [AppointmentController::class, 'downloadDocument'])->where('documentId', '[0-9]+');
 });

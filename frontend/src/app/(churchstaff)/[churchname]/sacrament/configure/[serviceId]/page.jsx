@@ -27,6 +27,7 @@ import { Button } from "@/components/Button.jsx";
 import Alert from "@/components/Alert.jsx";
 import axios from "@/lib/axios";
 import { useAuth } from "@/hooks/auth.jsx";
+import { createBaptismForm } from "@/utils/prebuiltForms/baptismForm.js";
 
 // Form element types with container
 const FORM_ELEMENTS = [
@@ -36,7 +37,7 @@ const FORM_ELEMENTS = [
     label: 'Form Container', 
     icon: Square,
     defaultProps: {
-      width: 600,
+      width: 800,
       height: 400,
       backgroundColor: '#ffffff',
       borderColor: '#e5e7eb',
@@ -255,7 +256,7 @@ const FormBuilderPage = () => {
                   borderColor: element.properties?.borderColor || '#e5e7eb',
                   borderWidth: element.properties?.borderWidth || 2,
                   borderRadius: element.properties?.borderRadius || 8,
-                  padding: element.properties?.padding || 20,
+                  padding: element.properties?.padding !== undefined ? element.properties.padding : 20,
                   containerId: null,
                   zIndex: 0
                 };
@@ -498,7 +499,7 @@ const FormBuilderPage = () => {
             borderColor: element.borderColor || '',
             borderWidth: element.borderWidth || null,
             borderRadius: element.borderRadius || null,
-            padding: element.padding || null,
+            padding: element.padding !== undefined ? element.padding : null,
             // Container relationship
             containerId: element.containerId || null
           }
@@ -570,7 +571,43 @@ const FormBuilderPage = () => {
     setRequirements(reqs => reqs.filter(req => req.id !== id));
   };
 
+  // Load pre-built baptism form
+  const loadBaptismForm = () => {
+    const { formElements, requirements } = createBaptismForm();
+    setFormElements(formElements);
+    setRequirements(requirements);
+    setAlertMessage('Baptism form template loaded successfully!');
+    setAlertType('success');
+  };
+
   const selectedElementData = formElements.find(el => el.id === selectedElement);
+
+  // Calculate dynamic canvas height based on form elements
+  const calculateCanvasHeight = () => {
+    if (formElements.length === 0) {
+      // Use a reasonable default when empty
+      return typeof window !== 'undefined' ? Math.max(800, window.innerHeight - 200) : 800;
+    }
+
+    let maxBottom = 0;
+    formElements.forEach(element => {
+      const containerElement = formElements.find(el => el.id === element.containerId);
+      const isInsideContainer = !!containerElement;
+      
+      // Calculate absolute position
+      const absoluteY = isInsideContainer 
+        ? (containerElement.y + (containerElement.padding || 20) + element.y)
+        : element.y;
+      
+      const elementBottom = absoluteY + element.height;
+      if (elementBottom > maxBottom) {
+        maxBottom = elementBottom;
+      }
+    });
+
+    // Add some padding at the bottom
+    return Math.max(maxBottom + 100, 800);
+  };
 
   return (
     <div className="fixed inset-0 h-screen flex flex-col bg-gray-100 z-50">
@@ -592,6 +629,14 @@ const FormBuilderPage = () => {
         </div>
         
         <div className="flex items-center space-x-3">
+          <Button
+            onClick={loadBaptismForm}
+            variant="outline"
+            className="flex items-center bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Load Baptism Form
+          </Button>
           <Button
             onClick={() => setIsPreviewMode(!isPreviewMode)}
             variant="outline"
@@ -700,27 +745,18 @@ const FormBuilderPage = () => {
 
         {/* Canvas Area */}
         <div className="flex-1 flex">
-          <div className="flex-1 p-6">
-            <div
+          <div className="flex-1 relative overflow-auto">
+            <div 
               ref={canvasRef}
-              className="relative bg-white rounded-lg shadow-sm border border-gray-200 min-h-full"
+              className="relative"
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleCanvasDrop}
               onClick={() => setSelectedElement(null)}
-              style={{ minHeight: '800px' }}
+              style={{ 
+                height: `${calculateCanvasHeight()}px`,
+                minWidth: '1000px'
+              }}
             >
-              {/* Canvas Grid (optional) */}
-              <div 
-                className="absolute inset-0 opacity-10"
-                style={{
-                  backgroundImage: `
-                    linear-gradient(to right, #e5e7eb 1px, transparent 1px),
-                    linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)
-                  `,
-                  backgroundSize: '20px 20px'
-                }}
-              />
-              
               {/* Form Elements */}
               {formElements.map((element) => (
                 <FormElement
@@ -736,16 +772,6 @@ const FormBuilderPage = () => {
                 />
               ))}
 
-              {/* Empty state */}
-              {formElements.length === 0 && !isPreviewMode && (
-                <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                  <div className="text-center">
-                    <FileText className="h-12 w-12 mx-auto mb-4" />
-                    <p className="text-lg font-medium">Start building your form</p>
-                    <p className="text-sm">Drag elements from the toolbox to create your custom form</p>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
