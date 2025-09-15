@@ -49,12 +49,13 @@ export const createBaptismForm = () => {
       y: 70,
       width: 740,
       height: 80,
-      content: 'If you are filling out this form, it means that God has blessed you with a child or children. Congratulations! We are very happy and excited for you.\n\nIMPORTANT! Please note that the baptism date is not officially set until a member of our staff confirms your request with a phone call or email.',
-      textAlign: 'left',
+      content: 'Baptism Information Form\n\nParish staff will complete this form based on details provided by the family. The baptism date will only be confirmed after verification with the family.',
+      textAlign: 'Center',
       textColor: '#374151',
       containerId: mainContainer.id,
       zIndex: 1
     },
+
     
     // Important note about legal names
     {
@@ -65,7 +66,7 @@ export const createBaptismForm = () => {
       width: 740,
       height: 60,
       content: 'Please use FULL LEGAL names with correct spacing and capitalization. The information used on this form helps us complete the baptismal record and baptismal certificate.',
-      textAlign: 'left',
+      textAlign: 'Center',
       textColor: '#dc2626',
       containerId: mainContainer.id,
       zIndex: 1
@@ -151,41 +152,26 @@ export const createBaptismForm = () => {
     {
       id: baseId + 10,
       type: 'date',
-      x: 260,
-      y: 350,
-      width: 240,
+      x: 405,
+      y: 450,
+      width: 346,
       height: 40,
       label: 'Date of Birth',
       required: true,
       containerId: mainContainer.id,
       zIndex: 1
     },
-    
-    // State of Birth
-    {
-      id: baseId + 11,
-      type: 'select',
-      x: 510,
-      y: 350,
-      width: 240,
-      height: 40,
-      label: 'State of Birth',
-      required: true,
-      options: ['MI', 'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'],
-      containerId: mainContainer.id,
-      zIndex: 1
-    },
-    
-    // City of Birth
+
+    // Place of Birth
     {
       id: baseId + 12,
       type: 'text',
       x: 10,
       y: 450,
-      width: 240,
+      width: 385,
       height: 40,
-      label: 'City of Birth',
-      placeholder: 'Enter city of birth',
+      label: 'Place of Birth',
+      placeholder: 'Enter place of birth',
       required: true,
       containerId: mainContainer.id,
       zIndex: 1
@@ -548,6 +534,7 @@ export const createBaptismForm = () => {
       height: 40,
       label: "Godfather's Name (First Middle Last)",
       placeholder: 'Enter godfather\'s full name',
+      required: true,
       containerId: mainContainer.id,
       zIndex: 1
     },

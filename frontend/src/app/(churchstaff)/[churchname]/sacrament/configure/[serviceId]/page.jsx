@@ -37,13 +37,13 @@ const FORM_ELEMENTS = [
     label: 'Form Container', 
     icon: Square,
     defaultProps: {
-      width: 800,
+      width: 820,
       height: 400,
       backgroundColor: '#ffffff',
       borderColor: '#e5e7eb',
       borderWidth: 2,
       borderRadius: 8,
-      padding: 20
+      padding: 30
     }
   },
   { 
@@ -256,7 +256,7 @@ const FormBuilderPage = () => {
                   borderColor: element.properties?.borderColor || '#e5e7eb',
                   borderWidth: element.properties?.borderWidth || 2,
                   borderRadius: element.properties?.borderRadius || 8,
-                  padding: element.properties?.padding !== undefined ? element.properties.padding : 20,
+                  padding: element.properties?.padding !== undefined ? element.properties.padding : 30,
                   containerId: null,
                   zIndex: 0
                 };
@@ -389,7 +389,7 @@ const FormBuilderPage = () => {
               const containerTop = containerEl.y;
               const containerRight = containerEl.x + containerEl.width;
               const containerBottom = containerEl.y + containerEl.height;
-              const padding = containerEl.padding || 20;
+              const padding = containerEl.padding || 30;
 
               // Check if element center point is inside container
               const elementCenterX = x + (el.width / 2);
@@ -515,10 +515,10 @@ const FormBuilderPage = () => {
       // Save form configuration to database
       const response = await axios.post(`/api/sacrament-services/${serviceId}/form-config`, formConfig);
       
-      setAlertMessage('Form configuration saved successfully!');
-      setAlertType('success');
-      
       console.log("Form configuration saved:", response.data);
+      
+      // Redirect back to sacrament page after successful save
+      router.push(`/${churchname}/sacrament`);
       
     } catch (error) {
       console.error("Failed to save form configuration:", error);
@@ -596,7 +596,7 @@ const FormBuilderPage = () => {
       
       // Calculate absolute position
       const absoluteY = isInsideContainer 
-        ? (containerElement.y + (containerElement.padding || 20) + element.y)
+        ? (containerElement.y + (containerElement.padding || 30) + element.y)
         : element.y;
       
       const elementBottom = absoluteY + element.height;
@@ -647,10 +647,11 @@ const FormBuilderPage = () => {
           </Button>
           <Button
             onClick={saveFormConfiguration}
+            disabled={isSaving}
             className="flex items-center"
           >
             <Save className="h-4 w-4 mr-2" />
-            Save Configuration
+            {isSaving ? 'Saving...' : 'Save Configuration'}
           </Button>
         </div>
       </div>
@@ -882,10 +883,10 @@ const FormElement = ({ element, formElements, isSelected, isPreviewMode, onClick
     
     // Calculate absolute position based on container position if inside one
     const absoluteX = isInsideContainer 
-      ? (containerElement.x + (containerElement.padding || 20) + element.x)
+      ? (containerElement.x + (containerElement.padding || 30) + element.x)
       : element.x;
     const absoluteY = isInsideContainer 
-      ? (containerElement.y + (containerElement.padding || 20) + element.y)
+      ? (containerElement.y + (containerElement.padding || 30) + element.y)
       : element.y;
     
     if (action === 'drag') {
@@ -952,7 +953,7 @@ const FormElement = ({ element, formElements, isSelected, isPreviewMode, onClick
               borderColor: element.borderColor || '#e5e7eb',
               borderWidth: `${element.borderWidth || 2}px`,
               borderRadius: `${element.borderRadius || 8}px`,
-              padding: `${element.padding || 20}px`
+              padding: `${element.padding || 30}px`
             }}
           >
             {/* Grid overlay for alignment inside container */}
@@ -965,7 +966,7 @@ const FormElement = ({ element, formElements, isSelected, isPreviewMode, onClick
                     linear-gradient(to bottom, #3b82f6 1px, transparent 1px)
                   `,
                   backgroundSize: '5px 5px',
-                  margin: `${element.padding || 20}px`
+                  margin: `${element.padding || 30}px`
                 }}
               />
             )}
@@ -1113,10 +1114,10 @@ const FormElement = ({ element, formElements, isSelected, isPreviewMode, onClick
   
   // Calculate absolute position based on container position if inside one
   const absoluteX = isInsideContainer 
-    ? (containerElement.x + (containerElement.padding || 20) + element.x)
+    ? (containerElement.x + (containerElement.padding || 30) + element.x)
     : element.x;
   const absoluteY = isInsideContainer 
-    ? (containerElement.y + (containerElement.padding || 20) + element.y)
+    ? (containerElement.y + (containerElement.padding || 30) + element.y)
     : element.y;
 
   return (
@@ -1318,7 +1319,7 @@ const PropertiesPanel = ({ element, onUpdate, onDelete }) => {
                 type="number"
                 min="0"
                 max="100"
-                value={element.padding || 20}
+                value={element.padding || 30}
                 onChange={(e) => onUpdate(element.id, 'padding', parseInt(e.target.value))}
                 className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
               />
