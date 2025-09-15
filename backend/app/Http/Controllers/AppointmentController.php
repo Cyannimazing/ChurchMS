@@ -6,13 +6,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use App\Models\Church;
 use App\Models\SacramentService;
 use App\Models\ServiceSchedule;
-use App\Models\ServiceInputField;
-use App\Models\ServiceRequirement;
 
 class AppointmentController extends Controller
 {
@@ -480,47 +476,6 @@ class AppointmentController extends Controller
 
         if (!$updated) {
             throw new \Exception('Failed to update slot availability.');
-        }
-    }
-
-    /**
-     * Download appointment document
-     */
-    public function downloadDocument(int $documentId)
-    {
-        try {
-            // Get document info
-            $document = DB::table('AppointmentDocument')
-                ->where('DocumentID', $documentId)
-                ->first();
-
-            if (!$document) {
-                return response()->json([
-                    'error' => 'Document not found.'
-                ], 404);
-            }
-
-            // Check if file exists
-            if (!Storage::disk('public')->exists($document->FilePath)) {
-                return response()->json([
-                    'error' => 'File not found on storage.'
-                ], 404);
-            }
-
-            // Return file download response
-            return Storage::disk('public')->download(
-                $document->FilePath,
-                $document->OriginalFileName,
-                [
-                    'Content-Type' => $document->MimeType
-                ]
-            );
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'An error occurred while downloading the document.',
-                'details' => $e->getMessage()
-            ], 500);
         }
     }
 }

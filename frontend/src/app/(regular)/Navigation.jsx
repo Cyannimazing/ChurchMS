@@ -46,18 +46,23 @@ const Navigation = ({ user }) => {
     setIsDropdownOpen(!isDropdownOpen);
   };
 
-  const navItems = [
+  const menuSections = [
     {
-      name: "Dashboard",
-      href: "/dashboard",
-      icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
-      badge: null,
-    },
-    {
-      name: "Appointment",
-      href: "/appointment",
-      icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
-      badge: null,
+      title: "Main Menu",
+      items: [
+        {
+          name: "Dashboard",
+          href: "/dashboard",
+          icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+          badge: null,
+        },
+        {
+          name: "Appointment",
+          href: "/appointment",
+          icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+          badge: null,
+        },
+      ],
     },
   ];
 
@@ -212,131 +217,62 @@ const Navigation = ({ user }) => {
 
           {/* Navigation */}
           <nav className="flex-1 px-2 py-4 overflow-y-auto">
-            <ul className="space-y-1">
-              {navItems.map((item, index) => (
-                <li key={item.name}>
-                  {item.submenu ? (
-                    <>
-                      <button
-                        onClick={() => toggleSubmenu(index)}
-                        className={`flex items-center justify-between w-full px-4 py-3 rounded-lg transition-colors ${
-                          pathname.startsWith(item.href)
-                            ? "bg-indigo-50 text-indigo-600"
-                            : "hover:bg-gray-50 hover:text-indigo-500"
-                        }`}
-                      >
-                        <div className="flex items-center">
-                          <svg
-                            className="w-5 h-5 mr-3"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d={item.icon}
-                            />
-                          </svg>
-                          <span className="font-medium">{item.name}</span>
+            <div className="space-y-6">
+              {menuSections.map((section, sectionIndex) => (
+                <div key={section.title}>
+                  {/* Section Title */}
+                  <div className="px-4 mb-3">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      {section.title}
+                    </h3>
+                  </div>
+                  
+                  {/* Section Items */}
+                  <ul className="space-y-1">
+                    {section.items.map((item, itemIndex) => (
+                      <li key={item.name}>
+                        <Link
+                          href={item.href}
+                          onClick={handleNavClick}
+                          className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
+                            pathname === item.href
+                              ? "bg-slate-100 text-slate-900 font-medium"
+                              : "text-gray-700 hover:bg-gray-50 hover:text-slate-900"
+                          }`}
+                        >
+                          <div className="flex items-center">
+                            <svg
+                              className="w-5 h-5 mr-3"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d={item.icon}
+                              />
+                            </svg>
+                            <span className="font-medium">{item.name}</span>
+                          </div>
                           {item.badge && (
-                            <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">
                               {item.badge}
                             </span>
                           )}
-                        </div>
-                        <svg
-                          className={`w-4 h-4 transform transition-transform duration-200 ${
-                            activeSubmenu === index ? "rotate-90" : ""
-                          }`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
-                      </button>
-
-                      {activeSubmenu === index && (
-                        <ul className="ml-8 mt-1 space-y-1 text-gray-600">
-                          {item.submenu.map((subItem) => (
-                            <li key={subItem.name}>
-                              <Link
-                                href={subItem.href}
-                                onClick={() => {
-                                  handleNavClick();
-                                  setActiveSubmenu(null); // Close submenu on link click
-                                }}
-                                className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
-                                  pathname === subItem.href
-                                    ? "bg-indigo-50 text-indigo-600"
-                                    : "hover:bg-gray-50 hover:text-indigo-500"
-                                }`}
-                              >
-                                {subItem.icon && (
-                                  <svg
-                                    className="w-4 h-4 mr-3"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d={subItem.icon}
-                                    />
-                                  </svg>
-                                )}
-                                {subItem.name}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </>
-                  ) : (
-                    <Link
-                      href={item.href}
-                      onClick={handleNavClick}
-                      className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
-                        pathname === item.href
-                          ? "bg-slate-100 text-slate-900 font-medium"
-                          : "text-gray-700 hover:bg-gray-50 hover:text-slate-900"
-                      }`}
-                    >
-                      <div className="flex items-center">
-                        <svg
-                          className="w-5 h-5 mr-3"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d={item.icon}
-                          />
-                        </svg>
-                        <span className="font-medium">{item.name}</span>
-                      </div>
-                      {item.badge && (
-                        <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">
-                          {item.badge}
-                        </span>
-                      )}
-                    </Link>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                  
+                  {/* Divider between sections (except for the last section) */}
+                  {sectionIndex < menuSections.length - 1 && (
+                    <div className="mx-4 mt-6 border-t border-gray-200"></div>
                   )}
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           </nav>
 
           {/* User Profile - Only at lg and above */}

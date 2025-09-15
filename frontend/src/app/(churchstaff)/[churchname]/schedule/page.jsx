@@ -242,34 +242,32 @@ const SchedulePage = () => {
             )}
             
             <div className="mt-6">
-              {isLoading ? (
-                <div className="flex justify-center items-center min-h-96">
-                  <DataLoading message="Checking services and loading schedules..." />
-                </div>
-              ) : services.length === 0 ? (
-                <div className="text-center py-12">
-                  <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Services Available</h3>
-                  <p className="text-gray-600 mb-6">
-                    You need to create sacrament services before you can manage schedules.
-                  </p>
-                  <Button
-                    onClick={() => router.push(`/${churchname}/sacrament`)}
-                    className="flex items-center mx-auto"
-                  >
-                    Go to Sacraments
-                  </Button>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
-                    <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="text-lg font-medium text-gray-900">Schedule Management</h3>
-                          <p className="mt-1 text-sm text-gray-600">Manage schedules for church sacrament services.</p>
-                        </div>
+              <div className="overflow-x-auto">
+                <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900">Schedule Management</h3>
+                        <p className="mt-1 text-sm text-gray-600">Manage schedules for church sacrament services.</p>
+                      </div>
                         <div className="flex items-center gap-3">
+                          {/* Service Filter */}
+                          <div className="flex items-center">
+                            <Filter className="h-4 w-4 mr-2 text-gray-400" />
+                            <select
+                              value={selectedService}
+                              onChange={(e) => setSelectedService(e.target.value)}
+                              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              <option value="">All Services</option>
+                              {services.map((service) => (
+                                <option key={service.ServiceID} value={service.ServiceID.toString()}>
+                                  {service.ServiceName}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
                           {/* View Toggle */}
                           <div className="flex items-center bg-gray-100 rounded-lg p-1">
                             <button
@@ -296,13 +294,13 @@ const SchedulePage = () => {
                             </button>
                           </div>
                           
-                          <Button onClick={() => setShowCreateModal(true)} className="flex items-center" disabled={services.length === 0}>
+                          <Button onClick={() => setShowCreateModal(true)} className="flex items-center" disabled={isLoading || services.length === 0}>
                             <Plus className="mr-2 h-4 w-4" />
                             Add Schedule
                           </Button>
                         </div>
-                      </div>
                     </div>
+                  </div>
                     
                     {/* Dynamic Content Area */}
                     {viewMode === "calendar" ? (
@@ -321,31 +319,6 @@ const SchedulePage = () => {
                             selectedService={selectedService}
                             searchTerm={searchTerm}
                           />
-                        )}
-                      </div>
-                    ) : isLoading ? (
-                      <div className="py-12">
-                        <DataLoading message="Loading schedules..." />
-                      </div>
-                    ) : filteredSchedules.length === 0 ? (
-                      <div className="text-center py-12">
-                        <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">
-                          {searchTerm || selectedService ? 'No Schedules Found' : 'No Schedules Yet'}
-                        </h3>
-                        <p className="text-gray-600 mb-6">
-                          {searchTerm || selectedService 
-                            ? 'No schedules match your current filters.' 
-                            : 'Get started by creating your first schedule for a service.'}
-                        </p>
-                        {!searchTerm && !selectedService && (
-                          <Button
-                            onClick={() => setShowCreateModal(true)}
-                            className="flex items-center mx-auto"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Create Schedule
-                          </Button>
                         )}
                       </div>
                     ) : (
@@ -376,7 +349,40 @@ const SchedulePage = () => {
                               </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                              {currentSchedules.length > 0 ? (
+                              {isLoading ? (
+                                <tr>
+                                  <td colSpan={7} className="px-6 py-12">
+                                    <div className="flex justify-center">
+                                      <DataLoading message="Loading schedules..." />
+                                    </div>
+                                  </td>
+                                </tr>
+                              ) : filteredSchedules.length === 0 ? (
+                                <tr>
+                                  <td colSpan={7} className="px-6 py-12 text-center">
+                                    <div className="text-center">
+                                      <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                                        {searchTerm || selectedService ? 'No Schedules Found' : 'No Schedules Yet'}
+                                      </h3>
+                                      <p className="text-gray-600 mb-6">
+                                        {searchTerm || selectedService 
+                                          ? 'No schedules match your current filters.' 
+                                          : 'Get started by creating your first schedule for a service.'}
+                                      </p>
+                                      {!searchTerm && !selectedService && (
+                                        <Button
+                                          onClick={() => setShowCreateModal(true)}
+                                          className="flex items-center mx-auto"
+                                        >
+                                          <Plus className="h-4 w-4 mr-2" />
+                                          Create Schedule
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ) : (
                                 currentSchedules.map((schedule) => (
                                   <tr key={schedule.ScheduleID} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 whitespace-nowrap">
@@ -446,21 +452,14 @@ const SchedulePage = () => {
                                     </td>
                                   </tr>
                                 ))
-                              ) : (
-                                <tr>
-                                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                                    {searchTerm ? 'No schedules found matching your search.' : 'No schedules available.'}
-                                  </td>
-                                </tr>
                               )}
                             </tbody>
                           </table>
                         </div>
                       </>
                     )}
-                  </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
