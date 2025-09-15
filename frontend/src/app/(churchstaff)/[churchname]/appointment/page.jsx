@@ -541,69 +541,6 @@ const AppointmentPage = () => {
                     </div>
                   )}
 
-                  {/* Submitted Documents Section */}
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <div className="h-1 w-8 bg-purple-500 rounded-full"></div>
-                      <h3 className="text-lg font-semibold text-gray-900">Submitted Documents</h3>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      {appointmentDetails?.documents && appointmentDetails.documents.length > 0 ? (
-                        <div className="space-y-3">
-                          {appointmentDetails.documents.map((doc, index) => (
-                            <div key={index} className="bg-white rounded-lg p-4 border-2 border-gray-200 hover:border-gray-300 transition-colors duration-200 flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                                  <FileText className="h-5 w-5 text-purple-600" />
-                                </div>
-                                <div>
-                                  <p className="font-medium text-gray-900">{doc.OriginalFileName}</p>
-                                  <p className="text-sm text-gray-500">
-                                    File size: {(doc.FileSize / 1024).toFixed(1)} KB
-                                  </p>
-                                </div>
-                              </div>
-                              <Button
-                                onClick={async () => {
-                                  try {
-                                    const response = await axios.get(`/api/appointments/documents/${doc.DocumentID}`, {
-                                      responseType: 'blob'
-                                    });
-                                    
-                                    // Create blob URL and download
-                                    const blob = new Blob([response.data]);
-                                    const url = window.URL.createObjectURL(blob);
-                                    const link = document.createElement('a');
-                                    link.href = url;
-                                    link.download = doc.OriginalFileName;
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-                                    window.URL.revokeObjectURL(url);
-                                  } catch (error) {
-                                    console.error('Error downloading document:', error);
-                                    alert('Failed to download document');
-                                  }
-                                }}
-                                variant="outline"
-                                className="px-4 py-2 text-sm font-medium text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100 transition-colors"
-                              >
-                                Download
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="bg-white rounded-lg p-8 border-2 border-gray-200 text-center">
-                          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <FileText className="h-8 w-8 text-gray-400" />
-                          </div>
-                          <p className="text-gray-600">No documents were submitted with this appointment.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
                 </div>
               )}
             </div>

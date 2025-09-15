@@ -117,7 +117,7 @@ Route::middleware('auth:sanctum')->group(function () {
 //Appointments
 Route::middleware('auth:sanctum')->group(function () {
     // Submit appointment application
-    Route::post('/appointments', [AppointmentController::class, 'store'])->name('appointments.store');
+    Route::post('/sacrament-applications', [AppointmentController::class, 'store'])->name('sacrament-applications.store');
     
     // Get user's appointments
     Route::get('/appointments', [AppointmentController::class, 'getUserAppointments'])->name('appointments.index');

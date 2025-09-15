@@ -17,26 +17,19 @@ use App\Models\ServiceRequirement;
 class AppointmentController extends Controller
 {
     /**
-     * Submit a new appointment application
+     * Submit a simplified sacrament application (no form data required)
      */
     public function store(Request $request): JsonResponse
     {
         try {
-            // Parse form_data if it comes as JSON string (from multipart/form-data)
-            $requestData = $request->all();
-            if (isset($requestData['form_data']) && is_string($requestData['form_data'])) {
-                $requestData['form_data'] = json_decode($requestData['form_data'], true);
-            }
-
             // Basic validation
-            $validator = Validator::make($requestData, [
+            $validator = Validator::make($request->all(), [
                 'church_id' => 'required|integer|exists:Church,ChurchID',
                 'service_id' => 'required|integer|exists:sacrament_service,ServiceID',
                 'schedule_id' => 'required|integer|exists:service_schedules,ScheduleID',
                 'schedule_time_id' => 'required|integer|exists:schedule_times,ScheduleTimeID',
                 'selected_date' => 'required|date|after_or_equal:today',
-                'form_data' => 'required|array',
-                'notes' => 'nullable|string|max:1000',
+                'status' => 'sometimes|in:pending,accepted,rejected'
             ]);
 
             if ($validator->fails()) {
@@ -78,7 +71,7 @@ class AppointmentController extends Controller
             }
 
             // Verify schedule belongs to service
-            $schedule = \App\Models\ServiceSchedule::where('ScheduleID', $request->schedule_id)
+            $schedule = ServiceSchedule::where('ScheduleID', $request->schedule_id)
                                      ->where('ServiceID', $request->service_id)
                                      ->first();
 
@@ -100,56 +93,20 @@ class AppointmentController extends Controller
                 ], 404);
             }
 
-            // Check/create slot tracking record for this specific ScheduleTimeID and date
-            $slotRecord = DB::table('schedule_time_date_slots')
+            // Check for duplicate application
+            $existingAppointment = DB::table('Appointment')
+                ->where('UserID', $user->id)
+                ->where('ServiceID', $request->service_id)
+                ->where('ScheduleID', $request->schedule_id)
                 ->where('ScheduleTimeID', $request->schedule_time_id)
-                ->where('SlotDate', $request->selected_date)
+                ->whereDate('AppointmentDate', $request->selected_date)
+                ->whereIn('Status', ['Pending', 'Approved'])
                 ->first();
 
-            // If no slot record exists, create one with full capacity
-            if (!$slotRecord) {
-                DB::table('schedule_time_date_slots')->insert([
-                    'ScheduleTimeID' => $request->schedule_time_id,
-                    'SlotDate' => $request->selected_date,
-                    'RemainingSlots' => $schedule->SlotCapacity,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-                $remainingSlots = $schedule->SlotCapacity;
-            } else {
-                $remainingSlots = $slotRecord->RemainingSlots;
-            }
-
-            // Check if slots are available
-            if ($remainingSlots <= 0) {
+            if ($existingAppointment) {
                 return response()->json([
-                    'error' => 'No slots available for the selected date and time.'
-                ], 422);
-            }
-
-            // Get form fields for validation
-            $inputFields = ServiceInputField::where('ServiceID', $request->service_id)
-                                          ->orderBy('SortOrder')
-                                          ->get();
-
-            // Use parsed form data
-            $formData = $requestData['form_data'];
-
-            // Validate required form fields
-            foreach ($inputFields as $field) {
-                // Skip non-input field types
-                if (in_array($field->InputType, ['heading', 'paragraph', 'label', 'container'])) {
-                    continue;
-                }
-                
-                $fieldKey = "field_{$field->InputFieldID}";
-                $fieldValue = $formData[$fieldKey] ?? null;
-                
-                if ($field->IsRequired && empty($fieldValue)) {
-                    return response()->json([
-                        'error' => "Field '{$field->Label}' is required."
-                    ], 422);
-                }
+                    'error' => 'You already have an application for this service, date, and time slot.'
+                ], 409);
             }
 
             // Combine the selected date with the schedule time's start time
@@ -157,109 +114,42 @@ class AppointmentController extends Controller
                 ->setTimeFromTimeString($scheduleTime->StartTime)
                 ->format('Y-m-d H:i:s');
 
-            DB::beginTransaction();
+            // Create appointment
+            $appointmentData = [
+                'UserID' => $user->id,
+                'ChurchID' => $request->church_id,
+                'ServiceID' => $request->service_id,
+                'ScheduleID' => $request->schedule_id,
+                'ScheduleTimeID' => $request->schedule_time_id,
+                'AppointmentDate' => $appointmentDateTime,
+                'Status' => ucfirst($request->get('status', 'pending')),
+                'Notes' => 'Simple application submission - no form data provided',
+                'created_at' => now(),
+                'updated_at' => now()
+            ];
 
-            try {
-                // Create appointment
-                $appointmentData = [
-                    'UserID' => $user->id,
-                    'ChurchID' => $request->church_id,
-                    'ServiceID' => $request->service_id,
-                    'ScheduleID' => $request->schedule_id,
-                    'ScheduleTimeID' => $request->schedule_time_id,
-                    'AppointmentDate' => $appointmentDateTime,
-                    'Status' => 'Pending',
-                    'Notes' => $request->notes
-                ];
+            $appointmentId = DB::table('Appointment')->insertGetId($appointmentData);
 
-                $appointmentId = DB::table('Appointment')->insertGetId($appointmentData);
-
-                // Save form field answers
-                foreach ($inputFields as $field) {
-                    // Skip non-input field types
-                    if (in_array($field->InputType, ['heading', 'paragraph', 'label', 'container'])) {
-                        continue;
-                    }
-                    
-                    $fieldKey = "field_{$field->InputFieldID}";
-                    $fieldValue = $formData[$fieldKey] ?? null;
-                    
-                    if ($fieldValue !== null && $fieldValue !== '') {
-                        DB::table('AppointmentInputAnswer')->insert([
-                            'AppointmentID' => $appointmentId,
-                            'InputFieldID' => $field->InputFieldID,
-                            'AnswerText' => is_array($fieldValue) ? json_encode($fieldValue) : (string)$fieldValue
-                        ]);
-                    }
-                }
-
-                // Handle file uploads if any
-                $uploadedDocuments = $request->file('documents', []);
-                $requirements = ServiceRequirement::where('ServiceID', $request->service_id)
-                                                ->orderBy('SortOrder')
-                                                ->get();
-
-                foreach ($requirements as $index => $requirement) {
-                    $fileKey = "document_{$index}";
-                    
-                    if (isset($uploadedDocuments[$fileKey])) {
-                        $file = $uploadedDocuments[$fileKey];
-                        
-                        // Generate unique filename
-                        $originalName = $file->getClientOriginalName();
-                        $extension = $file->getClientOriginalExtension();
-                        $storedName = Str::uuid() . '.' . $extension;
-                        
-                        // Store file
-                        $filePath = $file->storeAs('appointments/documents', $storedName, 'public');
-                        
-                        // Save document record
-                        DB::table('AppointmentDocument')->insert([
-                            'AppointmentID' => $appointmentId,
-                            'FilePath' => $filePath,
-                            'OriginalFileName' => $originalName,
-                            'StoredFileName' => $storedName,
-                            'FileSize' => $file->getSize(),
-                            'MimeType' => $file->getMimeType()
-                        ]);
-                    } elseif ($requirement->IsMandatory) {
-                        throw new \Exception("Required document '{$requirement->Description}' is missing.");
-                    }
-                }
-
-                // Decrement the remaining slots for this specific ScheduleTimeID and date
-                DB::table('schedule_time_date_slots')
-                    ->where('ScheduleTimeID', $request->schedule_time_id)
-                    ->where('SlotDate', $request->selected_date)
-                    ->decrement('RemainingSlots', 1);
-
-                DB::commit();
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Your appointment application has been submitted successfully.',
-                    'appointment_id' => $appointmentId,
-                    'appointment' => [
-                        'id' => $appointmentId,
-                        'church_name' => $church->ChurchName,
-                        'service_name' => $service->ServiceName,
-                        'appointment_date' => $appointmentDateTime,
-                        'status' => 'Pending'
-                    ]
-                ], 201);
-
-            } catch (\Exception $e) {
-                DB::rollBack();
-                throw $e;
-            }
+            return response()->json([
+                'success' => true,
+                'message' => 'Your sacrament application has been submitted successfully.',
+                'application' => [
+                    'id' => $appointmentId,
+                    'church_name' => $church->ChurchName,
+                    'service_name' => $service->ServiceName,
+                    'appointment_date' => $appointmentDateTime,
+                    'status' => ucfirst($request->get('status', 'pending'))
+                ]
+            ], 201);
 
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'An error occurred while submitting your appointment.',
+                'error' => 'An error occurred while submitting your application.',
                 'details' => $e->getMessage()
             ], 500);
         }
     }
+
 
     /**
      * Get user's appointments
@@ -337,20 +227,8 @@ class AppointmentController extends Controller
 
             // Skip form answers for now
 
-            // Get documents
-            $documents = DB::table('AppointmentDocument')
-                          ->where('AppointmentID', $appointmentId)
-                          ->select([
-                              'DocumentID',
-                              'OriginalFileName',
-                              'FileSize',
-                              'MimeType'
-                          ])
-                          ->get();
-
             return response()->json([
-                'appointment' => $appointment,
-                'documents' => $documents
+                'appointment' => $appointment
             ]);
 
         } catch (\Exception $e) {
@@ -416,7 +294,7 @@ class AppointmentController extends Controller
     }
 
     /**
-     * Update appointment status
+     * Update appointment status with slot management
      */
     public function updateStatus(Request $request, int $appointmentId): JsonResponse
     {
@@ -432,30 +310,176 @@ class AppointmentController extends Controller
                 ], 422);
             }
 
-            // Update appointment status
-            $updated = DB::table('Appointment')
+            // Get current appointment details before updating
+            $appointment = DB::table('Appointment')
                 ->where('AppointmentID', $appointmentId)
-                ->update([
-                    'Status' => $request->status
-                ]);
+                ->first();
 
-            if (!$updated) {
+            if (!$appointment) {
                 return response()->json([
                     'error' => 'Appointment not found.'
                 ], 404);
             }
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Appointment status updated successfully.',
-                'status' => $request->status
-            ]);
+            $newStatus = $request->status;
+            $oldStatus = $appointment->Status;
+
+            // Start database transaction for atomic operations
+            DB::beginTransaction();
+
+            try {
+                // Update appointment status
+                $updated = DB::table('Appointment')
+                    ->where('AppointmentID', $appointmentId)
+                    ->update([
+                        'Status' => $newStatus,
+                        'updated_at' => now()
+                    ]);
+
+                if (!$updated) {
+                    throw new \Exception('Failed to update appointment status.');
+                }
+
+                // Handle slot management based on status changes
+                $this->updateSlotAvailability($appointment, $oldStatus, $newStatus);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Appointment status updated successfully.',
+                    'status' => $newStatus,
+                    'previous_status' => $oldStatus
+                ]);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
 
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'An error occurred while updating appointment status.',
                 'details' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Update slot availability based on appointment status changes
+     */
+    private function updateSlotAvailability($appointment, string $oldStatus, string $newStatus): void
+    {
+        // Get the appointment date (just the date part)
+        $appointmentDate = \Carbon\Carbon::parse($appointment->AppointmentDate)->format('Y-m-d');
+        $scheduleTimeId = $appointment->ScheduleTimeID;
+        $scheduleId = $appointment->ScheduleID;
+
+        // Get schedule capacity to initialize slots if needed
+        $schedule = DB::table('service_schedules')
+            ->where('ScheduleID', $scheduleId)
+            ->first();
+
+        if (!$schedule) {
+            throw new \Exception('Schedule not found.');
+        }
+
+        $slotCapacity = $schedule->SlotCapacity;
+
+        // Ensure date slot exists for this schedule time and date
+        $this->ensureDateSlotExists($scheduleTimeId, $appointmentDate, $slotCapacity);
+
+        // Determine slot adjustment based on status transition
+        $slotAdjustment = $this->calculateSlotAdjustment($oldStatus, $newStatus);
+
+        if ($slotAdjustment !== 0) {
+            // Update remaining slots
+            $this->adjustRemainingSlots($scheduleTimeId, $appointmentDate, $slotAdjustment, $slotCapacity);
+        }
+    }
+
+    /**
+     * Calculate how many slots to adjust based on status change
+     */
+    private function calculateSlotAdjustment(string $oldStatus, string $newStatus): int
+    {
+        // Define which statuses "consume" a slot (reduce availability)
+        $slotConsumingStatuses = ['Approved', 'Completed'];
+        
+        $oldConsumesSlot = in_array($oldStatus, $slotConsumingStatuses);
+        $newConsumesSlot = in_array($newStatus, $slotConsumingStatuses);
+
+        if (!$oldConsumesSlot && $newConsumesSlot) {
+            // Transitioning to a slot-consuming status: decrease available slots
+            return -1;
+        } elseif ($oldConsumesSlot && !$newConsumesSlot) {
+            // Transitioning from a slot-consuming status: increase available slots
+            return 1;
+        }
+        
+        // No slot adjustment needed
+        return 0;
+    }
+
+    /**
+     * Ensure a date slot record exists for the given schedule time and date
+     */
+    private function ensureDateSlotExists(int $scheduleTimeId, string $date, int $slotCapacity): void
+    {
+        $existingSlot = DB::table('schedule_time_date_slots')
+            ->where('ScheduleTimeID', $scheduleTimeId)
+            ->where('SlotDate', $date)
+            ->first();
+
+        if (!$existingSlot) {
+            // Create new date slot record with full capacity
+            DB::table('schedule_time_date_slots')->insert([
+                'ScheduleTimeID' => $scheduleTimeId,
+                'SlotDate' => $date,
+                'RemainingSlots' => $slotCapacity,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+        }
+    }
+
+    /**
+     * Adjust remaining slots for a specific schedule time and date
+     */
+    private function adjustRemainingSlots(int $scheduleTimeId, string $date, int $adjustment, int $maxCapacity): void
+    {
+        // Get current slot info
+        $currentSlot = DB::table('schedule_time_date_slots')
+            ->where('ScheduleTimeID', $scheduleTimeId)
+            ->where('SlotDate', $date)
+            ->first();
+
+        if (!$currentSlot) {
+            throw new \Exception('Date slot record not found.');
+        }
+
+        $newRemainingSlots = $currentSlot->RemainingSlots + $adjustment;
+
+        // Ensure remaining slots don't go below 0 or above capacity
+        if ($newRemainingSlots < 0) {
+            throw new \Exception('Cannot approve appointment: No slots remaining for this date and time.');
+        }
+        
+        if ($newRemainingSlots > $maxCapacity) {
+            $newRemainingSlots = $maxCapacity;
+        }
+
+        // Update the remaining slots
+        $updated = DB::table('schedule_time_date_slots')
+            ->where('ScheduleTimeID', $scheduleTimeId)
+            ->where('SlotDate', $date)
+            ->update([
+                'RemainingSlots' => $newRemainingSlots,
+                'updated_at' => now()
+            ]);
+
+        if (!$updated) {
+            throw new \Exception('Failed to update slot availability.');
         }
     }
 

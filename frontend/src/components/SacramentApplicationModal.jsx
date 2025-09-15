@@ -42,6 +42,9 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
       setCurrentMonth(new Date())
       setSelectedDate(null)
       setUploadedDocuments({})
+      setSubmitError(null)
+      setSubmitSuccess(false)
+      setIsSubmitting(false)
       fetchServices()
     }
   }, [isOpen, church])
@@ -84,7 +87,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
       setFormConfig(response.data)
     } catch (err) {
       console.error('Error fetching form config:', err)
-      setFormError('Failed to load application form')
+      setFormError('Failed to load requirements')
     } finally {
       setFormLoading(false)
     }
@@ -103,8 +106,14 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
     if (schedule.times && schedule.times.length === 1) {
       const singleTimeSlot = schedule.times[0]
       
-      // Get slot availability for this time slot
-      const dateKey = selectedDate ? selectedDate.toISOString().split('T')[0] : null
+      // Get slot availability for this time slot - fix timezone issue
+      let dateKey = null
+      if (selectedDate) {
+        const year = selectedDate.getFullYear()
+        const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
+        const day = String(selectedDate.getDate()).padStart(2, '0')
+        dateKey = `${year}-${month}-${day}`
+      }
       const slotKey = `${schedule.ScheduleID}_${dateKey}`
       const slotInfo = scheduleSlotCounts[slotKey]
       const timeSlotInfo = slotInfo?.time_slots?.find(ts => ts.ScheduleTimeID === singleTimeSlot.ScheduleTimeID)
@@ -150,6 +159,54 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
   const [submitError, setSubmitError] = useState(null)
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
+
+  // Simplified application submission handler
+  const handleApplicationSubmit = async () => {
+    setIsSubmitting(true)
+    setSubmitError(null)
+    
+    try {
+      // Prepare basic application data
+      // Fix timezone issue by using local date string
+      const year = selectedDate.getFullYear()
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
+      const day = String(selectedDate.getDate()).padStart(2, '0')
+      const localDateString = `${year}-${month}-${day}`
+      
+      const applicationData = {
+        church_id: church.ChurchID,
+        service_id: selectedService.ServiceID,
+        schedule_id: selectedSchedule.ScheduleID,
+        schedule_time_id: selectedScheduleTime.ScheduleTimeID,
+        selected_date: localDateString, // YYYY-MM-DD format using local date
+        status: 'pending'
+      }
+      
+      console.log('Submitting application:', applicationData)
+      
+      // Submit to API (we'll create this endpoint later)
+      const response = await axios.post('/api/sacrament-applications', applicationData)
+      
+      setSubmitSuccess(true)
+      setShowSuccessModal(true)
+      // Auto-dismiss success modal and close main modal after short delay
+      setTimeout(() => {
+        setShowSuccessModal(false)
+        setSubmitSuccess(false)
+        onClose()
+      }, 2000)
+      
+    } catch (error) {
+      console.error('Error submitting application:', error)
+      setSubmitError(
+        error.response?.data?.error || 
+        error.response?.data?.message || 
+        'Failed to submit application. Please try again.'
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   const handleFormSubmit = async (e) => {
     e.preventDefault()
@@ -228,15 +285,26 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
     const fees = schedule.fees || []
     
     return {
-      date: startDate.toLocaleDateString(),
+      date: startDate.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        month: 'long', 
+        day: 'numeric', 
+        year: 'numeric' 
+      }),
       totalSlots: schedule.SlotCapacity,
       fees: fees.map(f => `${f.FeeType}: ₱${f.Fee}`).join(', ') || 'No fees'
     }
   }
 
   const formatScheduleTimeDisplay = (scheduleTime, schedule) => {
-    // Get slot count for this specific schedule time and selected date
-    const dateKey = selectedDate ? selectedDate.toISOString().split('T')[0] : null
+    // Get slot count for this specific schedule time and selected date - fix timezone issue
+    let dateKey = null
+    if (selectedDate) {
+      const year = selectedDate.getFullYear()
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
+      const day = String(selectedDate.getDate()).padStart(2, '0')
+      dateKey = `${year}-${month}-${day}`
+    }
     const slotKey = `${schedule.ScheduleID}_${dateKey}`
     const slotInfo = scheduleSlotCounts[slotKey]
     
@@ -795,7 +863,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'}`}>
                 3
               </div>
-              <span className="ml-2 text-sm font-medium">Fill Application</span>
+              <span className="ml-2 text-sm font-medium">Requirements</span>
             </div>
           </div>
         </div>
@@ -1037,7 +1105,12 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                       ) : (
                         <div>
                           <h5 className="font-medium text-gray-900 mb-3">
-                            Available Schedules for {selectedDate.toLocaleDateString()}
+                            Available Schedules for {selectedDate.toLocaleDateString('en-US', { 
+                              weekday: 'long', 
+                              month: 'long', 
+                              day: 'numeric', 
+                              year: 'numeric' 
+                            })}
                           </h5>
                           <div className="space-y-2">
                             {getSchedulesForDate(selectedDate).map((schedule) => {
@@ -1154,9 +1227,9 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900">Application Form</h3>
+                  <h3 className="text-lg font-medium text-gray-900">Requirements</h3>
                   <p className="text-sm text-gray-600">
-                    {selectedService?.ServiceName} - {formatScheduleDisplay(selectedSchedule).date}
+                    {selectedService?.ServiceName}
                   </p>
                 </div>
                 <button
@@ -1171,7 +1244,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
               {formLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  <span className="ml-3 text-gray-600">Loading form...</span>
+                  <span className="ml-3 text-gray-600">Loading requirements...</span>
                 </div>
               ) : formError ? (
                 <div className="text-center py-8">
@@ -1184,12 +1257,12 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleFormSubmit}>
+<div>
                   {/* Requirements */}
-                  {formConfig.requirements && formConfig.requirements.length > 0 && (
-                    <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <h4 className="font-medium text-yellow-800 mb-2">Requirements</h4>
-                      <ul className="list-disc list-inside space-y-1">
+                  {formConfig.requirements && formConfig.requirements.length > 0 ? (
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-6">
+                      <h4 className="font-medium text-yellow-800 mb-3">Requirements for this Sacrament</h4>
+                      <ul className="list-disc list-inside space-y-2">
                         {formConfig.requirements.map((req, index) => (
                           <li key={index} className={`text-sm ${req.is_mandatory ? 'text-yellow-800' : 'text-yellow-700'}`}>
                             {req.description}
@@ -1198,186 +1271,53 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                         ))}
                       </ul>
                     </div>
-                  )}
-
-                  {/* Form Fields */}
-                  {formConfig.form_elements && formConfig.form_elements.length > 0 ? (
-                    (() => {
-                      // Find container element to get dimensions
-                      const containerElement = formConfig.form_elements.find(el => el.type === 'container')
-                      
-                      if (containerElement) {
-                        // Use container dimensions and styling
-                        const containerProps = containerElement.properties || {}
-                        return (
-                          <div 
-                            style={{ 
-                              position: 'relative',
-                              width: `${containerProps.width || 600}px`,
-                              height: `${containerProps.height || 400}px`,
-                              border: `${containerProps.borderWidth || 2}px solid ${containerProps.borderColor || '#e5e7eb'}`,
-                              borderRadius: `${containerProps.borderRadius || 8}px`,
-                              backgroundColor: containerProps.backgroundColor || '#ffffff',
-                              padding: `${containerProps.padding || 20}px`,
-                              margin: '20px auto',
-                              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-                            }}
-                          >
-                            {formConfig.form_elements
-                              .filter(el => el.type !== 'container')
-                              .map(renderFormField)
-                            }
-                          </div>
-                        )
-                      } else {
-                        // Fallback to default container if no container element found
-                        return (
-                          <div 
-                            style={{ 
-                              position: 'relative',
-                              width: '100%',
-                              minHeight: '500px',
-                              border: '2px solid #e5e7eb',
-                              borderRadius: '12px',
-                              backgroundColor: '#ffffff',
-                              padding: '32px',
-                              margin: '20px 0',
-                              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-                            }}
-                          >
-                            {formConfig.form_elements.map(renderFormField)}
-                          </div>
-                        )
-                      }
-                    })()
                   ) : (
-                    <div className="text-center py-8">
-                      <p className="text-gray-600">No form configuration found for this service.</p>
+                    <div className="text-center py-8 mb-6">
+                      <p className="text-gray-600">No specific requirements have been set for this sacrament.</p>
                     </div>
                   )}
 
-                  {/* Document Submission Section */}
-                  {formConfig.requirements && formConfig.requirements.length > 0 && (
-                    <div className="mt-8 mb-6">
-                      <h4 className="text-lg font-medium text-gray-900 mb-4">Document Submission</h4>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Please upload the required documents for your application. Make sure all files are clear and legible.
-                      </p>
-                      
-                      <div className="space-y-4">
-                        {formConfig.requirements.map((req, index) => (
-                          <div key={index} className="border border-gray-200 rounded-lg p-4">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex-1">
-                                <h5 className="font-medium text-gray-900 text-sm">
-                                  {req.description}
-                                  {req.is_mandatory && (
-                                    <span className="text-red-500 ml-1">*</span>
-                                  )}
-                                </h5>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {req.is_mandatory ? 'Required' : 'Optional'} • Accepted formats: PDF, JPG, PNG
-                                </p>
-                              </div>
-                            </div>
-                            
-                            {uploadedDocuments[index] ? (
-                              <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-md p-3">
-                                <div className="flex items-center">
-                                  <FileText className="w-4 h-4 text-green-600 mr-2" />
-                                  <div>
-                                    <p className="text-sm font-medium text-green-800">
-                                      {uploadedDocuments[index].name}
-                                    </p>
-                                    <p className="text-xs text-green-600">
-                                      {(uploadedDocuments[index].size / 1024 / 1024).toFixed(2)} MB
-                                    </p>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => removeDocument(index)}
-                                  className="text-red-500 hover:text-red-700 transition-colors"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="border-2 border-dashed border-gray-300 rounded-md p-6">
-                                <div className="text-center">
-                                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                                  <p className="text-sm text-gray-600 mb-2">
-                                    Drop file here or click to browse
-                                  </p>
-                                  <input
-                                    type="file"
-                                    accept=".pdf,.jpg,.jpeg,.png"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0]
-                                      if (file) {
-                                        handleFileUpload(index, file)
-                                      }
-                                    }}
-                                    className="hidden"
-                                    id={`file-upload-${index}`}
-                                  />
-                                  <label
-                                    htmlFor={`file-upload-${index}`}
-                                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer transition-colors"
-                                  >
-                                    <Upload className="w-4 h-4 mr-2" />
-                                    Choose File
-                                  </label>
-                                  <p className="text-xs text-gray-500 mt-2">
-                                    Max file size: 10MB
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                  {/* Application Summary */}
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
+                    <h4 className="font-medium text-blue-800 mb-3">Application Summary</h4>
+                    <div className="space-y-2 text-sm text-blue-700">
+                      <div><span className="font-medium">Service:</span> {selectedService?.ServiceName}</div>
+                      <div><span className="font-medium">Date:</span> {selectedDate?.toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        month: 'long', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      })}</div>
+                      <div><span className="font-medium">Time:</span> {selectedScheduleTime?.StartTime} - {selectedScheduleTime?.EndTime}</div>
+                      <div><span className="font-medium">Church:</span> {church?.ChurchName}</div>
                     </div>
-                  )}
+                  </div>
 
                   {/* Error Message */}
                   {submitError && (
-                    <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
-                      <div className="flex">
-                        <div className="flex-shrink-0">
-                          <X className="h-5 w-5 text-red-400" />
-                        </div>
-                        <div className="ml-3">
-                          <h3 className="text-sm font-medium text-red-800">Submission Failed</h3>
-                          <div className="mt-1 text-sm text-red-700">
-                            {submitError}
-                          </div>
-                        </div>
-                      </div>
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-6">
+                      <p className="text-red-800 text-sm">{submitError}</p>
                     </div>
                   )}
 
-
                   {/* Submit Button */}
-                  <div className="mt-6 pt-4 border-t border-gray-200">
+                  <div className="flex justify-end">
                     <button
-                      type="submit"
-                      disabled={isSubmitting || submitSuccess}
-                      className="w-full inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      onClick={handleApplicationSubmit}
+                      disabled={isSubmitting}
+                      className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
                     >
                       {isSubmitting ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                           Submitting...
                         </>
-                      ) : submitSuccess ? (
-                        <>Submitted Successfully</>
                       ) : (
-                        <>Submit Application</>
+                        'Submit Application'
                       )}
                     </button>
                   </div>
-                </form>
+                </div>
               )}
             </div>
           )}

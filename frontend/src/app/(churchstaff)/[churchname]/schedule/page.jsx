@@ -11,13 +11,17 @@ import {
   Trash2,
   Edit,
   Search,
-  Filter
+  Filter,
+  Grid,
+  CalendarDays
 } from "lucide-react";
 import { Button } from "@/components/Button.jsx";
 import { useAuth } from "@/hooks/auth.jsx";
 import ScheduleModal from "@/components/schedules/ScheduleModal.jsx";
+import ScheduleCalendarView from "@/components/schedules/ScheduleCalendarView.jsx";
 import ConfirmDialog from "@/components/ConfirmDialog.jsx";
 import DataLoading from "@/components/DataLoading.jsx";
+import SearchAndPagination from "@/components/SearchAndPagination";
 import axios from "@/lib/axios";
 
 const SchedulePage = () => {
@@ -37,6 +41,9 @@ const SchedulePage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [scheduleToDelete, setScheduleToDelete] = useState(null);
+  const [viewMode, setViewMode] = useState("table"); // "table" or "calendar"
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   // Check if user has access
   const hasAccess = user?.profile?.system_role?.role_name === "ChurchOwner" ||
@@ -76,7 +83,24 @@ const SchedulePage = () => {
     }
     
     setFilteredSchedules(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
   }, [schedules, selectedService, searchTerm]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredSchedules.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentSchedules = filteredSchedules.slice(startIndex, endIndex);
+
+  // Handle search
+  const handleSearch = (term) => {
+    setSearchTerm(term);
+  };
+
+  // Handle pagination
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
 
   const loadData = async () => {
     try {
@@ -196,204 +220,248 @@ const SchedulePage = () => {
     <div className="lg:p-6 w-full h-screen pt-20">
       <div className="max-w-7xl mx-auto h-full">
         <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
-          {/* Header */}
-          <div className="p-6 bg-white border-b border-gray-200">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-2xl font-semibold text-gray-900">
-                  Schedule Management
-                </h1>
-                <p className="text-sm text-gray-600">
-                  Manage availability schedules for all church sacrament services
-                </p>
-              </div>
-              
-              <Button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center"
-                disabled={services.length === 0}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Schedule
-              </Button>
-            </div>
-
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search schedules..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-              <div className="sm:w-64">
-                <div className="relative">
-                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <select
-                    value={selectedService}
-                    onChange={(e) => setSelectedService(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+          <div className="p-6 bg-white border-b border-gray-200 flex-1 overflow-auto">
+            <h1 className="text-2xl font-semibold text-gray-900 mb-6">
+              Schedule Management
+            </h1>
+            
+            {alertMessage && (
+              <div className="mb-6">
+                <div className={`p-4 rounded-md flex justify-between items-center ${
+                  alertType === "success" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
+                }`}>
+                  <p className="text-sm font-medium">{alertMessage}</p>
+                  <button
+                    onClick={() => setAlertMessage("")}
+                    className="inline-flex text-gray-400 hover:text-gray-600"
                   >
-                    <option value="">All Services</option>
-                    {services.map((service) => (
-                      <option key={service.ServiceID} value={service.ServiceID}>
-                        {service.ServiceName}
-                      </option>
-                    ))}
-                  </select>
+                    ×
+                  </button>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Alert Message */}
-          {alertMessage && (
-            <div className="mx-6 mt-4">
-              <div className={`p-4 rounded-md flex justify-between items-center ${
-                alertType === "success" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
-              }`}>
-                <p className="text-sm font-medium">{alertMessage}</p>
-                <button
-                  onClick={() => setAlertMessage("")}
-                  className="inline-flex text-gray-400 hover:text-gray-600"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Content */}
-          <div className="flex-1 p-6 overflow-y-auto">
-            {isLoading ? (
-              <div className="py-12">
-                <DataLoading message="Loading schedules..." />
-              </div>
-            ) : services.length === 0 ? (
-              <div className="text-center py-12">
-                <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Services Available</h3>
-                <p className="text-gray-600 mb-6">
-                  You need to create sacrament services before you can manage schedules.
-                </p>
-                <Button
-                  onClick={() => router.push(`/${churchname}/sacrament`)}
-                  className="flex items-center mx-auto"
-                >
-                  Go to Sacraments
-                </Button>
-              </div>
-            ) : filteredSchedules.length === 0 ? (
-              <div className="text-center py-12">
-                <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {searchTerm || selectedService ? 'No Schedules Found' : 'No Schedules Yet'}
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  {searchTerm || selectedService 
-                    ? 'No schedules match your current filters.' 
-                    : 'Get started by creating your first schedule for a service.'}
-                </p>
-                {!searchTerm && !selectedService && (
-                  <Button
-                    onClick={() => setShowCreateModal(true)}
-                    className="flex items-center mx-auto"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Schedule
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredSchedules.map((schedule) => (
-                  <div key={schedule.ScheduleID} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow flex flex-col h-full">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {schedule.service?.ServiceName}
-                        </h3>
-                        <p className="text-sm text-gray-500">Schedule #{schedule.ScheduleID}</p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          onClick={() => setEditingSchedule(schedule)}
-                          variant="outline"
-                          className="p-2 h-auto min-h-0"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          onClick={() => handleDeleteClick(schedule)}
-                          variant="outline"
-                          className="p-2 h-auto min-h-0 text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 flex-grow">
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        <span>
-                          {new Date(schedule.StartDate).toLocaleDateString()} - {' '}
-                          {schedule.EndDate ? new Date(schedule.EndDate).toLocaleDateString() : 'Ongoing'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Settings className="h-4 w-4 mr-2" />
-                        <span>{formatRecurrence(schedule.recurrences)}</span>
-                      </div>
-
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Clock className="h-4 w-4 mr-2" />
-                        <span>{formatTimes(schedule.times)}</span>
-                      </div>
-
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Users className="h-4 w-4 mr-2" />
-                        <span>
-                          Capacity: {schedule.SlotCapacity}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center text-sm text-gray-600">
-                        <DollarSign className="h-4 w-4 mr-2" />
-                        <span>{formatFees(schedule.fees)}</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-auto pt-4 border-t border-gray-100">
-                      <div className="flex items-center justify-between">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          new Date(schedule.StartDate) <= new Date() && 
-                          (!schedule.EndDate || new Date(schedule.EndDate) >= new Date())
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {new Date(schedule.StartDate) <= new Date() && 
-                           (!schedule.EndDate || new Date(schedule.EndDate) >= new Date())
-                            ? 'Active'
-                            : 'Inactive'}
-                        </span>
-                        
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          Available
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
               </div>
             )}
+            
+            <div className="mt-6">
+              {isLoading ? (
+                <div className="flex justify-center items-center min-h-96">
+                  <DataLoading message="Checking services and loading schedules..." />
+                </div>
+              ) : services.length === 0 ? (
+                <div className="text-center py-12">
+                  <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Services Available</h3>
+                  <p className="text-gray-600 mb-6">
+                    You need to create sacrament services before you can manage schedules.
+                  </p>
+                  <Button
+                    onClick={() => router.push(`/${churchname}/sacrament`)}
+                    className="flex items-center mx-auto"
+                  >
+                    Go to Sacraments
+                  </Button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="text-lg font-medium text-gray-900">Schedule Management</h3>
+                          <p className="mt-1 text-sm text-gray-600">Manage schedules for church sacrament services.</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {/* View Toggle */}
+                          <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                            <button
+                              onClick={() => setViewMode("table")}
+                              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                                viewMode === "table" 
+                                  ? "bg-white text-blue-600 shadow-sm" 
+                                  : "text-gray-600 hover:text-gray-900"
+                              }`}
+                            >
+                              <Grid className="h-4 w-4 mr-2" />
+                              Table
+                            </button>
+                            <button
+                              onClick={() => setViewMode("calendar")}
+                              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                                viewMode === "calendar" 
+                                  ? "bg-white text-blue-600 shadow-sm" 
+                                  : "text-gray-600 hover:text-gray-900"
+                              }`}
+                            >
+                              <CalendarDays className="h-4 w-4 mr-2" />
+                              Calendar
+                            </button>
+                          </div>
+                          
+                          <Button onClick={() => setShowCreateModal(true)} className="flex items-center" disabled={services.length === 0}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Schedule
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Dynamic Content Area */}
+                    {viewMode === "calendar" ? (
+                      <div className="p-6">
+                        {isLoading ? (
+                          <div className="py-12">
+                            <DataLoading message="Loading schedules..." />
+                          </div>
+                        ) : (
+                          <ScheduleCalendarView
+                            schedules={schedules}
+                            filteredSchedules={filteredSchedules}
+                            onEditSchedule={setEditingSchedule}
+                            onDeleteSchedule={handleDeleteClick}
+                            onCreateSchedule={() => setShowCreateModal(true)}
+                            selectedService={selectedService}
+                            searchTerm={searchTerm}
+                          />
+                        )}
+                      </div>
+                    ) : isLoading ? (
+                      <div className="py-12">
+                        <DataLoading message="Loading schedules..." />
+                      </div>
+                    ) : filteredSchedules.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                          {searchTerm || selectedService ? 'No Schedules Found' : 'No Schedules Yet'}
+                        </h3>
+                        <p className="text-gray-600 mb-6">
+                          {searchTerm || selectedService 
+                            ? 'No schedules match your current filters.' 
+                            : 'Get started by creating your first schedule for a service.'}
+                        </p>
+                        {!searchTerm && !selectedService && (
+                          <Button
+                            onClick={() => setShowCreateModal(true)}
+                            className="flex items-center mx-auto"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Create Schedule
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <div className="px-6 py-4">
+                          <SearchAndPagination
+                            searchQuery={searchTerm}
+                            onSearchChange={handleSearch}
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={handlePageChange}
+                            totalItems={filteredSchedules.length}
+                            itemsPerPage={itemsPerPage}
+                            placeholder="Search schedules..."
+                          />
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recurrence</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Slots</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Capacity</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fees</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {currentSchedules.length > 0 ? (
+                                currentSchedules.map((schedule) => (
+                                  <tr key={schedule.ScheduleID} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <div className="text-sm font-medium text-gray-900">
+                                        {schedule.service?.ServiceName}
+                                      </div>
+                                      <div className="text-sm text-gray-500">
+                                        Schedule #{schedule.ScheduleID}
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                      <div className="flex items-center text-sm text-gray-600">
+                                        <Settings className="h-4 w-4 mr-2 text-gray-400" />
+                                        <span>{formatRecurrence(schedule.recurrences)}</span>
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                      <div className="flex items-center text-sm text-gray-600">
+                                        <Clock className="h-4 w-4 mr-2 text-gray-400" />
+                                        <span>{formatTimes(schedule.times)}</span>
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                      <div className="flex items-center text-sm text-gray-600">
+                                        <Users className="h-4 w-4 mr-2 text-gray-400" />
+                                        <span>{schedule.SlotCapacity}</span>
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                      <div className="flex items-center text-sm text-gray-600">
+                                        <DollarSign className="h-4 w-4 mr-2 text-gray-400" />
+                                        <span>{formatFees(schedule.fees)}</span>
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                        new Date(schedule.StartDate) <= new Date() && 
+                                        (!schedule.EndDate || new Date(schedule.EndDate) >= new Date())
+                                          ? 'bg-green-100 text-green-800'
+                                          : 'bg-gray-100 text-gray-800'
+                                      }`}>
+                                        {new Date(schedule.StartDate) <= new Date() && 
+                                         (!schedule.EndDate || new Date(schedule.EndDate) >= new Date())
+                                          ? 'Active'
+                                          : 'Inactive'}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      <div className="flex justify-center items-center space-x-2">
+                                        <Button
+                                          onClick={() => setEditingSchedule(schedule)}
+                                          variant="outline"
+                                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 min-h-0 h-auto"
+                                        >
+                                          <Edit className="h-3 w-3 mr-1" />
+                                          Edit
+                                        </Button>
+                                        <Button
+                                          onClick={() => handleDeleteClick(schedule)}
+                                          variant="outline"
+                                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto"
+                                        >
+                                          <Trash2 className="h-3 w-3 mr-1" />
+                                          Delete
+                                        </Button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                                    {searchTerm ? 'No schedules found matching your search.' : 'No schedules available.'}
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
