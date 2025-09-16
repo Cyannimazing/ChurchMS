@@ -131,4 +131,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Update appointment status
     Route::put('/appointments/{appointmentId}/status', [AppointmentController::class, 'updateStatus'])->where('appointmentId', '[0-9]+')->name('appointments.updateStatus');
     
+    // Save form data for appointment
+    Route::post('/appointments/{appointmentId}/staff-form-data', [AppointmentController::class, 'saveFormData'])->where('appointmentId', '[0-9]+')->name('appointments.saveFormData');
+    
 });

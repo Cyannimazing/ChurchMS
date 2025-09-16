@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { X, ChevronLeft, ChevronRight, Calendar, Clock, Users, Upload, FileText, Trash2 } from 'lucide-react'
 import axios from '@/lib/axios'
+import FormRenderer from './FormRenderer'
 
 const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
   const [currentStep, setCurrentStep] = useState(1)
@@ -814,7 +815,9 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col" style={{
+        maxHeight: '90vh'
+      }}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center">
@@ -1276,6 +1279,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                       <p className="text-gray-600">No specific requirements have been set for this sacrament.</p>
                     </div>
                   )}
+
 
                   {/* Application Summary */}
                   <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">

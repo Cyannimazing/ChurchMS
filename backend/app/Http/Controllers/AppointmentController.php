@@ -221,10 +221,117 @@ class AppointmentController extends Controller
                 ], 404);
             }
 
-            // Skip form answers for now
+            // Get complete form configuration for this sacrament service
+            $formFields = DB::table('service_input_field')
+                            ->where('ServiceID', $appointment->ServiceID)
+                            ->orderBy('SortOrder')
+                            ->get();
+
+            // Get service requirements
+            $requirements = DB::table('service_requirement')
+                            ->where('ServiceID', $appointment->ServiceID)
+                            ->orderBy('SortOrder')
+                            ->get();
+
+            // Get saved answers for this appointment
+            $savedAnswers = DB::table('AppointmentInputAnswer')
+                            ->where('AppointmentID', $appointmentId)
+                            ->get()
+                            ->keyBy('InputFieldID'); // Key by InputFieldID for easy lookup
+
+            // Format complete form configuration for the frontend
+            $formElements = [];
+            $containerElement = null;
+            
+            // First pass: identify container element
+            foreach ($formFields as $field) {
+                if ($field->InputType === 'container') {
+                    $containerElement = $field;
+                    break;
+                }
+            }
+            
+            foreach ($formFields as $field) {
+                $inputType = $field->InputType;
+                // Map backend types to frontend types
+                if ($inputType === 'phone') {
+                    $inputType = 'tel';
+                }
+
+                // Determine containerId - elements inside container should reference container
+                $containerId = null;
+                if ($containerElement && $field->InputFieldID !== $containerElement->InputFieldID) {
+                    // Check if element is positioned inside the container bounds
+                    $containerX = $containerElement->x_position ?? 0;
+                    $containerY = $containerElement->y_position ?? 0;
+                    $containerWidth = $containerElement->width ?? 600;
+                    $containerHeight = $containerElement->height ?? 400;
+                    $containerPadding = 30; // Default padding
+                    
+                    $elementX = $field->x_position ?? 0;
+                    $elementY = $field->y_position ?? 0;
+                    $elementWidth = $field->width ?? 300;
+                    $elementHeight = $field->height ?? 40;
+                    
+                    // Check if element is inside container bounds (accounting for padding)
+                    if ($elementX >= $containerX + $containerPadding &&
+                        $elementY >= $containerY + $containerPadding &&
+                        $elementX + $elementWidth <= $containerX + $containerWidth - $containerPadding &&
+                        $elementY + $elementHeight <= $containerY + $containerHeight - $containerPadding) {
+                        $containerId = $containerElement->InputFieldID;
+                        // Convert absolute position to relative position within container
+                        $field->x_position = $elementX - $containerX - $containerPadding;
+                        $field->y_position = $elementY - $containerY - $containerPadding;
+                    }
+                }
+
+                // Get previously saved answer for this field, or blank if none
+                $savedAnswer = $savedAnswers->get($field->InputFieldID);
+                $answerText = $savedAnswer ? $savedAnswer->AnswerText : '';
+
+                $formElements[] = [
+                    'id' => $field->InputFieldID,
+                    'type' => $inputType,
+                    'label' => $field->Label,
+                    'placeholder' => $field->Placeholder,
+                    'required' => $field->IsRequired,
+                    'options' => $field->Options ? json_decode($field->Options, true) : [],
+                    'x' => $field->x_position ?? 0,
+                    'y' => $field->y_position ?? 0,
+                    'width' => $field->width ?? 300,
+                    'height' => $field->height ?? 40,
+                    'content' => $field->text_content ?? '',
+                    'headingSize' => $field->text_size ?? 'h2',
+                    'textAlign' => $field->text_align ?? 'left',
+                    'textColor' => $field->text_color ?? '#000000',
+                    'rows' => $field->textarea_rows ?? 3,
+                    'zIndex' => $field->z_index ?? 1,
+                    'containerId' => $containerId,
+                    'answer' => $answerText,
+                    // Additional styling properties for container
+                    'backgroundColor' => $inputType === 'container' ? '#ffffff' : null,
+                    'borderColor' => $inputType === 'container' ? '#e5e7eb' : null,
+                    'borderWidth' => $inputType === 'container' ? 2 : null,
+                    'borderRadius' => $inputType === 'container' ? 8 : null,
+                    'padding' => $inputType === 'container' ? 30 : null,
+                ];
+            }
+
+            // Format requirements
+            $formRequirements = [];
+            foreach ($requirements as $req) {
+                $formRequirements[] = [
+                    'description' => $req->Description,
+                    'mandatory' => $req->IsMandatory
+                ];
+            }
 
             return response()->json([
-                'appointment' => $appointment
+                'appointment' => $appointment,
+                'formConfiguration' => [
+                    'form_elements' => $formElements,
+                    'requirements' => $formRequirements
+                ]
             ]);
 
         } catch (\Exception $e) {
@@ -477,5 +584,124 @@ class AppointmentController extends Controller
         if (!$updated) {
             throw new \Exception('Failed to update slot availability.');
         }
+    }
+
+    /**
+     * Save form data for an appointment
+     */
+    public function saveFormData(Request $request, int $appointmentId): JsonResponse
+    {
+        try {
+            // Validate the request
+            $validator = Validator::make($request->all(), [
+                'formData' => 'required|array'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => 'Invalid form data provided.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Verify appointment exists
+            $appointment = DB::table('Appointment')
+                ->where('AppointmentID', $appointmentId)
+                ->first();
+
+            if (!$appointment) {
+                return response()->json([
+                    'error' => 'Appointment not found.'
+                ], 404);
+            }
+
+            $formData = $request->formData;
+            $savedAnswers = [];
+
+            // Start transaction for atomic operations
+            DB::beginTransaction();
+
+            try {
+                foreach ($formData as $fieldName => $answerText) {
+                    // Extract field ID from field name (assuming format like "field_123" or just "123")
+                    $inputFieldId = $this->extractFieldId($fieldName);
+                    
+                    if (!$inputFieldId) {
+                        continue; // Skip invalid field names
+                    }
+
+                    // Verify the field exists and belongs to this appointment's service
+                    $fieldExists = DB::table('service_input_field')
+                        ->where('InputFieldID', $inputFieldId)
+                        ->where('ServiceID', $appointment->ServiceID)
+                        ->exists();
+
+                    if (!$fieldExists) {
+                        continue; // Skip fields that don't exist or don't belong to this service
+                    }
+
+                    // Insert or update the answer
+                    DB::table('AppointmentInputAnswer')->updateOrInsert(
+                        [
+                            'AppointmentID' => $appointmentId,
+                            'InputFieldID' => $inputFieldId
+                        ],
+                        [
+                            'AnswerText' => $answerText,
+                            'updated_at' => now()
+                        ]
+                    );
+
+                    $savedAnswers[] = [
+                        'field_id' => $inputFieldId,
+                        'field_name' => $fieldName,
+                        'answer' => $answerText
+                    ];
+                }
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Form data saved successfully.',
+                    'appointment_id' => $appointmentId,
+                    'saved_answers' => $savedAnswers,
+                    'total_answers' => count($savedAnswers)
+                ]);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while saving form data.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Extract field ID from field name
+     */
+    private function extractFieldId(string $fieldName): ?int
+    {
+        // Try to extract numeric ID from various field name formats
+        if (is_numeric($fieldName)) {
+            return (int) $fieldName;
+        }
+        
+        // Handle "field_123" format
+        if (preg_match('/field[_-]?(\d+)/', $fieldName, $matches)) {
+            return (int) $matches[1];
+        }
+        
+        // Handle other numeric patterns
+        if (preg_match('/\d+/', $fieldName, $matches)) {
+            return (int) $matches[0];
+        }
+        
+        return null;
     }
 }

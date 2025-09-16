@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/auth.jsx";
 import DataLoading from "@/components/DataLoading";
 import SearchAndPagination from "@/components/SearchAndPagination";
 import { Button } from "@/components/Button.jsx";
+import FormRenderer from "@/components/FormRenderer.jsx";
 
 const AppointmentPage = () => {
   const { user } = useAuth({ middleware: "auth" });
@@ -29,6 +30,9 @@ const AppointmentPage = () => {
   const [appointmentDetails, setAppointmentDetails] = useState(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  
+  // Form data state for staff input
+  const [staffFormData, setStaffFormData] = useState({});
 
   // Check if user is ChurchOwner or has appointment_list permission
   const hasAccess =
@@ -167,10 +171,25 @@ const AppointmentPage = () => {
     setShowReviewModal(true);
     setIsLoadingDetails(true);
     
+    // Reset form data for new appointment
+    setStaffFormData({});
+    
     try {
       // Fetch detailed appointment information
       const response = await axios.get(`/api/appointments/${appointment.AppointmentID}`);
       setAppointmentDetails(response.data);
+      
+      // Initialize form data with saved answers from backend
+      if (response.data?.formConfiguration?.form_elements) {
+        const initialFormData = {};
+        response.data.formConfiguration.form_elements.forEach(element => {
+          if (element.answer && element.answer.trim() !== '') {
+            initialFormData[element.id] = element.answer;
+          }
+        });
+        console.log('Initializing form data with saved answers:', initialFormData);
+        setStaffFormData(initialFormData);
+      }
     } catch (err) {
       console.error('Error fetching appointment details:', err);
       setError('Failed to load appointment details');
@@ -215,6 +234,43 @@ const AppointmentPage = () => {
     } catch (err) {
       console.error('Error updating appointment status:', err);
       setError('Failed to update appointment status');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleSaveFormData = async () => {
+    console.log('Save button clicked');
+    console.log('Selected appointment:', selectedAppointment?.AppointmentID);
+    console.log('Staff form data:', staffFormData);
+    
+    if (!selectedAppointment?.AppointmentID) {
+      alert('No appointment selected');
+      return;
+    }
+    
+    if (!staffFormData || Object.keys(staffFormData).length === 0) {
+      alert('Please fill out the form before saving');
+      return;
+    }
+
+    setIsUpdatingStatus(true);
+    
+    try {
+      console.log('Attempting to save form data...');
+      const response = await axios.post(`/api/appointments/${selectedAppointment.AppointmentID}/staff-form-data`, {
+        formData: staffFormData
+      });
+      
+      console.log('Save response:', response);
+      alert('Form data saved successfully!');
+      
+    } catch (err) {
+      console.error('Error saving form data:', err);
+      console.error('Error details:', err.response?.data);
+      
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to save form data';
+      alert(`Error saving form data: ${errorMessage}`);
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -418,7 +474,13 @@ const AppointmentPage = () => {
       {showReviewModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div
-            className="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-auto relative"
+            className="bg-white rounded-lg shadow-xl mx-auto relative"
+            style={{
+              width: '90vw',
+              maxWidth: '90vw',
+              maxHeight: '95vh',
+              minHeight: '80vh'
+            }}
             role="dialog"
             aria-labelledby="modal-title"
           >
@@ -444,30 +506,92 @@ const AppointmentPage = () => {
             </div>
 
             {/* Modal Content */}
-            <div className="px-8 py-6 max-h-[calc(95vh-140px)] overflow-y-auto">
-              {isLoadingDetails ? (
-                <div className="flex items-center justify-center py-12">
-                  <DataLoading message="Loading appointment details..." />
-                </div>
-              ) : (
-                <div className="bg-gray-50 rounded-xl p-6 space-y-6">
-                  {/* Appointment Information Section */}
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <div className="h-1 w-8 bg-blue-500 rounded-full"></div>
-                      <h3 className="text-lg font-semibold text-gray-900">Appointment Information</h3>
+            <div className="px-4 py-4 overflow-y-auto" style={{
+              maxHeight: 'calc(95vh - 140px)'
+            }}>
+              <div className="bg-gray-50 rounded-xl p-4 space-y-4">
+                {isLoadingDetails ? (
+                  <>
+                    {/* Loading skeleton for Appointment Information */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-2">
+                          <div className="h-1 w-8 bg-gray-300 rounded-full animate-pulse"></div>
+                          <div className="h-5 w-48 bg-gray-300 rounded animate-pulse"></div>
+                        </div>
+                        <div className="h-6 w-20 bg-gray-300 rounded-full animate-pulse"></div>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <div className="mb-4">
+                          <div className="space-y-2">
+                            <div className="h-6 w-64 bg-gray-300 rounded animate-pulse"></div>
+                            <div className="h-4 w-48 bg-gray-300 rounded animate-pulse"></div>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="flex items-center space-x-3">
+                            <div className="flex-shrink-0 w-10 h-10 bg-gray-300 rounded-full animate-pulse"></div>
+                            <div className="space-y-2">
+                              <div className="h-4 w-32 bg-gray-300 rounded animate-pulse"></div>
+                              <div className="h-4 w-40 bg-gray-300 rounded animate-pulse"></div>
+                              <div className="h-3 w-24 bg-gray-300 rounded animate-pulse"></div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center space-x-3">
+                            <div className="flex-shrink-0 w-10 h-10 bg-gray-300 rounded-full animate-pulse"></div>
+                            <div className="space-y-2">
+                              <div className="h-4 w-24 bg-gray-300 rounded animate-pulse"></div>
+                              <div className="h-4 w-36 bg-gray-300 rounded animate-pulse"></div>
+                              <div className="h-3 w-32 bg-gray-300 rounded animate-pulse"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Loading skeleton for form section */}
+                    <div className="space-y-4 mt-8">
+                      <div className="flex items-center space-x-2 mb-4">
+                        <div className="h-1 w-8 bg-gray-300 rounded-full animate-pulse"></div>
+                        <div className="h-5 w-56 bg-gray-300 rounded animate-pulse"></div>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <div className="h-32 w-full bg-gray-300 rounded animate-pulse"></div>
+                        <div className="h-32 w-full bg-gray-300 rounded animate-pulse"></div>
+                        <div className="h-32 w-full bg-gray-300 rounded animate-pulse"></div>
+                      </div>
+                    </div>
+
+                    {/* Loading message */}
+                    <div className="flex items-center justify-center py-8">
+                      <DataLoading message="Loading appointment details..." />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Appointment Information Section */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-2">
+                          <div className="h-1 w-8 bg-blue-500 rounded-full"></div>
+                          <h3 className="text-lg font-semibold text-gray-900">Appointment Information</h3>
+                        </div>
+                        <div>
+                          {getStatusBadge(selectedAppointment?.Status)}
+                        </div>
+                      </div>
                     
                     <div className="space-y-4">
-                      <div className="flex items-start justify-between mb-4">
+                      <div className="mb-4">
                         <div>
                           <h4 className="text-xl font-bold text-gray-900 mb-2">{selectedAppointment?.ServiceName}</h4>
                           {selectedAppointment?.ServiceDescription && (
                             <p className="text-gray-600">{selectedAppointment.ServiceDescription}</p>
                           )}
-                        </div>
-                        <div className="text-right">
-                          {getStatusBadge(selectedAppointment?.Status)}
                         </div>
                       </div>
                       
@@ -522,49 +646,87 @@ const AppointmentPage = () => {
                     </div>
                   )}
 
-                  {/* Application Responses Section */}
-                  {appointmentDetails?.answers && appointmentDetails.answers.length > 0 && (
+                  {/* Sacrament Application Form Section */}
+                  {appointmentDetails?.formConfiguration && (
                     <div className="space-y-4">
                       <div className="flex items-center space-x-2 mb-4">
                         <div className="h-1 w-8 bg-green-500 rounded-full"></div>
-                        <h3 className="text-lg font-semibold text-gray-900">Application Responses</h3>
+                        <h3 className="text-lg font-semibold text-gray-900">Sacrament Application Form</h3>
+                        <p className="text-sm text-gray-600 ml-2">Fill out the form for this applicant</p>
                       </div>
                       
-                      <div className="space-y-4">
-                        {appointmentDetails.answers.map((answer, index) => (
-                          <div key={index} className="bg-white rounded-lg p-4 border-2 border-gray-200 hover:border-gray-300 transition-colors duration-200">
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">{answer.Label}</label>
-                            <p className="text-gray-900 leading-relaxed">{answer.AnswerText}</p>
-                          </div>
-                        ))}
+                      <div style={{
+                        minHeight: '600px',
+                        width: '100%',
+                        overflow: 'visible',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'flex-start'
+                      }}>
+                        <div style={{
+                          width: '100%',
+                          maxWidth: '800px',
+                          margin: '0 auto'
+                        }}>
+                          <FormRenderer
+                            formConfiguration={appointmentDetails.formConfiguration}
+                            formData={staffFormData}
+                            updateField={(fieldName, value) => {
+                              console.log('Staff updating field:', fieldName, 'to:', value);
+                              setStaffFormData(prev => ({
+                                ...prev,
+                                [fieldName]: value
+                              }));
+                            }}
+                            readOnly={false}
+                          />
+                        </div>
                       </div>
                     </div>
                   )}
-
-                </div>
-              )}
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Footer */}
-            {!isLoadingDetails && selectedAppointment?.Status === 'Pending' && (
-              <div className="flex justify-end space-x-3 px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
-                <Button
-                  onClick={() => handleUpdateAppointmentStatus(selectedAppointment.AppointmentID, 'Rejected')}
-                  variant="outline"
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200"
-                  disabled={isUpdatingStatus}
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  {isUpdatingStatus ? 'Updating...' : 'Reject'}
-                </Button>
-                <Button
-                  onClick={() => handleUpdateAppointmentStatus(selectedAppointment.AppointmentID, 'Approved')}
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700"
-                  disabled={isUpdatingStatus}
-                >
-                  <Check className="h-4 w-4 mr-2" />
-                  {isUpdatingStatus ? 'Updating...' : 'Approve'}
-                </Button>
+            {!isLoadingDetails && (
+              <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+                <div>
+                  {appointmentDetails?.formConfiguration && (
+                    <Button
+                      onClick={() => handleSaveFormData()}
+                      variant="outline"
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200"
+                      disabled={isUpdatingStatus}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Save Form Data
+                    </Button>
+                  )}
+                </div>
+                
+                {selectedAppointment?.Status === 'Pending' && (
+                  <div className="flex space-x-3">
+                    <Button
+                      onClick={() => handleUpdateAppointmentStatus(selectedAppointment.AppointmentID, 'Rejected')}
+                      variant="outline"
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200"
+                      disabled={isUpdatingStatus}
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      {isUpdatingStatus ? 'Updating...' : 'Reject'}
+                    </Button>
+                    <Button
+                      onClick={() => handleUpdateAppointmentStatus(selectedAppointment.AppointmentID, 'Approved')}
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+                      disabled={isUpdatingStatus}
+                    >
+                      <Check className="h-4 w-4 mr-2" />
+                      {isUpdatingStatus ? 'Updating...' : 'Approve'}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
