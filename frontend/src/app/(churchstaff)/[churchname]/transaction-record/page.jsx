@@ -1,0 +1,1103 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import axios from "@/lib/axios";
+import { useRouter, useParams } from "next/navigation";
+import { DollarSign, Calendar, Eye, Receipt, Users, Search, X, RefreshCw, Settings, Percent } from "lucide-react";
+import { useAuth } from "@/hooks/auth.jsx";
+import DataLoading from "@/components/DataLoading";
+import SearchAndPagination from "@/components/SearchAndPagination";
+import { Button } from "@/components/Button.jsx";
+import Alert from "@/components/Alert.jsx";
+
+const TransactionRecordPage = () => {
+  const { user } = useAuth({ middleware: "auth" });
+  const router = useRouter();
+  const { churchname } = useParams();
+  
+  const [transactions, setTransactions] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredTransactions, setFilteredTransactions] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+  
+  // Transaction details modal state
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+  
+  // Refund modal state
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundLoading, setRefundLoading] = useState(false);
+  const [refundData, setRefundData] = useState({
+    receipt_code: '',
+    refund_reason: null,
+    apply_convenience_fee: false
+  });
+  const [refundAlert, setRefundAlert] = useState({ show: false, type: '', message: '' });
+  
+  // Alert state
+  const [alert, setAlert] = useState({ show: false, type: '', title: '', message: '' });
+  
+  // Convenience fee state
+  const [convenienceFee, setConvenienceFee] = useState(null);
+  const [showConvenienceFeeModal, setShowConvenienceFeeModal] = useState(false);
+  const [convenienceFeeForm, setConvenienceFeeForm] = useState({
+    fee_name: 'Convenience Fee',
+    fee_type: 'percent',
+    fee_value: 0,
+    is_active: true
+  });
+  const [convenienceFeeLoading, setConvenienceFeeLoading] = useState(false);
+  const [convenienceFeeAlert, setConvenienceFeeAlert] = useState({ show: false, type: '', message: '' });
+
+  // Check if user has access
+  const hasAccess =
+    user?.profile?.system_role?.role_name === "ChurchOwner" ||
+    user?.church_role?.permissions?.some(
+      (perm) => perm.PermissionName === "appointment_list"
+    );
+
+  // Fetch convenience fee
+  const fetchConvenienceFee = async () => {
+    try {
+      const sanitizedChurchName = churchname.replace(/:\d+$/, "");
+      const response = await axios.get(`/api/convenience-fees/${sanitizedChurchName}`);
+      
+      if (response.data.success && response.data.convenience_fee) {
+        setConvenienceFee(response.data.convenience_fee);
+        setConvenienceFeeForm({
+          fee_name: response.data.convenience_fee.fee_name,
+          fee_type: response.data.convenience_fee.fee_type,
+          fee_value: response.data.convenience_fee.fee_value,
+          is_active: response.data.convenience_fee.is_active
+        });
+      } else {
+        setConvenienceFee(null);
+      }
+    } catch (err) {
+      console.error('Error fetching convenience fee:', err);
+      setConvenienceFee(null);
+    }
+  };
+
+  // Fetch church transactions
+  const fetchTransactions = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Clean up church name for API call
+      const sanitizedChurchName = churchname.replace(/:\d+$/, "");
+      
+      // Fetch church transactions
+      const response = await axios.get(`/api/church-transactions/${sanitizedChurchName}`);
+      setTransactions(response.data.transactions);
+      setFilteredTransactions(response.data.transactions);
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to load transactions';
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (hasAccess && churchname) {
+      fetchTransactions();
+      fetchConvenienceFee();
+    }
+  }, [hasAccess, churchname]);
+
+  // Filter transactions based on search term
+  useEffect(() => {
+    let filtered = [...transactions];
+    
+    // Apply search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(transaction => (
+        transaction.appointment?.service?.ServiceName?.toLowerCase().includes(searchLower) ||
+        transaction.user?.profile?.first_name?.toLowerCase().includes(searchLower) ||
+        transaction.user?.profile?.last_name?.toLowerCase().includes(searchLower) ||
+        transaction.user?.email?.toLowerCase().includes(searchLower) ||
+        transaction.ChurchTransactionID?.toString().includes(searchLower) ||
+        transaction.paymongo_session_id?.toLowerCase().includes(searchLower)
+      ));
+    }
+    
+    // Sort by transaction_date descending (newest first)
+    filtered.sort((a, b) => new Date(b.transaction_date) - new Date(a.transaction_date));
+    
+    setFilteredTransactions(filtered);
+    setCurrentPage(1);
+  }, [searchTerm, transactions]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentTransactions = filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
+
+  const handleSearch = (term) => {
+    setSearchTerm(term);
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handleViewTransaction = (transaction) => {
+    setSelectedTransaction(transaction);
+    setShowDetailsModal(true);
+  };
+
+  const handleCloseDetailsModal = () => {
+    setShowDetailsModal(false);
+    setSelectedTransaction(null);
+  };
+
+  const handleRefundTransaction = (transaction) => {
+    setSelectedTransaction(transaction);
+    setRefundData({
+      receipt_code: '',
+      refund_reason: null,
+      apply_convenience_fee: convenienceFee && convenienceFee.is_active || false
+    });
+    setShowRefundModal(true);
+  };
+
+  const handleCloseRefundModal = () => {
+    setShowRefundModal(false);
+    setSelectedTransaction(null);
+    setRefundData({
+      receipt_code: '',
+      refund_reason: null,
+      apply_convenience_fee: false
+    });
+    setRefundAlert({ show: false, type: '', message: '' });
+  };
+
+  const handleRefundSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedTransaction) return;
+    
+    // Clear previous alerts
+    setRefundAlert({ show: false, type: '', message: '' });
+    
+    setRefundLoading(true);
+    try {
+      const response = await axios.put(`/api/church-transactions/${selectedTransaction.ChurchTransactionID}/refund`, {
+        receipt_code: refundData.receipt_code,
+        refund_reason: refundData.refund_reason,
+        apply_convenience_fee: refundData.apply_convenience_fee
+      });
+      
+      // Check if the response indicates success
+      if (response.data.success === true) {
+        // Update the transaction in state
+        const updatedTransactions = transactions.map(t => 
+          t.ChurchTransactionID === selectedTransaction.ChurchTransactionID 
+            ? { ...t, refund_status: 'refunded', refund_date: new Date().toISOString() }
+            : t
+        );
+        setTransactions(updatedTransactions);
+        setFilteredTransactions(updatedTransactions);
+        
+        handleCloseRefundModal();
+        setAlert({
+          show: true,
+          type: 'success',
+          title: 'Refund Processed',
+          message: 'Transaction has been marked as refunded successfully.'
+        });
+      } else {
+        // Backend returned success: false
+        const errorMessage = response.data.message || 'Failed to process refund.';
+        setRefundAlert({
+          show: true,
+          type: 'error',
+          message: errorMessage
+        });
+      }
+      
+    } catch (err) {
+      let errorMessage = 'Failed to process refund. Please try again.';
+      
+      // Handle different error scenarios
+      if (err.response) {
+        // Server responded with error status
+        if (err.response.status === 400) {
+          errorMessage = err.response.data?.message || 'Invalid receipt code or request.';
+        } else if (err.response.status === 404) {
+          errorMessage = 'Transaction not found.';
+        } else {
+          errorMessage = err.response.data?.message || `Server error (${err.response.status})`;
+        }
+      } else if (err.request) {
+        // Network error
+        errorMessage = 'Network error. Please check your connection.';
+      }
+      
+      // Show alert in modal
+      setRefundAlert({
+        show: true,
+        type: 'error',
+        message: errorMessage
+      });
+      
+    } finally {
+      setRefundLoading(false);
+    }
+  };
+
+  const canRefund = (transaction) => {
+    return transaction.appointment && 
+           ['Cancelled', 'Rejected'].includes(transaction.appointment.Status) &&
+           transaction.refund_status !== 'refunded';
+  };
+
+  const getReceiptCode = (transaction) => {
+    return transaction.receipt_code || 'N/A';
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+    }).format(amount);
+  };
+
+  const formatTime = (date) => {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleString('en-PH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getUserDisplayName = (user) => {
+    if (!user) return 'Unknown User';
+    if (user.profile?.first_name && user.profile?.last_name) {
+      return `${user.profile.first_name} ${user.profile.last_name}`;
+    }
+    return user.email || 'Unknown User';
+  };
+
+  // Convenience fee handlers
+  const handleConvenienceFeeModalOpen = () => {
+    setShowConvenienceFeeModal(true);
+    setConvenienceFeeAlert({ show: false, type: '', message: '' });
+  };
+
+  const handleConvenienceFeeModalClose = () => {
+    setShowConvenienceFeeModal(false);
+    setConvenienceFeeAlert({ show: false, type: '', message: '' });
+  };
+
+  const handleConvenienceFeeSubmit = async (e) => {
+    e.preventDefault();
+    setConvenienceFeeLoading(true);
+    setConvenienceFeeAlert({ show: false, type: '', message: '' });
+
+    try {
+      const sanitizedChurchName = churchname.replace(/:\d+$/, "");
+      const response = await axios.post(`/api/convenience-fees/${sanitizedChurchName}`, convenienceFeeForm);
+      
+      if (response.data.success) {
+        setConvenienceFee(response.data.convenience_fee);
+        setConvenienceFeeAlert({
+          show: true,
+          type: 'success',
+          message: 'Convenience fee saved successfully!'
+        });
+        
+        setTimeout(() => {
+          handleConvenienceFeeModalClose();
+        }, 1500);
+      } else {
+        setConvenienceFeeAlert({
+          show: true,
+          type: 'error',
+          message: response.data.message || 'Failed to save convenience fee.'
+        });
+      }
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Failed to save convenience fee.';
+      setConvenienceFeeAlert({
+        show: true,
+        type: 'error',
+        message: errorMessage
+      });
+    } finally {
+      setConvenienceFeeLoading(false);
+    }
+  };
+
+  const calculateRefundAmount = (originalAmount, applyFee = true) => {
+    if (!applyFee || !convenienceFee || !convenienceFee.is_active) return originalAmount;
+    
+    let feeAmount = 0;
+    if (convenienceFee.fee_type === 'percent') {
+      feeAmount = (originalAmount * convenienceFee.fee_value) / 100;
+    } else {
+      feeAmount = convenienceFee.fee_value;
+    }
+    
+    return originalAmount - feeAmount;
+  };
+
+  const calculateConvenienceFee = (originalAmount) => {
+    if (!convenienceFee || !convenienceFee.is_active) return 0;
+    
+    if (convenienceFee.fee_type === 'percent') {
+      return (originalAmount * convenienceFee.fee_value) / 100;
+    } else {
+      return convenienceFee.fee_value;
+    }
+  };
+
+  // Calculate totals (exclude refunded transactions)
+  const totalIncome = transactions
+    .filter(t => t.refund_status !== 'refunded')
+    .reduce((sum, t) => sum + parseFloat(t.amount_paid || 0), 0);
+
+  if (!hasAccess) {
+    return (
+      <div className="lg:p-6 w-full h-screen pt-20">
+        <div className="max-w-7xl mx-auto h-full">
+          <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
+            <div className="p-6 bg-white border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-red-600">
+                Unauthorized
+              </h2>
+              <p className="mt-2 text-gray-600">
+                You do not have permission to access the Transaction Record page.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="lg:p-6 w-full h-screen pt-20">
+      <div className="max-w-7xl mx-auto h-full">
+        {/* Alert */}
+        {alert.show && (
+          <div className="mb-4">
+            <Alert
+              type={alert.type}
+              title={alert.title}
+              message={alert.message}
+              onClose={() => setAlert({ show: false, type: '', title: '', message: '' })}
+            />
+          </div>
+        )}
+        
+        <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
+          <div className="p-6 bg-white border-b border-gray-200 flex-1 overflow-auto">
+            <h1 className="text-2xl font-semibold text-gray-900 mb-6">
+              Church Transaction Record
+            </h1>
+            
+            <div className="mt-6">
+              <div className="overflow-x-auto">
+                <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900">Appointment Payment Records</h3>
+                        <p className="mt-1 text-sm text-gray-600">View all income transactions from appointment payments.</p>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        {convenienceFee && convenienceFee.is_active && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                            <div className="text-sm">
+                              <span className="font-medium text-blue-900">{convenienceFee.fee_name}: </span>
+                              <span className="text-blue-700">
+                                {convenienceFee.fee_type === 'percent' ? 
+                                  `${convenienceFee.fee_value}%` : 
+                                  formatCurrency(convenienceFee.fee_value)
+                                }
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        <Button
+                          onClick={handleConvenienceFeeModalOpen}
+                          variant="outline"
+                          className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-white hover:bg-blue-50 border border-blue-300 hover:border-blue-400 transition-colors"
+                        >
+                          <Settings className="h-4 w-4 mr-2" />
+                          {convenienceFee ? 'Edit Fee' : 'Setup Fee'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="px-6 py-4 space-y-4">
+                    <div className="text-sm text-gray-600">
+                      Showing {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? 's' : ''}
+                    </div>
+                    
+                    {/* Search and Pagination */}
+                    <SearchAndPagination
+                      searchQuery={searchTerm}
+                      onSearchChange={handleSearch}
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                      totalItems={filteredTransactions.length}
+                      itemsPerPage={itemsPerPage}
+                      placeholder="Search transactions..."
+                    />
+                  </div>
+                  
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                          <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {isLoading ? (
+                          <tr>
+                            <td colSpan={6} className="px-6 py-8">
+                              <DataLoading message="Loading transactions..." />
+                            </td>
+                          </tr>
+                        ) : error ? (
+                          <tr>
+                            <td colSpan={6} className="px-6 py-8 text-center text-red-600">
+                              {error}
+                            </td>
+                          </tr>
+                        ) : currentTransactions.length > 0 ? (
+                          currentTransactions.map((transaction) => (
+                            <tr key={transaction.ChurchTransactionID} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="flex-shrink-0 h-10 w-10">
+<div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
+                                      <Receipt className="h-5 w-5 text-gray-600" />
+                                    </div>
+                                  </div>
+                                  <div className="ml-4">
+                                    <div className="text-sm font-medium text-gray-900">
+                                      #{transaction.ChurchTransactionID}
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                      {transaction.payment_method === 'card' ? 'Card' : 'GCash'}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="flex-shrink-0 h-10 w-10">
+<div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
+                                      <Users className="h-5 w-5 text-gray-600" />
+                                    </div>
+                                  </div>
+                                  <div className="ml-4">
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {getUserDisplayName(transaction.user)}
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                      {transaction.user?.email || 'No email'}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {transaction.appointment?.service?.ServiceName || 'N/A'}
+                                </div>
+                                {transaction.appointment?.AppointmentDate && (
+                                  <div className="text-sm text-gray-500">
+                                    {new Date(transaction.appointment.AppointmentDate).toLocaleDateString('en-PH')}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className={`text-sm font-semibold ${
+                                  transaction.refund_status === 'refunded' ? 'text-red-600 line-through' : 'text-gray-900'
+                                }`}>
+                                  {formatCurrency(transaction.amount_paid)}
+                                </div>
+                                {transaction.refund_status === 'refunded' && transaction.metadata?.refund_calculation && (
+                                  <div className="text-sm text-green-600 font-medium">
+                                    Refunded: {formatCurrency(transaction.metadata.refund_calculation.refund_amount)}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {transaction.refund_status === 'refunded' ? (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                    Refunded
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    Paid
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center text-sm text-gray-900">
+                                  <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+                                  <div>
+                                    <div className="font-medium">
+                                      {formatTime(transaction.transaction_date)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex justify-center items-center space-x-2">
+                                  <Button
+                                    onClick={() => handleViewTransaction(transaction)}
+                                    variant="outline"
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 min-h-0 h-auto"
+                                  >
+                                    <Eye className="h-3 w-3 mr-1" />
+                                    View
+                                  </Button>
+                                  <Button
+                                    onClick={() => canRefund(transaction) && handleRefundTransaction(transaction)}
+                                    variant="outline"
+                                    disabled={!canRefund(transaction)}
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 disabled:hover:bg-red-50 border-red-200 min-h-0 h-auto"
+                                  >
+                                    <RefreshCw className="h-3 w-3 mr-1" />
+                                    Refund
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                              <div className="flex flex-col items-center">
+                                <Receipt className="h-12 w-12 text-gray-300 mb-2" />
+                                <p>No transactions found.</p>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Transaction Details Modal */}
+      {showDetailsModal && selectedTransaction && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl mx-auto relative w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="relative bg-gray-100 px-6 py-4 rounded-t-lg border-b">
+              <button
+                onClick={handleCloseDetailsModal}
+                className="absolute top-4 right-4 text-gray-700 hover:text-gray-900 transition-colors"
+                aria-label="Close modal"
+              >
+                <X className="h-6 w-6" />
+              </button>
+              <div className="pr-10">
+                <h2 className="text-xl font-bold text-gray-800">
+                  Transaction Details
+                </h2>
+                <p className="text-gray-600 text-sm mt-1">
+                  Transaction #{selectedTransaction.ChurchTransactionID}
+                </p>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-6 space-y-6">
+              {/* Transaction Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Transaction Information</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Transaction ID</label>
+                    <p className="text-gray-900 font-mono">#{selectedTransaction.ChurchTransactionID}</p>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Amount</label>
+                    <p className="text-lg font-semibold text-gray-900">{formatCurrency(selectedTransaction.amount_paid)}</p>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Payment Method</label>
+                    <p className="text-gray-900">{selectedTransaction.payment_method === 'card' ? 'Card Payment' : 'GCash'}</p>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Transaction Date</label>
+                    <p className="text-gray-900">{formatTime(selectedTransaction.transaction_date)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Customer Information</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Name</label>
+                    <p className="text-gray-900">{getUserDisplayName(selectedTransaction.user)}</p>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Email</label>
+                    <p className="text-gray-900">{selectedTransaction.user?.email || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Appointment Information */}
+              {selectedTransaction.appointment && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Appointment Information</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Service</label>
+                      <p className="text-gray-900">{selectedTransaction.appointment.service?.ServiceName || 'N/A'}</p>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Appointment Date</label>
+                      <p className="text-gray-900">
+                        {selectedTransaction.appointment.AppointmentDate 
+                          ? new Date(selectedTransaction.appointment.AppointmentDate).toLocaleDateString('en-PH', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })
+                          : 'N/A'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Refund Information */}
+              {selectedTransaction.refund_status === 'refunded' && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Refund Information</h3>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-red-600">Refund Status</label>
+                        <p className="text-red-800 font-semibold">Refunded</p>
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium text-red-600">Amount Refunded</label>
+                        <p className="text-2xl font-bold text-green-600">
+                          {selectedTransaction.metadata?.refund_calculation?.refund_amount 
+                            ? formatCurrency(selectedTransaction.metadata.refund_calculation.refund_amount)
+                            : formatCurrency(selectedTransaction.amount_paid) // Fallback to original amount
+                          }
+                        </p>
+                        {!selectedTransaction.metadata?.refund_calculation && (
+                          <p className="text-xs text-gray-500 italic">
+                            (Full amount - no fee calculation available)
+                          </p>
+                        )}
+                      </div>
+                      
+                      {selectedTransaction.refund_date && (
+                        <div>
+                          <label className="text-sm font-medium text-red-600">Refund Date</label>
+                          <p className="text-red-800">{formatTime(selectedTransaction.refund_date)}</p>
+                        </div>
+                      )}
+                      
+                      <div className="md:col-span-2">
+                        <label className="text-sm font-medium text-red-600">Refund Calculation</label>
+                        <div className="mt-2 bg-white rounded-lg p-3 border">
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Original Amount:</span>
+                              <span className="font-medium text-gray-900">
+                                {formatCurrency(selectedTransaction.metadata?.refund_calculation?.original_amount || selectedTransaction.amount_paid)}
+                              </span>
+                            </div>
+                            
+                            {selectedTransaction.metadata?.refund_calculation?.convenience_fee_applied && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Convenience Fee Deducted:</span>
+                                <span className="text-red-600 font-medium">
+                                  -{formatCurrency(selectedTransaction.metadata.refund_calculation.convenience_fee_amount)}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {!selectedTransaction.metadata?.refund_calculation?.convenience_fee_applied && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Convenience Fee:</span>
+                                <span className="text-gray-500 italic">Not applied</span>
+                              </div>
+                            )}
+                            
+                            <div className="border-t pt-2 flex justify-between font-semibold">
+                              <span className="text-gray-900">Refund Amount:</span>
+                              <span className="text-green-600">
+                                {formatCurrency(
+                                  selectedTransaction.metadata?.refund_calculation?.refund_amount || selectedTransaction.amount_paid
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {selectedTransaction.notes && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Notes</h3>
+                  <p className="text-gray-700 bg-gray-50 p-4 rounded-lg">{selectedTransaction.notes}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t rounded-b-lg">
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleCloseDetailsModal}
+                  variant="outline"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 border border-gray-300"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Refund Modal */}
+      {showRefundModal && selectedTransaction && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl mx-auto relative w-full max-w-md">
+            {/* Header */}
+            <div className="bg-gray-100 px-6 py-4 rounded-t-lg border-b">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">
+                  Process Refund
+                </h2>
+                <p className="text-gray-600 text-sm mt-1">
+                  Transaction #{selectedTransaction.ChurchTransactionID}
+                </p>
+              </div>
+            </div>
+
+            {/* Content */}
+            <form onSubmit={handleRefundSubmit} className="px-6 py-6 space-y-4">
+              {/* Refund Alert */}
+              {refundAlert.show && (
+                <div className="mb-4">
+                  <Alert
+                    type={refundAlert.type}
+                    title={refundAlert.type === 'error' ? 'Error' : 'Success'}
+                    message={refundAlert.message}
+                    onClose={() => setRefundAlert({ show: false, type: '', message: '' })}
+                  />
+                </div>
+              )}
+              
+              <div className="space-y-4">
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <RefreshCw className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-xs text-amber-700">
+                        Customer should provide their receipt code to process the refund.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Refund calculation display */}
+                {selectedTransaction && (
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h4 className="text-sm font-medium text-blue-900 mb-2">Refund Calculation</h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-blue-700">Base Amount:</span>
+                        <span className="font-medium text-blue-900">{formatCurrency(selectedTransaction.amount_paid)}</span>
+                      </div>
+                      {convenienceFee && convenienceFee.is_active && refundData.apply_convenience_fee && (
+                        <div className="flex justify-between">
+                          <span className="text-blue-700">{convenienceFee.fee_name}:</span>
+                          <span className="text-red-600">-{formatCurrency(calculateConvenienceFee(selectedTransaction.amount_paid))}</span>
+                        </div>
+                      )}
+                      <div className="border-t border-blue-200 pt-1 flex justify-between font-semibold">
+                        <span className="text-blue-900">Refund Amount:</span>
+                        <span className={`${refundData.apply_convenience_fee && convenienceFee && convenienceFee.is_active ? 'text-orange-600' : 'text-green-600'}`}>
+                          {formatCurrency(calculateRefundAmount(selectedTransaction.amount_paid, refundData.apply_convenience_fee))}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Receipt Code <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={refundData.receipt_code}
+                    onChange={(e) => setRefundData({...refundData, receipt_code: e.target.value.toUpperCase()})}
+                    placeholder="Enter receipt code (e.g., TXN000123)"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+
+                {/* Apply convenience fee checkbox */}
+                <div className="border-t border-gray-200 pt-3">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="apply_convenience_fee"
+                      checked={refundData.apply_convenience_fee}
+                      onChange={(e) => setRefundData({...refundData, apply_convenience_fee: e.target.checked})}
+                      disabled={!convenienceFee || !convenienceFee.is_active}
+                      className="rounded"
+                    />
+                    <label htmlFor="apply_convenience_fee" className={`text-sm ${
+                      convenienceFee && convenienceFee.is_active ? 'text-gray-700' : 'text-gray-400'
+                    }`}>
+                      Apply convenience fee deduction
+                      {convenienceFee && convenienceFee.is_active && (
+                        <span className="ml-2 text-xs text-blue-600">
+                          ({convenienceFee.fee_type === 'percent' ? `${convenienceFee.fee_value}%` : formatCurrency(convenienceFee.fee_value)})
+                        </span>
+                      )}
+                      {(!convenienceFee || !convenienceFee.is_active) && (
+                        <span className="ml-2 text-xs text-gray-400">
+                          (No active convenience fee)
+                        </span>
+                      )}
+                    </label>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end space-x-3 pt-4 border-t">
+                <Button
+                  type="button"
+                  onClick={handleCloseRefundModal}
+                  variant="outline"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 border border-gray-300"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={refundLoading || !refundData.receipt_code}
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                >
+                  {refundLoading ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Process Refund
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Convenience Fee Modal */}
+      {showConvenienceFeeModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl mx-auto relative w-full max-w-md">
+            {/* Header */}
+            <div className="bg-gray-100 px-6 py-4 rounded-t-lg border-b">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">
+                  {convenienceFee ? 'Edit Convenience Fee' : 'Setup Convenience Fee'}
+                </h2>
+                <p className="text-gray-600 text-sm mt-1">
+                  Configure fee deductions for refund calculations
+                </p>
+              </div>
+            </div>
+
+            {/* Content */}
+            <form onSubmit={handleConvenienceFeeSubmit} className="px-6 py-6 space-y-4">
+              {/* Convenience Fee Alert */}
+              {convenienceFeeAlert.show && (
+                <div className="mb-4">
+                  <Alert
+                    type={convenienceFeeAlert.type}
+                    title={convenienceFeeAlert.type === 'error' ? 'Error' : 'Success'}
+                    message={convenienceFeeAlert.message}
+                    onClose={() => setConvenienceFeeAlert({ show: false, type: '', message: '' })}
+                  />
+                </div>
+              )}
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fee Name
+                  </label>
+                  <input
+                    type="text"
+                    value={convenienceFeeForm.fee_name}
+                    onChange={(e) => setConvenienceFeeForm({...convenienceFeeForm, fee_name: e.target.value})}
+                    placeholder="Enter fee name"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fee Type
+                  </label>
+                  <div className="flex space-x-4">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="fee_type"
+                        value="percent"
+                        checked={convenienceFeeForm.fee_type === 'percent'}
+                        onChange={(e) => setConvenienceFeeForm({...convenienceFeeForm, fee_type: e.target.value})}
+                        className="mr-2"
+                      />
+                      <span className="text-sm text-gray-700">Percentage (%)</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="fee_type"
+                        value="fixed"
+                        checked={convenienceFeeForm.fee_type === 'fixed'}
+                        onChange={(e) => setConvenienceFeeForm({...convenienceFeeForm, fee_type: e.target.value})}
+                        className="mr-2"
+                      />
+                      <span className="text-sm text-gray-700">Fixed Amount (₱)</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fee Value
+                  </label>
+                  <input
+                    type="number"
+                    step={convenienceFeeForm.fee_type === 'percent' ? '0.01' : '0.01'}
+                    min="0"
+                    max={convenienceFeeForm.fee_type === 'percent' ? '100' : undefined}
+                    value={convenienceFeeForm.fee_value}
+                    onChange={(e) => setConvenienceFeeForm({...convenienceFeeForm, fee_value: parseFloat(e.target.value) || 0})}
+                    placeholder={convenienceFeeForm.fee_type === 'percent' ? 'Enter percentage (0-100)' : 'Enter amount'}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                  {convenienceFeeForm.fee_type === 'percent' && (
+                    <p className="text-xs text-gray-500 mt-1">Enter percentage value (e.g., 2.5 for 2.5%)</p>
+                  )}
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="is_active"
+                    checked={convenienceFeeForm.is_active}
+                    onChange={(e) => setConvenienceFeeForm({...convenienceFeeForm, is_active: e.target.checked})}
+                    className="mr-2"
+                  />
+                  <label htmlFor="is_active" className="text-sm text-gray-700">
+                    Active (deduct from refunds)
+                  </label>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex justify-end space-x-3 pt-4 border-t">
+                <Button
+                  type="button"
+                  onClick={handleConvenienceFeeModalClose}
+                  variant="outline"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 border border-gray-300"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={convenienceFeeLoading}
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {convenienceFeeLoading ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Settings className="h-4 w-4 mr-2" />
+                      Save Fee
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default TransactionRecordPage;

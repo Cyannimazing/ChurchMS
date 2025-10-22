@@ -1,0 +1,3073 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use App\Models\Church;
+use App\Models\User;
+use App\Models\Appointment;
+use App\Models\ScheduleFee;
+use App\Models\ServiceSchedule;
+use App\Models\ServiceScheduleTime;
+use App\Models\SacramentService;
+use App\Models\AppointmentPaymentSession;
+use App\Models\PaymentSession;
+use App\Models\ChurchTransaction;
+use App\Models\ChurchConvenienceFee;
+use App\Services\PayMongoService;
+use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
+
+class AppointmentController extends Controller
+{
+    /**
+     * Submit a simplified sacrament application (no form data required)
+     */
+    public function store(Request $request)
+    {
+        try {
+            // Basic validation
+            $validator = Validator::make($request->all(), [
+                'church_id' => 'required|integer|exists:Church,ChurchID',
+                'service_id' => 'required|integer|exists:sacrament_service,ServiceID',
+                'schedule_id' => 'required|integer|exists:service_schedules,ScheduleID',
+                'schedule_time_id' => 'required|integer|exists:schedule_times,ScheduleTimeID',
+                'selected_date' => 'required|date|after_or_equal:today',
+                'status' => 'sometimes|in:pending,accepted,rejected'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => 'Validation failed.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Verify user is authenticated
+            $user = $request->user();
+            if (!$user) {
+                return response()->json([
+                    'error' => 'Authentication required.'
+                ], 401);
+            }
+
+            // Verify church is active and public
+            $church = Church::where('ChurchID', $request->church_id)
+                          ->where('ChurchStatus', Church::STATUS_ACTIVE)
+                          ->where('IsPublic', true)
+                          ->first();
+
+            if (!$church) {
+                return response()->json([
+                    'error' => 'Church not found or not available.'
+                ], 404);
+            }
+
+            // Verify service belongs to church
+            $service = SacramentService::where('ServiceID', $request->service_id)
+                                     ->where('ChurchID', $request->church_id)
+                                     ->first();
+
+            if (!$service) {
+                return response()->json([
+                    'error' => 'Service not found or not available.'
+                ], 404);
+            }
+
+            // Verify schedule belongs to service
+            $schedule = ServiceSchedule::where('ScheduleID', $request->schedule_id)
+                                     ->where('ServiceID', $request->service_id)
+                                     ->first();
+
+            if (!$schedule) {
+                return response()->json([
+                    'error' => 'Schedule not found.'
+                ], 404);
+            }
+
+            // Verify schedule time belongs to schedule
+            $scheduleTime = DB::table('schedule_times')
+                ->where('ScheduleTimeID', $request->schedule_time_id)
+                ->where('ScheduleID', $request->schedule_id)
+                ->first();
+
+            if (!$scheduleTime) {
+                return response()->json([
+                    'error' => 'Schedule time not found.'
+                ], 404);
+            }
+
+            // Note: Removed duplicate application check to allow multiple appointments
+            // for the same user at the same time/date (e.g., booking multiple children for baptism)
+            // Slot availability is still enforced to prevent overbooking
+
+            // Check slot availability before creating appointment
+            $appointmentDate = $request->selected_date;
+            $slotCapacity = $schedule->SlotCapacity;
+            
+            // Ensure date slot exists and check availability (needed for both free and paid services)
+            $this->ensureDateSlotExists($request->schedule_time_id, $appointmentDate, $slotCapacity);
+            
+            $currentSlot = DB::table('schedule_time_date_slots')
+                ->where('ScheduleTimeID', $request->schedule_time_id)
+                ->where('SlotDate', $appointmentDate)
+                ->first();
+            
+            if (!$currentSlot || $currentSlot->RemainingSlots <= 0) {
+                Log::warning('Appointment blocked - no slots available', [
+                    'user_id' => $user->id,
+                    'schedule_time_id' => $request->schedule_time_id,
+                    'appointment_date' => $appointmentDate,
+                    'current_slot' => $currentSlot
+                ]);
+                return response()->json([
+                    'error' => 'No slots available for the selected date and time.',
+                    'debug_info' => [
+                        'remaining_slots' => $currentSlot ? $currentSlot->RemainingSlots : 'No slot record',
+                        'slot_capacity' => $slotCapacity
+                    ]
+                ], 409);
+            }
+            
+            // Check if this service has any payable amount (Fee or Donation)
+            $fees = ScheduleFee::where('ScheduleID', $request->schedule_id)->get();
+            $payableFees = $fees->filter(function ($fee) { return ($fee->Fee ?? 0) > 0; });
+            $originalTotalAmount = $payableFees->sum('Fee');
+            
+            // Apply member discount if user is an approved member
+            $totalAmount = $this->applyMemberDiscount($originalTotalAmount, $service, $user, $request->church_id);
+            
+            // If fees are required, create payment checkout session instead of appointment
+            if ($totalAmount > 0) {
+                Log::info('Payment required for appointment', [
+                    'church_id' => $request->church_id,
+                    'service_id' => $request->service_id,
+                    'total_amount' => $totalAmount,
+                    'payable_fees_count' => $payableFees->count()
+                ]);
+                
+                // Check if church has payment configuration
+                $paymentConfig = \App\Models\ChurchPaymentConfig::where('church_id', $request->church_id)
+                    ->where('provider', 'paymongo')
+                    ->first();
+                
+                if (!$paymentConfig) {
+                    Log::error('No PayMongo config found for church', ['church_id' => $request->church_id]);
+                    return response()->json([
+                        'error' => 'Payment system is not configured for this church. Please contact the church administrator.',
+                        'requires_setup' => true,
+                        'debug_info' => 'No PayMongo configuration found'
+                    ], 503);
+                }
+                
+                if (!$paymentConfig->is_active) {
+                    Log::error('PayMongo config is inactive for church', ['church_id' => $request->church_id]);
+                    return response()->json([
+                        'error' => 'Payment system is currently disabled for this church.',
+                        'requires_setup' => true,
+                        'debug_info' => 'PayMongo configuration is inactive'
+                    ], 503);
+                }
+                
+                if (!$paymentConfig->isComplete()) {
+                    Log::error('Incomplete PayMongo config for church', [
+                        'church_id' => $request->church_id,
+                        'has_public_key' => !empty($paymentConfig->public_key),
+                        'has_secret_key' => !empty($paymentConfig->secret_key)
+                    ]);
+                    return response()->json([
+                        'error' => 'Payment system configuration is incomplete for this church.',
+                        'requires_setup' => true,
+                        'debug_info' => 'PayMongo keys are missing or invalid'
+                    ], 503);
+                }
+                
+                try {
+                    // Initialize PayMongo service for this church
+                    $paymongoService = new PayMongoService($request->church_id);
+                    
+                    if (!$paymongoService->isConfigured()) {
+                        Log::error('PayMongo service not configured after initialization', ['church_id' => $request->church_id]);
+                        return response()->json([
+                            'error' => 'Payment system initialization failed.',
+                            'requires_setup' => true,
+                            'debug_info' => 'Service configuration failed'
+                        ], 503);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Error initializing PayMongo service', [
+                        'church_id' => $request->church_id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    return response()->json([
+                        'error' => 'Failed to initialize payment system.',
+                        'details' => $e->getMessage(),
+                        'debug_info' => 'Service initialization exception'
+                    ], 503);
+                }
+                
+                // Format appointment date time
+                $appointmentDateTime = \Carbon\Carbon::parse($request->selected_date)
+                    ->setTimeFromTimeString($scheduleTime->StartTime)
+                    ->format('Y-m-d H:i:s');
+                
+                // Prepare metadata for the checkout session
+                $metadata = [
+                    'user_id' => $user->id,
+                    'church_id' => $request->church_id,
+                    'service_id' => $request->service_id,
+                    'schedule_id' => $request->schedule_id,
+                    'schedule_time_id' => $request->schedule_time_id,
+                    'appointment_date' => $appointmentDateTime,
+                    'form_data' => null, // No form data for simple applications
+                    'type' => 'appointment_payment'
+                ];
+                
+                // Build description
+                $description = sprintf(
+                    '%s - %s (Date: %s, Time: %s)',
+                    $church->ChurchName,
+                    $service->ServiceName,
+                    $appointmentDate,
+                    $scheduleTime->StartTime
+                );
+                
+                // Create success and cancel URLs (dedicated appointment endpoints)
+                $successUrl = url('/appointment-payment/success?session_id={CHECKOUT_SESSION_ID}&church_id=' . $request->church_id);
+                $cancelUrl = url('/appointment-payment/cancel?session_id={CHECKOUT_SESSION_ID}');
+                
+                // Create PayMongo checkout session with GCash and Card only
+                $checkoutResult = $paymongoService->createCheckoutSession(
+                    $totalAmount,
+                    $description,
+                    $successUrl,
+                    $cancelUrl,
+                    ['gcash', 'card'], // Only GCash and Card payments
+                    $metadata
+                );
+                
+                if (!$checkoutResult['success']) {
+                    Log::error('Failed to create PayMongo checkout session', [
+                        'church_id' => $request->church_id,
+                        'service_id' => $request->service_id,
+                        'user_id' => $user->id,
+                        'error' => $checkoutResult['error'] ?? 'Unknown error'
+                    ]);
+                    
+                    return response()->json([
+                        'error' => 'Failed to create payment session. Please try again later.',
+                        'details' => $checkoutResult['error']
+                    ], 500);
+                }
+                
+                $checkoutData = $checkoutResult['data'];
+                
+                // Store appointment payment session
+                $expiresAtRaw = $checkoutData['attributes']['expires_at'] ?? null;
+                $expiresAt = $expiresAtRaw ? \Carbon\Carbon::createFromTimestamp($expiresAtRaw) : now()->addMinutes(30);
+                
+                try {
+                    AppointmentPaymentSession::create([
+                        'user_id' => $user->id,
+                        'church_id' => $request->church_id,
+                        'service_id' => $request->service_id,
+                        'schedule_id' => $request->schedule_id,
+                        'schedule_time_id' => $request->schedule_time_id,
+                        'paymongo_session_id' => $checkoutData['id'],
+                        'payment_method' => 'multi',
+                        'amount' => $totalAmount,
+                        'currency' => 'PHP',
+                        'status' => 'pending',
+                        'checkout_url' => $checkoutData['attributes']['checkout_url'] ?? null,
+                        'appointment_date' => $appointmentDateTime,
+                        'metadata' => [
+                            'church_name' => $church->ChurchName,
+                            'service_name' => $service->ServiceName,
+                            'form_data' => null
+                        ],
+                        'expires_at' => $expiresAt
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to persist appointment payment session', [
+                        'error' => $e->getMessage()
+                    ]);
+                }
+                
+                Log::info('PayMongo checkout session created for appointment', [
+                    'checkout_session_id' => $checkoutData['id'],
+                    'user_id' => $user->id,
+                    'church_id' => $request->church_id,
+                    'service_id' => $request->service_id
+                ]);
+                
+                $checkoutUrl = $checkoutData['attributes']['checkout_url'];
+                
+                // Return payment info for frontend to handle redirect
+                return response()->json([
+                    'success' => false,
+                    'requires_payment' => true,
+                    'redirect_url' => $checkoutUrl,
+                    'message' => 'Payment required. Please complete payment to finalize your appointment.',
+                    'payment_session' => [
+                        'id' => $checkoutData['id'],
+                        'checkout_url' => $checkoutUrl,
+                        'expires_at' => $checkoutData['attributes']['expires_at'] ?? null
+                    ],
+                    'payment_details' => [
+                        'amount' => $totalAmount,
+                        'currency' => 'PHP',
+                        'description' => $description,
+                        'payment_methods' => ['gcash', 'card'],
+                        'fees' => $payableFees->map(function ($fee) {
+                            return [
+                                'type' => $fee->FeeType,
+                                'amount' => $fee->Fee,
+                                'description' => $fee->getDescription()
+                            ];
+                        })
+                    ],
+                    'appointment_details' => [
+                        'church_name' => $church->ChurchName,
+                        'service_name' => $service->ServiceName,
+                        'appointment_date' => $appointmentDateTime,
+                        'available_slots' => $currentSlot->RemainingSlots
+                    ]
+                ], 402);
+            }
+
+            // Free service - create appointment directly
+            Log::info('Creating free appointment', [
+                'user_id' => $user->id,
+                'church_id' => $request->church_id,
+                'service_id' => $request->service_id,
+                'schedule_id' => $request->schedule_id,
+                'total_amount' => $totalAmount
+            ]);
+            
+            // Start database transaction for atomic operations (free services)
+            DB::beginTransaction();
+            
+            try {
+                
+                // Combine the selected date with the schedule time's start time
+                $appointmentDateTime = \Carbon\Carbon::parse($request->selected_date)
+                    ->setTimeFromTimeString($scheduleTime->StartTime)
+                    ->format('Y-m-d H:i:s');
+
+                // Create appointment
+                $appointmentData = [
+                    'UserID' => $user->id,
+                    'ChurchID' => $request->church_id,
+                    'ServiceID' => $request->service_id,
+                    'ScheduleID' => $request->schedule_id,
+                    'ScheduleTimeID' => $request->schedule_time_id,
+                    'AppointmentDate' => $appointmentDateTime,
+                    'Status' => ucfirst($request->get('status', 'pending')),
+                    'Notes' => '',
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ];
+
+                Log::info('Inserting appointment data', ['appointment_data' => $appointmentData]);
+                $appointmentId = DB::table('Appointment')->insertGetId($appointmentData);
+                Log::info('Appointment created successfully', ['appointment_id' => $appointmentId]);
+                
+                // IMMEDIATELY RESERVE THE SLOT for pending applications
+                // This prevents double-booking while waiting for staff confirmation
+                $statusLower = strtolower($appointmentData['Status']);
+                Log::info('Checking if slot should be reserved', [
+                    'appointment_status' => $appointmentData['Status'],
+                    'status_lower' => $statusLower,
+                    'will_reserve_slot' => ($statusLower === 'pending')
+                ]);
+                
+                if ($statusLower === 'pending') {
+                    Log::info('Reserving slot for pending appointment');
+                    $this->adjustRemainingSlots($request->schedule_time_id, $appointmentDate, -1, $slotCapacity);
+                } else {
+                    Log::info('Not reserving slot - appointment status is not pending');
+                }
+                
+                DB::commit();
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Your sacrament application has been submitted successfully. The slot has been reserved for you.',
+                    'application' => [
+                        'id' => $appointmentId,
+                        'church_name' => $church->ChurchName,
+                        'service_name' => $service->ServiceName,
+                        'appointment_date' => $appointmentDateTime,
+                        'status' => ucfirst($request->get('status', 'pending'))
+                    ]
+                ], 201);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while submitting your application.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    /**
+     * Submit appointment with form data (for custom forms when isStaffForm=false)
+     */
+    public function storeWithFormData(Request $request)
+    {
+        try {
+            // Basic validation including form data
+            $validator = Validator::make($request->all(), [
+                'church_id' => 'required|integer|exists:Church,ChurchID',
+                'service_id' => 'required|integer|exists:sacrament_service,ServiceID',
+                'schedule_id' => 'required|integer|exists:service_schedules,ScheduleID',
+                'schedule_time_id' => 'required|integer|exists:schedule_times,ScheduleTimeID',
+                'selected_date' => 'required|date|after_or_equal:today',
+                'form_data' => 'required|string', // JSON string of form data
+                'documents.*' => 'sometimes|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240' // 10MB max per file
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => 'Validation failed.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Verify user is authenticated
+            $user = $request->user();
+            if (!$user) {
+                return response()->json([
+                    'error' => 'Authentication required.'
+                ], 401);
+            }
+
+            // Verify church is active and public
+            $church = Church::where('ChurchID', $request->church_id)
+                          ->where('ChurchStatus', Church::STATUS_ACTIVE)
+                          ->where('IsPublic', true)
+                          ->first();
+
+            if (!$church) {
+                return response()->json([
+                    'error' => 'Church not found or not available.'
+                ], 404);
+            }
+
+            // Verify service belongs to church
+            $service = SacramentService::where('ServiceID', $request->service_id)
+                                     ->where('ChurchID', $request->church_id)
+                                     ->first();
+
+            if (!$service) {
+                return response()->json([
+                    'error' => 'Service not found or not available.'
+                ], 404);
+            }
+
+            // Verify schedule belongs to service
+            $schedule = ServiceSchedule::where('ScheduleID', $request->schedule_id)
+                                     ->where('ServiceID', $request->service_id)
+                                     ->first();
+
+            if (!$schedule) {
+                return response()->json([
+                    'error' => 'Schedule not found.'
+                ], 404);
+            }
+
+            // Verify schedule time belongs to schedule
+            $scheduleTime = DB::table('schedule_times')
+                ->where('ScheduleTimeID', $request->schedule_time_id)
+                ->where('ScheduleID', $request->schedule_id)
+                ->first();
+
+            if (!$scheduleTime) {
+                return response()->json([
+                    'error' => 'Schedule time not found.'
+                ], 404);
+            }
+
+            // Note: Removed duplicate application check to allow multiple appointments
+            // for the same user at the same time/date (e.g., booking multiple children for baptism)
+            // Slot availability is still enforced to prevent overbooking
+
+            // Parse form data
+            $formData = json_decode($request->form_data, true);
+            if (!$formData) {
+                return response()->json([
+                    'error' => 'Invalid form data provided.'
+                ], 422);
+            }
+
+            // Check slot availability before creating appointment
+            $appointmentDate = $request->selected_date;
+            $slotCapacity = $schedule->SlotCapacity;
+            
+            // Ensure date slot exists and check availability (needed for both free and paid services)
+            $this->ensureDateSlotExists($request->schedule_time_id, $appointmentDate, $slotCapacity);
+            
+            $currentSlot = DB::table('schedule_time_date_slots')
+                ->where('ScheduleTimeID', $request->schedule_time_id)
+                ->where('SlotDate', $appointmentDate)
+                ->first();
+            
+            if (!$currentSlot || $currentSlot->RemainingSlots <= 0) {
+                return response()->json([
+                    'error' => 'No slots available for the selected date and time.'
+                ], 409);
+            }
+            
+            // Check if this service has any payable amount (Fee or Donation)
+            $fees = ScheduleFee::where('ScheduleID', $request->schedule_id)->get();
+            $payableFees = $fees->filter(function ($fee) { return ($fee->Fee ?? 0) > 0; });
+            $originalTotalAmount = $payableFees->sum('Fee');
+            
+            // Apply member discount if user is an approved member
+            $totalAmount = $this->applyMemberDiscount($originalTotalAmount, $service, $user, $request->church_id);
+            
+            // If fees are required, create payment checkout session instead of appointment
+            if ($totalAmount > 0) {
+                Log::info('Payment required for appointment with form data', [
+                    'church_id' => $request->church_id,
+                    'service_id' => $request->service_id,
+                    'total_amount' => $totalAmount,
+                    'payable_fees_count' => $payableFees->count()
+                ]);
+                
+                // Check if church has payment configuration
+                $paymentConfig = \App\Models\ChurchPaymentConfig::where('church_id', $request->church_id)
+                    ->where('provider', 'paymongo')
+                    ->first();
+                
+                if (!$paymentConfig) {
+                    Log::error('No PayMongo config found for church', ['church_id' => $request->church_id]);
+                    return response()->json([
+                        'error' => 'Payment system is not configured for this church. Please contact the church administrator.',
+                        'requires_setup' => true,
+                        'debug_info' => 'No PayMongo configuration found'
+                    ], 503);
+                }
+                
+                if (!$paymentConfig->is_active) {
+                    Log::error('PayMongo config is inactive for church', ['church_id' => $request->church_id]);
+                    return response()->json([
+                        'error' => 'Payment system is currently disabled for this church.',
+                        'requires_setup' => true,
+                        'debug_info' => 'PayMongo configuration is inactive'
+                    ], 503);
+                }
+                
+                if (!$paymentConfig->isComplete()) {
+                    Log::error('Incomplete PayMongo config for church', [
+                        'church_id' => $request->church_id,
+                        'has_public_key' => !empty($paymentConfig->public_key),
+                        'has_secret_key' => !empty($paymentConfig->secret_key)
+                    ]);
+                    return response()->json([
+                        'error' => 'Payment system configuration is incomplete for this church.',
+                        'requires_setup' => true,
+                        'debug_info' => 'PayMongo keys are missing or invalid'
+                    ], 503);
+                }
+                
+                try {
+                    // Initialize PayMongo service for this church
+                    $paymongoService = new PayMongoService($request->church_id);
+                    
+                    if (!$paymongoService->isConfigured()) {
+                        Log::error('PayMongo service not configured after initialization', ['church_id' => $request->church_id]);
+                        return response()->json([
+                            'error' => 'Payment system initialization failed.',
+                            'requires_setup' => true,
+                            'debug_info' => 'Service configuration failed'
+                        ], 503);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Error initializing PayMongo service', [
+                        'church_id' => $request->church_id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    return response()->json([
+                        'error' => 'Failed to initialize payment system.',
+                        'details' => $e->getMessage(),
+                        'debug_info' => 'Service initialization exception'
+                    ], 503);
+                }
+                
+                // Format appointment date time
+                $appointmentDateTime = \Carbon\Carbon::parse($request->selected_date)
+                    ->setTimeFromTimeString($scheduleTime->StartTime)
+                    ->format('Y-m-d H:i:s');
+                
+                // Prepare metadata for the checkout session
+                $metadata = [
+                    'user_id' => $user->id,
+                    'church_id' => $request->church_id,
+                    'service_id' => $request->service_id,
+                    'schedule_id' => $request->schedule_id,
+                    'schedule_time_id' => $request->schedule_time_id,
+                    'appointment_date' => $appointmentDateTime,
+                    'form_data' => $request->form_data ?? null, // Include form data for custom forms
+                    'type' => 'appointment_payment'
+                ];
+                
+                // Build description
+                $description = sprintf(
+                    '%s - %s (Date: %s, Time: %s)',
+                    $church->ChurchName,
+                    $service->ServiceName,
+                    $appointmentDate,
+                    $scheduleTime->StartTime
+                );
+                
+                // Create success and cancel URLs (redirect back to dashboard)
+                $baseUrl = config('app.frontend_url', 'http://localhost:3000');
+                $successUrl = $baseUrl . '/dashboard?church_id=' . urlencode((string)$request->church_id) . '#success';
+                $cancelUrl = $baseUrl . '/dashboard#payment_cancelled';
+                
+                // Create PayMongo checkout session with GCash and Card only
+                $checkoutResult = $paymongoService->createCheckoutSession(
+                    $totalAmount,
+                    $description,
+                    $successUrl,
+                    $cancelUrl,
+                    ['gcash', 'card'], // Only GCash and Card payments
+                    $metadata
+                );
+                
+                if (!$checkoutResult['success']) {
+                    Log::error('Failed to create PayMongo checkout session', [
+                        'church_id' => $request->church_id,
+                        'service_id' => $request->service_id,
+                        'user_id' => $user->id,
+                        'error' => $checkoutResult['error'] ?? 'Unknown error'
+                    ]);
+                    
+                    return response()->json([
+                        'error' => 'Failed to create payment session. Please try again later.',
+                        'details' => $checkoutResult['error']
+                    ], 500);
+                }
+                
+                $checkoutData = $checkoutResult['data'];
+                
+// Persisting payment session removed
+                /*
+                try {
+                    PaymentSession::create([
+                        'user_id' => $user->id,
+                        'paymongo_session_id' => $checkoutData['id'],
+                        'payment_method' => null,
+                        'amount' => $totalAmount,
+                        'currency' => 'PHP',
+                        'status' => 'pending',
+                        'checkout_url' => $checkoutData['attributes']['checkout_url'] ?? null,
+                        'metadata' => [
+                            'type' => 'appointment_payment',
+                            'church_id' => $request->church_id,
+                            'service_id' => $request->service_id,
+                            'schedule_id' => $request->schedule_id,
+                            'schedule_time_id' => $request->schedule_time_id,
+                            'appointment_date' => $appointmentDateTime,
+                            'form_data' => $request->form_data ?? null,
+                        ],
+                        'expires_at' => isset($checkoutData['attributes']['expires_at']) ? \Carbon\Carbon::createFromTimestamp($checkoutData['attributes']['expires_at']) : null,
+        ]);
+                } catch (\\Exception $e) {
+                    Log::warning('Failed to persist payment session (form)', [
+                        'error' => $e->getMessage()
+                    ]);
+                }
+                */
+                
+                Log::info('PayMongo checkout session created for appointment with form data', [
+                    'checkout_session_id' => $checkoutData['id'],
+                    'user_id' => $user->id,
+                    'church_id' => $request->church_id,
+                    'service_id' => $request->service_id
+                ]);
+                
+                $checkoutUrl = $checkoutData['attributes']['checkout_url'];
+                
+                // Return payment info for frontend to handle redirect
+                return response()->json([
+                    'success' => false,
+                    'requires_payment' => true,
+                    'redirect_url' => $checkoutUrl,
+                    'message' => 'Payment required. Please complete payment to finalize your appointment.',
+                    'payment_session' => [
+                        'id' => $checkoutData['id'],
+                        'checkout_url' => $checkoutUrl,
+                        'expires_at' => $checkoutData['attributes']['expires_at'] ?? null
+                    ],
+                    'payment_details' => [
+                        'amount' => $totalAmount,
+                        'currency' => 'PHP',
+                        'description' => $description,
+                        'payment_methods' => ['gcash', 'card'],
+                        'fees' => $payableFees->map(function ($fee) {
+                            return [
+                                'type' => $fee->FeeType,
+                                'amount' => $fee->Fee,
+                                'description' => $fee->getDescription()
+                            ];
+                        })
+                    ],
+                    'appointment_details' => [
+                        'church_name' => $church->ChurchName,
+                        'service_name' => $service->ServiceName,
+                        'appointment_date' => $appointmentDateTime,
+                        'available_slots' => $currentSlot->RemainingSlots
+                    ]
+                ], 402);
+            }
+
+            // Start database transaction for atomic operations (free services)
+            DB::beginTransaction();
+            
+            try {
+                
+                // Combine the selected date with the schedule time's start time
+                $appointmentDateTime = \Carbon\Carbon::parse($request->selected_date)
+                    ->setTimeFromTimeString($scheduleTime->StartTime)
+                    ->format('Y-m-d H:i:s');
+
+                // Create appointment
+                $appointmentData = [
+                    'UserID' => $user->id,
+                    'ChurchID' => $request->church_id,
+                    'ServiceID' => $request->service_id,
+                    'ScheduleID' => $request->schedule_id,
+                    'ScheduleTimeID' => $request->schedule_time_id,
+                    'AppointmentDate' => $appointmentDateTime,
+                    'Status' => 'Pending',
+                    'Notes' => '',
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ];
+
+                $appointmentId = DB::table('Appointment')->insertGetId($appointmentData);
+                
+                // Save form data answers
+                foreach ($formData as $fieldKey => $answerValue) {
+                    // Extract field ID from field key (e.g., "field_123" -> 123)
+                    $inputFieldId = $this->extractFieldId($fieldKey);
+                    
+                    if (!$inputFieldId || empty($answerValue)) {
+                        continue; // Skip invalid or empty fields
+                    }
+                    
+                    // Verify the field exists and belongs to this service
+                    $fieldExists = DB::table('service_input_field')
+                        ->where('InputFieldID', $inputFieldId)
+                        ->where('ServiceID', $request->service_id)
+                        ->exists();
+                    
+                    if (!$fieldExists) {
+                        continue; // Skip fields that don't belong to this service
+                    }
+                    
+                    // Insert the answer
+                    DB::table('AppointmentInputAnswer')->insert([
+                        'AppointmentID' => $appointmentId,
+                        'InputFieldID' => $inputFieldId,
+                        'AnswerText' => is_array($answerValue) ? json_encode($answerValue) : $answerValue,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                }
+                
+                // Handle document uploads if any
+                if ($request->hasFile('documents')) {
+                    $documentsPath = storage_path('app/public/appointment_documents');
+                    if (!file_exists($documentsPath)) {
+                        mkdir($documentsPath, 0755, true);
+                    }
+                    
+                    foreach ($request->file('documents') as $key => $file) {
+                        if ($file->isValid()) {
+                            $filename = time() . '_' . $appointmentId . '_' . $file->getClientOriginalName();
+                            $file->move($documentsPath, $filename);
+                            
+                            // Save document info to database (you might want to create a documents table)
+                            // For now, we'll store it in the notes or create a simple log
+                        }
+                    }
+                }
+                
+                // IMMEDIATELY RESERVE THE SLOT for pending applications
+                $this->adjustRemainingSlots($request->schedule_time_id, $appointmentDate, -1, $slotCapacity);
+                
+                DB::commit();
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Your sacrament application with form data has been submitted successfully.',
+                    'application' => [
+                        'id' => $appointmentId,
+                        'church_name' => $church->ChurchName,
+                        'service_name' => $service->ServiceName,
+                        'appointment_date' => $appointmentDateTime,
+                        'status' => 'Pending'
+                    ]
+                ], 201);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while submitting your application.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get user's appointments
+     */
+    public function getUserAppointments(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            if (!$user) {
+                return response()->json([
+                    'error' => 'Authentication required.'
+                ], 401);
+            }
+
+            $appointments = DB::table('Appointment as a')
+                             ->join('Church as c', 'a.ChurchID', '=', 'c.ChurchID')
+                             ->join('sacrament_service as s', 'a.ServiceID', '=', 's.ServiceID')
+                             ->join('schedule_times as st', 'a.ScheduleTimeID', '=', 'st.ScheduleTimeID')
+                             ->where('a.UserID', $user->id)
+                             ->orderBy('a.created_at', 'desc')
+                             ->select([
+                                 'a.AppointmentID',
+                                 'a.AppointmentDate',
+                                 'a.Status',
+                                 'a.Notes',
+                                 'c.ChurchName',
+                                 's.ServiceName',
+                                 's.Description as ServiceDescription',
+                                 'st.StartTime',
+                                 'st.EndTime'
+                             ])
+                             ->get();
+
+            return response()->json([
+                'appointments' => $appointments
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while fetching appointments.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get appointment details
+     */
+    public function show(Request $request, int $appointmentId): JsonResponse
+    {
+        try {
+            // Get appointment with related data (no user restriction for church staff)
+            $appointment = DB::table('Appointment as a')
+                            ->join('Church as c', 'a.ChurchID', '=', 'c.ChurchID')
+                            ->join('sacrament_service as s', 'a.ServiceID', '=', 's.ServiceID')
+                            ->where('a.AppointmentID', $appointmentId)
+                            ->select([
+                                'a.AppointmentID',
+                                'a.AppointmentDate',
+                                'a.Status',
+                                'a.Notes',
+                                'c.ChurchName',
+                                'c.ChurchID',
+                                's.ServiceName',
+                                's.ServiceID',
+                                's.Description as ServiceDescription',
+                                's.isDownloadableContent'
+                            ])
+                            ->first();
+
+            if (!$appointment) {
+                return response()->json([
+                    'error' => 'Appointment not found.'
+                ], 404);
+            }
+
+            // Get complete form configuration for this sacrament service
+            $formFields = DB::table('service_input_field')
+                            ->where('ServiceID', $appointment->ServiceID)
+                            ->orderBy('SortOrder')
+                            ->get();
+
+            // Get service requirements
+            $requirements = DB::table('service_requirement')
+                            ->where('ServiceID', $appointment->ServiceID)
+                            ->orderBy('SortOrder')
+                            ->get();
+
+            // Get saved answers for this appointment
+            $savedAnswers = DB::table('AppointmentInputAnswer')
+                            ->where('AppointmentID', $appointmentId)
+                            ->get()
+                            ->keyBy('InputFieldID'); // Key by InputFieldID for easy lookup
+
+            // Format complete form configuration for the frontend
+            $formElements = [];
+            $containerElement = null;
+            
+            // First pass: identify container element
+            foreach ($formFields as $field) {
+                if ($field->InputType === 'container') {
+                    $containerElement = $field;
+                    break;
+                }
+            }
+            
+            foreach ($formFields as $field) {
+                $inputType = $field->InputType;
+                // Map backend types to frontend types
+                if ($inputType === 'phone') {
+                    $inputType = 'tel';
+                }
+
+                // Determine containerId - elements inside container should reference container
+                $containerId = null;
+                if ($containerElement && $field->InputFieldID !== $containerElement->InputFieldID) {
+                    // Check if element is positioned inside the container bounds
+                    $containerX = $containerElement->x_position ?? 0;
+                    $containerY = $containerElement->y_position ?? 0;
+                    $containerWidth = $containerElement->width ?? 600;
+                    $containerHeight = $containerElement->height ?? 400;
+                    $containerPadding = 30; // Default padding
+                    
+                    $elementX = $field->x_position ?? 0;
+                    $elementY = $field->y_position ?? 0;
+                    $elementWidth = $field->width ?? 300;
+                    $elementHeight = $field->height ?? 40;
+                    
+                    // Check if element is inside container bounds (accounting for padding)
+                    if ($elementX >= $containerX + $containerPadding &&
+                        $elementY >= $containerY + $containerPadding &&
+                        $elementX + $elementWidth <= $containerX + $containerWidth - $containerPadding &&
+                        $elementY + $elementHeight <= $containerY + $containerHeight - $containerPadding) {
+                        $containerId = $containerElement->InputFieldID;
+                        // Convert absolute position to relative position within container
+                        $field->x_position = $elementX - $containerX - $containerPadding;
+                        $field->y_position = $elementY - $containerY - $containerPadding;
+                    }
+                }
+
+                // Get previously saved answer for this field, or blank if none
+                $savedAnswer = $savedAnswers->get($field->InputFieldID);
+                $answerText = $savedAnswer ? $savedAnswer->AnswerText : '';
+
+                // Debug logging for labels
+                \Log::info('Backend label data:', [
+                    'InputFieldID' => $field->InputFieldID,
+                    'Label' => $field->Label,
+                    'InputType' => $inputType,
+                    'IsRequired' => $field->IsRequired
+                ]);
+                
+                $formElements[] = [
+                    'id' => $field->InputFieldID,
+                    'type' => $inputType,
+                    'label' => $field->Label,
+                    'placeholder' => $field->Placeholder,
+                    'required' => $field->IsRequired,
+                    'options' => $field->Options ? json_decode($field->Options, true) : [],
+                    'x' => $field->x_position ?? 0,
+                    'y' => $field->y_position ?? 0,
+                    'width' => $field->width ?? 300,
+                    'height' => $field->height ?? 40,
+                    'content' => $field->text_content ?? '',
+                    'headingSize' => $field->text_size ?? 'h2',
+                    'textAlign' => $field->text_align ?? 'left',
+                    'textColor' => $field->text_color ?? '#000000',
+                    'rows' => $field->textarea_rows ?? 3,
+                    'zIndex' => $field->z_index ?? 1,
+                    'containerId' => $containerId,
+                    'answer' => $answerText,
+                    // Additional styling properties for container
+                    'backgroundColor' => $inputType === 'container' ? '#ffffff' : null,
+                    'borderColor' => $inputType === 'container' ? '#e5e7eb' : null,
+                    'borderWidth' => $inputType === 'container' ? 2 : null,
+                    'borderRadius' => $inputType === 'container' ? 8 : null,
+                    'padding' => $inputType === 'container' ? 30 : null,
+                ];
+            }
+
+            // Format requirements
+            $formRequirements = [];
+            foreach ($requirements as $req) {
+                $formRequirements[] = [
+                    'description' => $req->Description,
+                    'mandatory' => $req->IsMandatory
+                ];
+            }
+
+            // Structure the response with proper service object
+            $responseData = [
+                'AppointmentID' => $appointment->AppointmentID,
+                'AppointmentDate' => $appointment->AppointmentDate,
+                'Status' => $appointment->Status,
+                'Notes' => $appointment->Notes,
+                'ChurchID' => $appointment->ChurchID,
+                'ChurchName' => $appointment->ChurchName,
+                'ServiceID' => $appointment->ServiceID,
+                'ServiceName' => $appointment->ServiceName,
+                'ServiceDescription' => $appointment->ServiceDescription,
+                'service' => [
+                    'ServiceID' => $appointment->ServiceID,
+                    'ServiceName' => $appointment->ServiceName,
+                    'Description' => $appointment->ServiceDescription,
+                    'isDownloadableContent' => $appointment->isDownloadableContent
+                ],
+                'formConfiguration' => [
+                    'form_elements' => $formElements,
+                    'requirements' => $formRequirements
+                ]
+            ];
+
+            return response()->json($responseData);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while fetching appointment details.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get appointments for a specific church (for church staff)
+     */
+    public function getChurchAppointments(Request $request, $churchName): JsonResponse
+    {
+        try {
+            // Convert URL-friendly church name to proper case (e.g., "humble" to "Humble")
+            $name = str_replace('-', ' ', ucwords($churchName, '-'));
+
+            // Find the church by name (case-insensitive)
+            $church = DB::table('Church')
+                ->whereRaw('LOWER(ChurchName) = ?', [strtolower($name)])
+                ->first();
+
+            if (!$church) {
+                return response()->json(['error' => 'Church not found'], 404);
+            }
+
+            // Get appointments for the church with user and service information
+            $appointments = DB::table('Appointment as a')
+                ->join('users as u', 'a.UserID', '=', 'u.id')
+                ->join('user_profiles as p', 'u.id', '=', 'p.user_id')
+                ->join('sacrament_service as s', 'a.ServiceID', '=', 's.ServiceID')
+                ->join('schedule_times as st', 'a.ScheduleTimeID', '=', 'st.ScheduleTimeID')
+                ->where('a.ChurchID', $church->ChurchID)
+                ->orderBy('a.AppointmentDate', 'desc')
+                ->select([
+                    'a.AppointmentID',
+                    'a.AppointmentDate',
+                    'a.Status',
+                    'a.Notes',
+                    'a.created_at',
+                    'u.email as UserEmail',
+                    DB::raw("p.first_name || ' ' || COALESCE(p.middle_name || '. ', '') || p.last_name as UserName"),
+                    's.ServiceName',
+                    's.Description as ServiceDescription',
+                    'st.StartTime',
+                    'st.EndTime'
+                ])
+                ->get();
+
+            return response()->json([
+                'ChurchID' => $church->ChurchID,
+                'ChurchName' => $church->ChurchName,
+                'appointments' => $appointments
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while fetching church appointments.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update appointment status with slot management
+     */
+    public function updateStatus(Request $request, int $appointmentId): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'status' => 'required|string|in:Pending,Approved,Rejected,Cancelled,Completed'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => 'Invalid status provided.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Get current appointment details before updating
+            $appointment = DB::table('Appointment')
+                ->where('AppointmentID', $appointmentId)
+                ->first();
+
+            if (!$appointment) {
+                return response()->json([
+                    'error' => 'Appointment not found.'
+                ], 404);
+            }
+
+            $newStatus = $request->status;
+            $oldStatus = $appointment->Status;
+
+            // Start database transaction for atomic operations
+            DB::beginTransaction();
+
+            try {
+                // Update appointment status
+                $updated = DB::table('Appointment')
+                    ->where('AppointmentID', $appointmentId)
+                    ->update([
+                        'Status' => $newStatus,
+                        'updated_at' => now()
+                    ]);
+
+                if (!$updated) {
+                    throw new \Exception('Failed to update appointment status.');
+                }
+
+                // Handle slot management based on status changes
+                $this->updateSlotAvailability($appointment, $oldStatus, $newStatus);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Appointment status updated successfully.',
+                    'status' => $newStatus,
+                    'previous_status' => $oldStatus
+                ]);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while updating appointment status.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update slot availability based on appointment status changes
+     */
+    private function updateSlotAvailability($appointment, string $oldStatus, string $newStatus): void
+    {
+        // Get the appointment date (just the date part)
+        $appointmentDate = \Carbon\Carbon::parse($appointment->AppointmentDate)->format('Y-m-d');
+        $scheduleTimeId = $appointment->ScheduleTimeID;
+        $scheduleId = $appointment->ScheduleID;
+
+        // Get schedule capacity to initialize slots if needed
+        $schedule = DB::table('service_schedules')
+            ->where('ScheduleID', $scheduleId)
+            ->first();
+
+        if (!$schedule) {
+            throw new \Exception('Schedule not found.');
+        }
+
+        $slotCapacity = $schedule->SlotCapacity;
+
+        // Ensure date slot exists for this schedule time and date
+        $this->ensureDateSlotExists($scheduleTimeId, $appointmentDate, $slotCapacity);
+
+        // Determine slot adjustment based on status transition
+        $slotAdjustment = $this->calculateSlotAdjustment($oldStatus, $newStatus);
+
+        if ($slotAdjustment !== 0) {
+            // Update remaining slots
+            $this->adjustRemainingSlots($scheduleTimeId, $appointmentDate, $slotAdjustment, $slotCapacity);
+        }
+    }
+
+    /**
+     * Calculate how many slots to adjust based on status change
+     */
+    private function calculateSlotAdjustment(string $oldStatus, string $newStatus): int
+    {
+        // Define which statuses "consume" a slot (reduce availability)
+        // Pending and Approved both consume slots to prevent double booking
+        $slotConsumingStatuses = ['Pending', 'Approved'];
+        
+        $oldConsumesSlot = in_array($oldStatus, $slotConsumingStatuses);
+        $newConsumesSlot = in_array($newStatus, $slotConsumingStatuses);
+
+        if (!$oldConsumesSlot && $newConsumesSlot) {
+            // Transitioning to a slot-consuming status: decrease available slots
+            return -1;
+        } elseif ($oldConsumesSlot && !$newConsumesSlot) {
+            // Transitioning from a slot-consuming status: increase available slots
+            return 1;
+        }
+        
+        // No slot adjustment needed (both consume slots or both don't)
+        return 0;
+    }
+
+    /**
+     * Ensure a date slot record exists for the given schedule time and date
+     */
+    private function ensureDateSlotExists(int $scheduleTimeId, string $date, int $slotCapacity): void
+    {
+        $existingSlot = DB::table('schedule_time_date_slots')
+            ->where('ScheduleTimeID', $scheduleTimeId)
+            ->where('SlotDate', $date)
+            ->first();
+
+        if (!$existingSlot) {
+            // Create new date slot record with full capacity
+            DB::table('schedule_time_date_slots')->insert([
+                'ScheduleTimeID' => $scheduleTimeId,
+                'SlotDate' => $date,
+                'RemainingSlots' => $slotCapacity,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+        }
+    }
+
+    /**
+     * Adjust remaining slots for a specific schedule time and date
+     */
+    private function adjustRemainingSlots(int $scheduleTimeId, string $date, int $adjustment, int $maxCapacity): void
+    {
+        // Get current slot info
+        $currentSlot = DB::table('schedule_time_date_slots')
+            ->where('ScheduleTimeID', $scheduleTimeId)
+            ->where('SlotDate', $date)
+            ->first();
+
+        if (!$currentSlot) {
+            throw new \Exception('Date slot record not found.');
+        }
+
+        $newRemainingSlots = $currentSlot->RemainingSlots + $adjustment;
+
+        // Ensure remaining slots don't go below 0 or above capacity
+        if ($newRemainingSlots < 0) {
+            throw new \Exception('Cannot approve appointment: No slots remaining for this date and time.');
+        }
+        
+        if ($newRemainingSlots > $maxCapacity) {
+            $newRemainingSlots = $maxCapacity;
+        }
+
+        // Update the remaining slots
+        $updated = DB::table('schedule_time_date_slots')
+            ->where('ScheduleTimeID', $scheduleTimeId)
+            ->where('SlotDate', $date)
+            ->update([
+                'RemainingSlots' => $newRemainingSlots,
+                'updated_at' => now()
+            ]);
+
+        if (!$updated) {
+            throw new \Exception('Failed to update slot availability.');
+        }
+    }
+
+    /**
+     * Save form data for an appointment
+     */
+    public function saveFormData(Request $request, int $appointmentId): JsonResponse
+    {
+        try {
+            // Validate the request
+            $validator = Validator::make($request->all(), [
+                'formData' => 'required|array'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => 'Invalid form data provided.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Verify appointment exists
+            $appointment = DB::table('Appointment')
+                ->where('AppointmentID', $appointmentId)
+                ->first();
+
+            if (!$appointment) {
+                return response()->json([
+                    'error' => 'Appointment not found.'
+                ], 404);
+            }
+
+            $formData = $request->formData;
+            $savedAnswers = [];
+
+            // Start transaction for atomic operations
+            DB::beginTransaction();
+
+            try {
+                foreach ($formData as $fieldName => $answerText) {
+                    // Extract field ID from field name (assuming format like "field_123" or just "123")
+                    $inputFieldId = $this->extractFieldId($fieldName);
+                    
+                    if (!$inputFieldId) {
+                        continue; // Skip invalid field names
+                    }
+
+                    // Verify the field exists and belongs to this appointment's service
+                    $fieldExists = DB::table('service_input_field')
+                        ->where('InputFieldID', $inputFieldId)
+                        ->where('ServiceID', $appointment->ServiceID)
+                        ->exists();
+
+                    if (!$fieldExists) {
+                        continue; // Skip fields that don't exist or don't belong to this service
+                    }
+
+                    // Insert or update the answer
+                    DB::table('AppointmentInputAnswer')->updateOrInsert(
+                        [
+                            'AppointmentID' => $appointmentId,
+                            'InputFieldID' => $inputFieldId
+                        ],
+                        [
+                            'AnswerText' => $answerText,
+                            'updated_at' => now()
+                        ]
+                    );
+
+                    $savedAnswers[] = [
+                        'field_id' => $inputFieldId,
+                        'field_name' => $fieldName,
+                        'answer' => $answerText
+                    ];
+                }
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Form data saved successfully.',
+                    'appointment_id' => $appointmentId,
+                    'saved_answers' => $savedAnswers,
+                    'total_answers' => count($savedAnswers)
+                ]);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while saving form data.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Create PayMongo checkout session for appointment payment
+     */
+    public function createPaymentCheckout(Request $request): JsonResponse
+    {
+        try {
+            // Validate required fields
+            $validator = Validator::make($request->all(), [
+                'church_id' => 'required|integer|exists:Church,ChurchID',
+                'service_id' => 'required|integer|exists:sacrament_service,ServiceID',
+                'schedule_id' => 'required|integer|exists:service_schedules,ScheduleID',
+                'schedule_time_id' => 'required|integer|exists:schedule_times,ScheduleTimeID',
+                'selected_date' => 'required|date|after_or_equal:today',
+                'form_data' => 'sometimes|string', // JSON string of form data (optional)
+                'success_url' => 'required|url',
+                'cancel_url' => 'required|url'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => 'Validation failed.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Verify user is authenticated
+            $user = $request->user();
+            if (!$user) {
+                return response()->json([
+                    'error' => 'Authentication required.'
+                ], 401);
+            }
+
+            // Verify church is active and public
+            $church = Church::where('ChurchID', $request->church_id)
+                          ->where('ChurchStatus', Church::STATUS_ACTIVE)
+                          ->where('IsPublic', true)
+                          ->first();
+
+            if (!$church) {
+                return response()->json([
+                    'error' => 'Church not found or not available.'
+                ], 404);
+            }
+
+            // Verify service belongs to church
+            $service = SacramentService::where('ServiceID', $request->service_id)
+                                     ->where('ChurchID', $request->church_id)
+                                     ->first();
+
+            if (!$service) {
+                return response()->json([
+                    'error' => 'Service not found or not available.'
+                ], 404);
+            }
+
+            // Verify schedule belongs to service
+            $schedule = ServiceSchedule::where('ScheduleID', $request->schedule_id)
+                                     ->where('ServiceID', $request->service_id)
+                                     ->first();
+
+            if (!$schedule) {
+                return response()->json([
+                    'error' => 'Schedule not found.'
+                ], 404);
+            }
+
+            // Verify schedule time belongs to schedule
+            $scheduleTime = DB::table('schedule_times')
+                ->where('ScheduleTimeID', $request->schedule_time_id)
+                ->where('ScheduleID', $request->schedule_id)
+                ->first();
+
+            if (!$scheduleTime) {
+                return response()->json([
+                    'error' => 'Schedule time not found.'
+                ], 404);
+            }
+
+            // Get schedule fees
+            $fees = ScheduleFee::where('ScheduleID', $request->schedule_id)->get();
+            
+            if ($fees->isEmpty()) {
+                return response()->json([
+                    'error' => 'No fees configured for this schedule.'
+                ], 404);
+            }
+
+            // Calculate total amount (include Fee and Donation as long as amount > 0)
+            $payableFees = $fees->filter(function ($fee) { return ($fee->Fee ?? 0) > 0; });
+            $totalAmount = $payableFees->sum('Fee');
+            
+            if ($totalAmount <= 0) {
+                return response()->json([
+                    'error' => 'No payment required for this appointment.'
+                ], 400);
+            }
+
+            // Note: Removed duplicate application check to allow multiple appointments
+            // for the same user at the same time/date (e.g., booking multiple children for baptism)
+            // Slot availability is still enforced to prevent overbooking
+
+            // Check slot availability
+            $appointmentDate = $request->selected_date;
+            $slotCapacity = $schedule->SlotCapacity;
+            
+            // Ensure date slot exists for this schedule time and date
+            $this->ensureDateSlotExists($request->schedule_time_id, $appointmentDate, $slotCapacity);
+            
+            // Check if slots are available
+            $currentSlot = DB::table('schedule_time_date_slots')
+                ->where('ScheduleTimeID', $request->schedule_time_id)
+                ->where('SlotDate', $appointmentDate)
+                ->first();
+            
+            if (!$currentSlot || $currentSlot->RemainingSlots <= 0) {
+                return response()->json([
+                    'error' => 'No slots available for the selected date and time.'
+                ], 409);
+            }
+
+            // Initialize PayMongo service for this church
+            $paymongoService = new PayMongoService($request->church_id);
+            
+            if (!$paymongoService->isConfigured()) {
+                return response()->json([
+                    'error' => 'Payment system is not configured for this church.'
+                ], 503);
+            }
+
+            // Format appointment date time
+            $appointmentDateTime = \Carbon\Carbon::parse($request->selected_date)
+                ->setTimeFromTimeString($scheduleTime->StartTime)
+                ->format('Y-m-d H:i:s');
+
+            // Prepare metadata for the checkout session
+            $metadata = [
+                'user_id' => $user->id,
+                'church_id' => $request->church_id,
+                'service_id' => $request->service_id,
+                'schedule_id' => $request->schedule_id,
+                'schedule_time_id' => $request->schedule_time_id,
+                'appointment_date' => $appointmentDateTime,
+                'form_data' => $request->form_data ?? null,
+                'type' => 'appointment_payment',
+                'church_name' => $church->ChurchName,
+                'service_name' => $service->ServiceName
+            ];
+
+            // Build description
+            $description = sprintf(
+                '%s - %s (Date: %s, Time: %s)',
+                $church->ChurchName,
+                $service->ServiceName,
+                $appointmentDate,
+                $scheduleTime->StartTime
+            );
+
+            // Create PayMongo checkout session with multiple payment methods  
+            $successUrl = url('/appointment-payment/success?session_id={CHECKOUT_SESSION_ID}&church_id=' . $request->church_id);
+            $cancelUrl = url('/appointment-payment/cancel?session_id={CHECKOUT_SESSION_ID}');
+            
+            $checkoutResult = $paymongoService->createMultiPaymentCheckout(
+                $totalAmount,
+                $description,
+                $successUrl,
+                $cancelUrl,
+                $metadata
+            );
+
+            if (!$checkoutResult['success']) {
+                Log::error('Failed to create PayMongo checkout session', [
+                    'church_id' => $request->church_id,
+                    'service_id' => $request->service_id,
+                    'user_id' => $user->id,
+                    'error' => $checkoutResult['error'] ?? 'Unknown error',
+                    'details' => $checkoutResult['details'] ?? null
+                ]);
+
+                return response()->json([
+                    'error' => 'Failed to create payment session. Please try again later.',
+                    'details' => $checkoutResult['error']
+                ], 500);
+            }
+
+            $checkoutData = $checkoutResult['data'];
+
+            // Log successful session creation (without sensitive data)
+            Log::info('PayMongo checkout session created for appointment', [
+                'checkout_session_id' => $checkoutData['id'],
+                'user_id' => $user->id,
+                'church_id' => $request->church_id,
+                'service_id' => $request->service_id,
+                'amount' => $totalAmount,
+                'description' => $description
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment session created successfully.',
+                'checkout_session' => [
+                    'id' => $checkoutData['id'],
+                    'checkout_url' => $checkoutData['attributes']['checkout_url'],
+                    'expires_at' => $checkoutData['attributes']['expires_at'] ?? null
+                ],
+                'payment_details' => [
+                    'amount' => $totalAmount,
+                    'currency' => 'PHP',
+                    'description' => $description,
+                    'fees' => $fees->map(function ($fee) {
+                        return [
+                            'type' => $fee->FeeType,
+                            'amount' => $fee->Fee,
+                            'description' => $fee->getDescription()
+                        ];
+                    })
+                ],
+                'appointment_details' => [
+                    'church_name' => $church->ChurchName,
+                    'service_name' => $service->ServiceName,
+                    'appointment_date' => $appointmentDateTime,
+                    'available_slots' => $currentSlot->RemainingSlots
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error creating payment checkout session', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->except(['form_data']) // Exclude potentially large form data
+            ]);
+
+            return response()->json([
+                'error' => 'An error occurred while creating the payment session.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Handle successful payment and create appointment
+     */
+    public function handlePaymentSuccess(Request $request): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'checkout_session_id' => 'required|string'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => 'Invalid request.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $user = $request->user();
+            if (!$user) {
+                return response()->json([
+                    'error' => 'Authentication required.'
+                ], 401);
+            }
+
+// Retrieve checkout session from PayMongo to validate payment
+            $checkoutSessionId = $request->checkout_session_id;
+            
+            // Require church_id from frontend (stored before redirect)
+            if (!$request->church_id) {
+                return response()->json([
+                    'error' => 'Church ID is required to validate payment.'
+                ], 400);
+            }
+
+            $paymongoService = new PayMongoService($request->church_id);
+            $sessionResult = $paymongoService->getCheckoutSession($checkoutSessionId);
+
+            if (!$sessionResult['success']) {
+                return response()->json([
+                    'error' => 'Invalid or expired payment session.'
+                ], 400);
+            }
+
+            $sessionData = $sessionResult['data'];
+            $attributes = $sessionData['attributes'] ?? [];
+            $metadata = $attributes['metadata'] ?? [];
+
+            // Verify the payment was successful (support multiple status shapes)
+            $paymentStatus = $attributes['payment_status'] ?? null;
+            $genericStatus = $attributes['status'] ?? null;
+            $payments = $attributes['payments'] ?? [];
+
+            $isPaid = ($paymentStatus === 'paid') || ($genericStatus === 'paid');
+            if (!$isPaid && is_array($payments)) {
+                foreach ($payments as $p) {
+                    if (($p['attributes']['status'] ?? null) === 'paid') { $isPaid = true; break; }
+                }
+            }
+
+            if (!$isPaid) {
+                \Log::warning('Payment success called but session not paid', [
+                    'session_id' => $request->checkout_session_id,
+                    'payment_status' => $paymentStatus,
+                    'status' => $genericStatus
+                ]);
+                return response()->json([
+                    'error' => 'Payment has not been completed yet.'
+                ], 400);
+            }
+
+            // Verify this session belongs to the authenticated user
+            if (($metadata['user_id'] ?? null) != $user->id) {
+                return response()->json([
+                    'error' => 'Unauthorized access to payment session.'
+                ], 403);
+            }
+
+// Extract appointment details from metadata
+            $churchId = $metadata['church_id'] ?? $request->church_id;
+            $serviceId = $metadata['service_id'] ?? null;
+            $scheduleId = $metadata['schedule_id'] ?? null;
+            $scheduleTimeId = $metadata['schedule_time_id'] ?? null;
+            $appointmentDate = $metadata['appointment_date'] ?? null;
+            $formData = $metadata['form_data'] ?? null;
+
+            // Check if appointment was already created for this specific payment session
+            $existingTransaction = DB::table('church_transactions')
+                ->where('paymongo_session_id', $checkoutSessionId)
+                ->first();
+
+            if ($existingTransaction) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Appointment already exists for this payment session.',
+                    'appointment_id' => $existingTransaction->appointment_id
+                ]);
+            }
+
+            // Get related entities for validation
+            $church = Church::find($churchId);
+            $service = SacramentService::find($serviceId);
+            $schedule = ServiceSchedule::find($scheduleId);
+
+            if (!$church || !$service || !$schedule) {
+                return response()->json([
+                    'error' => 'Invalid appointment data in payment session.'
+                ], 400);
+            }
+
+            // Start database transaction for atomic operations
+            DB::beginTransaction();
+            
+            try {
+                // Final slot availability check
+                $slotDate = \Carbon\Carbon::parse($appointmentDate)->format('Y-m-d');
+                $currentSlot = DB::table('schedule_time_date_slots')
+                    ->where('ScheduleTimeID', $scheduleTimeId)
+                    ->where('SlotDate', $slotDate)
+                    ->first();
+                
+                if (!$currentSlot || $currentSlot->RemainingSlots <= 0) {
+                    throw new \Exception('No slots available for the selected date and time.');
+                }
+
+                // Create appointment
+                $appointmentData = [
+                    'UserID' => $user->id,
+                    'ChurchID' => $churchId,
+                    'ServiceID' => $serviceId,
+                    'ScheduleID' => $scheduleId,
+                    'ScheduleTimeID' => $scheduleTimeId,
+                    'AppointmentDate' => $appointmentDate,
+                    'Status' => 'Pending', // Payment confirmed, awaiting church approval
+                    'Notes' => '',
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ];
+
+                $appointmentId = DB::table('Appointment')->insertGetId($appointmentData);
+                
+                // Save form data if provided
+                if ($formData) {
+                    $formDataArray = json_decode($formData, true);
+                    if ($formDataArray) {
+                        foreach ($formDataArray as $fieldKey => $answerValue) {
+                            $inputFieldId = $this->extractFieldId($fieldKey);
+                            
+                            if (!$inputFieldId || empty($answerValue)) {
+                                continue;
+                            }
+                            
+                            // Verify the field exists and belongs to this service
+                            $fieldExists = DB::table('service_input_field')
+                                ->where('InputFieldID', $inputFieldId)
+                                ->where('ServiceID', $serviceId)
+                                ->exists();
+                            
+                            if (!$fieldExists) {
+                                continue;
+                            }
+                            
+                            // Insert the answer
+                            DB::table('AppointmentInputAnswer')->insert([
+                                'AppointmentID' => $appointmentId,
+                                'InputFieldID' => $inputFieldId,
+                                'AnswerText' => is_array($answerValue) ? json_encode($answerValue) : $answerValue,
+                                'created_at' => now(),
+                                'updated_at' => now()
+                            ]);
+                        }
+                    }
+                }
+                
+                // Reserve the slot
+                $this->adjustRemainingSlots($scheduleTimeId, $slotDate, -1, $schedule->SlotCapacity);
+                
+                // CRITICAL FIX: Always use the actual schedule fees instead of trusting PayMongo amount
+                // Get the actual fees for this schedule
+                $actualFees = ScheduleFee::where('ScheduleID', $scheduleId)->get();
+                $actualTotalAmount = $actualFees->sum('Fee');
+                
+                // Apply member discount to get the correct amount
+                $amountPaid = $this->applyMemberDiscount($actualTotalAmount, $service, $user, $churchId);
+                
+                \Log::info('Payment Success - Using Correct Service and Amount', [
+                    'checkout_session_id' => $checkoutSessionId,
+                    'user_id' => $user->id,
+                    'service_id' => $serviceId,
+                    'service_name' => $service->ServiceName,
+                    'schedule_id' => $scheduleId,
+                    'actual_fees' => $actualTotalAmount,
+                    'final_amount' => $amountPaid
+                ]);
+                
+                $paymentMethod = $sessionData['attributes']['payment_method_used'] ?? 'multi';
+                
+                $transaction = ChurchTransaction::create([
+                    'user_id' => $user->id,
+                    'church_id' => $churchId,
+                    'appointment_id' => $appointmentId,
+                    'paymongo_session_id' => $checkoutSessionId,
+                    'payment_method' => $paymentMethod,
+                    'amount_paid' => $amountPaid,
+                    'currency' => 'PHP',
+                    'transaction_type' => 'appointment_payment',
+                    'transaction_date' => now(),
+                    'notes' => sprintf(
+                        '%s appointment payment for %s - %s on %s',
+                        ucfirst($paymentMethod),
+                        $church->ChurchName,
+                        $service->ServiceName,
+                        $appointmentDate
+                    ),
+                    'metadata' => [
+                        'church_name' => $church->ChurchName,
+                        'service_name' => $service->ServiceName,
+                        'appointment_date' => $appointmentDate,
+                        'schedule_time' => $scheduleTimeId,
+                        'original_session_data' => $metadata
+                    ]
+                ]);
+                
+                DB::commit();
+                
+                Log::info('Appointment created after successful payment', [
+                    'appointment_id' => $appointmentId,
+                    'transaction_id' => $transaction->ChurchTransactionID,
+                    'user_id' => $user->id,
+                    'checkout_session_id' => $checkoutSessionId,
+                    'church_id' => $churchId,
+                    'service_id' => $serviceId
+                ]);
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Your appointment has been created successfully after payment confirmation.',
+                    'redirect_url' => env('FRONTEND_URL', 'http://localhost:3000') . '/payment/success?transaction_id=' . $transaction->ChurchTransactionID . '&type=appointment',
+                    'appointment' => [
+                        'id' => $appointmentId,
+                        'church_name' => $church->ChurchName,
+                        'service_name' => $service->ServiceName,
+                        'appointment_date' => $appointmentDate,
+                        'status' => 'Pending'
+                    ],
+                    'transaction' => [
+                        'id' => $transaction->ChurchTransactionID,
+                        'amount_paid' => $transaction->amount_paid,
+                        'currency' => $transaction->currency,
+                        'payment_method' => $transaction->payment_method,
+                        'transaction_date' => $transaction->transaction_date->format('F j, Y g:i A')
+                    ]
+                ], 201);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error handling payment success', [
+                'checkout_session_id' => $request->checkout_session_id ?? 'unknown',
+                'user_id' => $user->id ?? 'unknown',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'error' => 'An error occurred while processing your payment confirmation.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Extract field ID from field name
+     */
+    private function extractFieldId(string $fieldName): ?int
+    {
+        // Try to extract numeric ID from various field name formats
+        if (is_numeric($fieldName)) {
+            return (int) $fieldName;
+        }
+        
+        // Handle "field_123" format
+        if (preg_match('/field[_-]?(\d+)/', $fieldName, $matches)) {
+            return (int) $matches[1];
+        }
+        
+        // Handle other numeric patterns
+        if (preg_match('/\d+/', $fieldName, $matches)) {
+            return (int) $matches[0];
+        }
+        
+        return null;
+    }
+
+    /**
+     * Apply member discount to fee amount if user is an approved member
+     */
+    private function applyMemberDiscount(float $originalAmount, $service, $user, int $churchId): float
+    {
+        // Check if service has discount configured
+        if (!$service->member_discount_type || !$service->member_discount_value) {
+            return $originalAmount;
+        }
+
+        // Check if user is an approved member of this specific church
+        try {
+            $membership = \App\Models\ChurchMember::where('user_id', $user->id)
+                ->where('church_id', $churchId)
+                ->where('status', 'approved')
+                ->first();
+
+            if (!$membership) {
+                return $originalAmount; // Not an approved member
+            }
+
+            // Apply discount
+            $discountValue = floatval($service->member_discount_value);
+            if ($discountValue <= 0) {
+                return $originalAmount;
+            }
+
+            if ($service->member_discount_type === 'percentage') {
+                $discount = ($originalAmount * $discountValue) / 100;
+                return max(0, $originalAmount - $discount); // Don't go below 0
+            } else if ($service->member_discount_type === 'fixed') {
+                return max(0, $originalAmount - $discountValue); // Don't go below 0
+            }
+
+        } catch (\Exception $e) {
+            \Log::warning('Error checking membership for discount', [
+                'user_id' => $user->id,
+                'church_id' => $churchId,
+                'error' => $e->getMessage()
+            ]);
+        }
+
+        return $originalAmount;
+    }
+
+    /**
+     * Handle appointment payment success callback (GET route from PayMongo)
+     */
+    public function handleAppointmentPaymentSuccess(Request $request)
+    {
+        $sessionId = $request->query('session_id');
+        $churchId = $request->query('church_id'); // Pass church_id in the success URL
+        
+        if (!$sessionId) {
+            return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/dashboard?error=missing_session');
+        }
+
+        if (!$churchId) {
+            return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/dashboard?error=missing_church_id');
+        }
+
+        // Handle PayMongo template placeholder - find recent AppointmentPaymentSession
+        if ($sessionId === '{CHECKOUT_SESSION_ID}') {
+            Log::warning('PayMongo placeholder received, finding AppointmentPaymentSession', ['church_id' => $churchId]);
+            
+            // Find most recent pending AppointmentPaymentSession
+            $appointmentSession = AppointmentPaymentSession::where('status', 'pending')
+                ->where('church_id', $churchId)
+                ->orderBy('created_at', 'desc')
+                ->first();
+            
+            Log::info('AppointmentPaymentSession search results', [
+                'pending_session_found' => $appointmentSession ? true : false,
+                'session_id' => $appointmentSession ? $appointmentSession->paymongo_session_id : null,
+                'church_id' => $churchId
+            ]);
+            
+            if (!$appointmentSession) {
+                // Try paid sessions from last 10 minutes
+                $appointmentSession = AppointmentPaymentSession::where('status', 'paid')
+                    ->where('church_id', $churchId)
+                    ->where('updated_at', '>', now()->subMinutes(10))
+                    ->orderBy('updated_at', 'desc')
+                    ->first();
+                    
+                Log::info('Fallback paid session search', [
+                    'paid_session_found' => $appointmentSession ? true : false,
+                    'session_id' => $appointmentSession ? $appointmentSession->paymongo_session_id : null
+                ]);
+            }
+            
+            if ($appointmentSession) {
+                // For placeholder sessions, try to determine actual payment method from PayMongo
+                $paymentMethod = 'gcash'; // Default to gcash as fallback
+                
+                try {
+                    $paymongoService = new PayMongoService($churchId);
+                    $sessionResult = $paymongoService->getCheckoutSession($appointmentSession->paymongo_session_id);
+                    
+                    if ($sessionResult['success']) {
+                        $sessionData = $sessionResult['data'];
+                        $attributes = $sessionData['attributes'] ?? [];
+                        $paymentMethod = $this->getActualPaymentMethod($attributes);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Could not fetch PayMongo session for payment method detection', [
+                        'session_id' => $appointmentSession->paymongo_session_id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+                
+                $appointmentSession->update(['payment_method' => $paymentMethod]);
+                
+                $transaction = $this->createAppointmentAndTransaction($appointmentSession);
+                if ($transaction) {
+                    return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/payment/success?transaction_id=' . $transaction->ChurchTransactionID . '&type=appointment');
+                }
+            }
+            
+            return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/dashboard?error=session_processing_failed');
+        }
+
+        try {
+            // Find AppointmentPaymentSession by session ID
+            $appointmentSession = AppointmentPaymentSession::where('paymongo_session_id', $sessionId)
+                ->where('church_id', $churchId)
+                ->first();
+            
+            if (!$appointmentSession) {
+                Log::warning('AppointmentPaymentSession not found', ['session_id' => $sessionId]);
+                return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/dashboard?error=session_not_found');
+            }
+            
+            // Verify payment with PayMongo
+            $paymongoService = new PayMongoService($churchId);
+            $sessionResult = $paymongoService->getCheckoutSession($sessionId);
+            
+            if ($sessionResult['success']) {
+                $sessionData = $sessionResult['data'];
+                $attributes = $sessionData['attributes'] ?? [];
+                $paymentStatus = $attributes['payment_status'] ?? $attributes['status'] ?? null;
+                
+                if ($paymentStatus === 'paid') {
+                    // Get actual payment method used
+                    $paymentMethodUsed = $this->getActualPaymentMethod($attributes);
+                    
+                    // Update appointment session with actual payment method
+                    $appointmentSession->update(['payment_method' => $paymentMethodUsed]);
+                    
+                    $transaction = $this->createAppointmentAndTransaction($appointmentSession);
+                    if ($transaction) {
+                        return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/payment/success?transaction_id=' . $transaction->ChurchTransactionID . '&type=appointment');
+                    }
+                }
+            }
+            
+            Log::warning('Payment verification failed or not paid', ['session_id' => $sessionId]);
+            return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/dashboard?error=payment_verification_failed');
+        } catch (\Exception $e) {
+            Log::error('Error in appointment payment success callback', [
+                'error' => $e->getMessage(),
+                'session_id' => $sessionId,
+                'church_id' => $churchId
+            ]);
+
+            return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/dashboard?error=payment_processing');
+        }
+    }
+
+    /**
+     * Handle appointment payment cancel callback
+     */
+    public function handleAppointmentPaymentCancel(Request $request)
+    {
+        return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/dashboard?info=payment_cancelled');
+    }
+
+    /**
+     * Process appointment creation from PayMongo session
+     */
+    private function processAppointmentFromSession($sessionId, $churchId, $sessionData)
+    {
+        try {
+            $attributes = $sessionData['attributes'] ?? [];
+            $metadata = $attributes['metadata'] ?? [];
+            
+            $userId = $metadata['user_id'] ?? null;
+            $serviceId = $metadata['service_id'] ?? null;
+            $scheduleId = $metadata['schedule_id'] ?? null;
+            $scheduleTimeId = $metadata['schedule_time_id'] ?? null;
+            $appointmentDate = $metadata['appointment_date'] ?? null;
+            $formData = $metadata['form_data'] ?? null;
+
+            if (!$userId || !$serviceId || !$scheduleId || !$scheduleTimeId || !$appointmentDate) {
+                Log::warning('Missing required metadata for appointment creation', [
+                    'session_id' => $sessionId,
+                    'metadata' => $metadata
+                ]);
+                return null;
+            }
+
+            // Check if appointment already exists
+            $existingAppointment = DB::table('Appointment')
+                ->where('UserID', $userId)
+                ->where('ServiceID', $serviceId)
+                ->where('ScheduleID', $scheduleId)
+                ->where('ScheduleTimeID', $scheduleTimeId)
+                ->whereDate('AppointmentDate', $appointmentDate)
+                ->first();
+
+            if ($existingAppointment) {
+                // Find existing transaction
+                return ChurchTransaction::where('appointment_id', $existingAppointment->AppointmentID)->first();
+            }
+
+            DB::beginTransaction();
+
+            // Get related entities
+            $church = Church::find($churchId);
+            $service = SacramentService::find($serviceId);
+            $schedule = ServiceSchedule::find($scheduleId);
+
+            if (!$church || !$service || !$schedule) {
+                throw new \Exception('Required entities not found');
+            }
+
+            // Create appointment
+            $appointmentId = DB::table('Appointment')->insertGetId([
+                'UserID' => $userId,
+                'ChurchID' => $churchId,
+                'ServiceID' => $serviceId,
+                'ScheduleID' => $scheduleId,
+                'ScheduleTimeID' => $scheduleTimeId,
+                'AppointmentDate' => $appointmentDate,
+                'Status' => 'Pending',
+                'Notes' => 'Appointment created after successful payment via PayMongo - awaiting approval',
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
+            // Save form data if provided
+            if ($formData) {
+                $formDataArray = json_decode($formData, true);
+                if ($formDataArray) {
+                    foreach ($formDataArray as $fieldKey => $answerValue) {
+                        $inputFieldId = $this->extractFieldId($fieldKey);
+                        
+                        if (!$inputFieldId || empty($answerValue)) {
+                            continue;
+                        }
+                        
+                        $fieldExists = DB::table('service_input_field')
+                            ->where('InputFieldID', $inputFieldId)
+                            ->where('ServiceID', $serviceId)
+                            ->exists();
+                        
+                        if (!$fieldExists) {
+                            continue;
+                        }
+                        
+                        DB::table('AppointmentInputAnswer')->insert([
+                            'AppointmentID' => $appointmentId,
+                            'InputFieldID' => $inputFieldId,
+                            'AnswerText' => is_array($answerValue) ? json_encode($answerValue) : $answerValue,
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ]);
+                    }
+                }
+            }
+
+            // Reserve slot
+            $slotDate = \Carbon\Carbon::parse($appointmentDate)->format('Y-m-d');
+            $this->adjustRemainingSlots($scheduleTimeId, $slotDate, -1, $schedule->SlotCapacity);
+            
+            // Create transaction record
+            $amountPaid = ($attributes['amount'] ?? 0) / 100;
+            $paymentMethod = $attributes['payment_method_used'] ?? 'multi';
+            $user = \App\Models\User::find($userId);
+            
+            $transaction = ChurchTransaction::create([
+                'user_id' => $userId,
+                'church_id' => $churchId,
+                'appointment_id' => $appointmentId,
+                'receipt_code' => $this->generateReceiptCode(),
+                'paymongo_session_id' => $sessionId,
+                'payment_method' => $paymentMethod,
+                'amount_paid' => $amountPaid,
+                'currency' => 'PHP',
+                'transaction_type' => 'appointment_payment',
+                'transaction_date' => now(),
+                'notes' => sprintf(
+                    '%s appointment payment for %s - %s on %s',
+                    ucfirst($paymentMethod === 'multi' ? 'GCash' : $paymentMethod),
+                    $church->ChurchName,
+                    $service->ServiceName,
+                    $appointmentDate
+                ),
+                'metadata' => [
+                    'church_name' => $church->ChurchName,
+                    'service_name' => $service->ServiceName,
+                    'appointment_date' => $appointmentDate,
+                    'schedule_time' => $scheduleTimeId,
+                    'original_session_data' => $metadata
+                ]
+            ]);
+
+            DB::commit();
+
+            Log::info('Appointment and transaction created from callback', [
+                'appointment_id' => $appointmentId,
+                'transaction_id' => $transaction->ChurchTransactionID,
+                'session_id' => $sessionId
+            ]);
+
+            return $transaction;
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error processing appointment from session', [
+                'error' => $e->getMessage(),
+                'session_id' => $sessionId,
+                'church_id' => $churchId
+            ]);
+            return null;
+        }
+    }
+    
+    /**
+     * Process appointment payment success (called from unified payment handler)
+     */
+    public function processAppointmentPaymentSuccess($sessionId, $sessionData)
+    {
+        try {
+            $metadata = $sessionData['attributes']['metadata'] ?? [];
+            $churchId = $metadata['church_id'] ?? null;
+            
+            if (!$churchId) {
+                Log::error('No church_id in appointment payment metadata', ['session_id' => $sessionId]);
+                return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/dashboard?error=missing_church_id');
+            }
+            
+            // Use the existing processAppointmentFromSession method
+            $transaction = $this->processAppointmentFromSession($sessionId, $churchId, $sessionData);
+            
+            if ($transaction) {
+                Log::info('Appointment payment processed successfully', [
+                    'session_id' => $sessionId,
+                    'transaction_id' => $transaction->ChurchTransactionID
+                ]);
+                return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/payment/success?transaction_id=' . $transaction->ChurchTransactionID . '&type=appointment&session_id=' . $sessionId);
+            } else {
+                Log::warning('Failed to create appointment transaction', ['session_id' => $sessionId]);
+                return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/dashboard?error=appointment_creation_failed');
+            }
+        } catch (\Exception $e) {
+            Log::error('Error processing appointment payment success', [
+                'error' => $e->getMessage(),
+                'session_id' => $sessionId
+            ]);
+            return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/dashboard?error=payment_processing_failed');
+        }
+    }
+    
+    /**
+     * Create both Appointment and ChurchTransaction from PaymentSession data
+     */
+    private function createAppointmentFromPaymentSession(PaymentSession $paymentSession)
+    {
+        $metadata = $paymentSession->metadata ?? [];
+        
+        try {
+            DB::beginTransaction();
+            
+            // Extract appointment details from metadata
+            $userId = $paymentSession->user_id;
+            $churchId = $metadata['church_id'] ?? null;
+            $serviceId = $metadata['service_id'] ?? null;
+            $scheduleId = $metadata['schedule_id'] ?? null;
+            $scheduleTimeId = $metadata['schedule_time_id'] ?? null;
+            $appointmentDate = $metadata['appointment_date'] ?? null;
+            $formData = $metadata['form_data'] ?? null;
+            
+            if (!$churchId || !$serviceId || !$scheduleId || !$scheduleTimeId || !$appointmentDate) {
+                Log::error('Missing required metadata for appointment creation', [
+                    'payment_session_id' => $paymentSession->id,
+                    'metadata' => $metadata
+                ]);
+                return null;
+            }
+            
+            // Check if appointment already exists
+            $existingAppointment = DB::table('Appointment')
+                ->where('UserID', $userId)
+                ->where('ServiceID', $serviceId)
+                ->where('ScheduleID', $scheduleId)
+                ->where('ScheduleTimeID', $scheduleTimeId)
+                ->whereDate('AppointmentDate', $appointmentDate)
+                ->first();
+            
+            if (!$existingAppointment) {
+                // Create appointment
+                $appointmentId = DB::table('Appointment')->insertGetId([
+                    'UserID' => $userId,
+                    'ChurchID' => $churchId,
+                    'ServiceID' => $serviceId,
+                    'ScheduleID' => $scheduleId,
+                    'ScheduleTimeID' => $scheduleTimeId,
+                    'AppointmentDate' => $appointmentDate,
+                    'Status' => 'Pending',
+                    'Notes' => '',
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+                
+                // Reserve slot
+                $schedule = ServiceSchedule::find($scheduleId);
+                if ($schedule) {
+                    $slotDate = \Carbon\Carbon::parse($appointmentDate)->format('Y-m-d');
+                    $this->adjustRemainingSlots($scheduleTimeId, $slotDate, -1, $schedule->SlotCapacity);
+                }
+            } else {
+                $appointmentId = $existingAppointment->AppointmentID;
+            }
+            
+            // Create ChurchTransaction record
+            $transaction = ChurchTransaction::create([
+                'user_id' => $userId,
+                'church_id' => $churchId,
+                'appointment_id' => $appointmentId,
+                'receipt_code' => $this->generateReceiptCode(),
+                'paymongo_session_id' => $paymentSession->paymongo_session_id,
+                'payment_method' => $paymentSession->payment_method === 'multi' ? 'gcash' : $paymentSession->payment_method,
+                'amount_paid' => $paymentSession->amount,
+                'currency' => 'PHP',
+                'transaction_type' => 'appointment_payment',
+                'transaction_date' => now(),
+                'notes' => 'Appointment payment completed successfully',
+                'metadata' => [
+                    'church_name' => $metadata['church_name'] ?? 'Church',
+                    'service_name' => $metadata['service_name'] ?? 'Service',
+                    'appointment_date' => $appointmentDate,
+                    'payment_status' => 'completed'
+                ]
+            ]);
+            
+            // Update payment session status
+            $paymentSession->update(['status' => 'paid']);
+            
+            DB::commit();
+            
+            Log::info('Appointment and Transaction created from PaymentSession', [
+                'appointment_id' => $appointmentId,
+                'transaction_id' => $transaction->ChurchTransactionID,
+                'payment_session_id' => $paymentSession->id
+            ]);
+            
+            return $transaction;
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error creating appointment from PaymentSession', [
+                'error' => $e->getMessage(),
+                'payment_session_id' => $paymentSession->id,
+                'metadata' => $metadata
+            ]);
+            return null;
+        }
+    }
+    
+    /**
+     * Create ChurchTransaction from PaymentSession data
+     */
+    private function createTransactionFromPaymentSession(PaymentSession $paymentSession)
+    {
+        $metadata = $paymentSession->metadata ?? [];
+        
+        // Update payment session status
+        $paymentSession->update(['status' => 'paid']);
+        
+        // Create ChurchTransaction record
+        $transaction = ChurchTransaction::create([
+            'user_id' => $paymentSession->user_id,
+            'church_id' => $metadata['church_id'] ?? 1,
+            'appointment_id' => null,
+            'receipt_code' => $this->generateReceiptCode(),
+            'paymongo_session_id' => $paymentSession->paymongo_session_id,
+            'payment_method' => $paymentSession->payment_method === 'multi' ? 'gcash' : $paymentSession->payment_method,
+            'amount_paid' => $paymentSession->amount,
+            'currency' => 'PHP',
+            'transaction_type' => 'appointment_payment',
+            'transaction_date' => now(),
+            'notes' => 'Appointment payment completed successfully',
+            'metadata' => [
+                'church_name' => $metadata['church_name'] ?? 'Church',
+                'service_name' => $metadata['service_name'] ?? 'Service',
+                'appointment_date' => $metadata['appointment_date'] ?? null,
+                'payment_status' => 'completed'
+            ]
+        ]);
+        
+        Log::info('ChurchTransaction created from PaymentSession', [
+            'transaction_id' => $transaction->ChurchTransactionID,
+            'payment_session_id' => $paymentSession->id
+        ]);
+        
+        return $transaction;
+    }
+    
+    /**
+     * Get appointment transaction details
+     */
+    public function getAppointmentTransactionDetails(Request $request, $transactionId)
+    {
+        try {
+            Log::info('Looking for transaction', [
+                'transaction_id' => $transactionId,
+                'auth_user_id' => auth()->id(),
+                'all_transactions' => ChurchTransaction::pluck('ChurchTransactionID', 'user_id')->toArray()
+            ]);
+            
+            $transaction = ChurchTransaction::with(['church', 'user', 'appointment.service'])
+                ->where('ChurchTransactionID', $transactionId)
+                ->where('transaction_type', 'appointment_payment')
+                ->first();
+
+            if (!$transaction) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Transaction not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'transaction' => $transaction,
+                    'receipt_number' => (string) $transaction->ChurchTransactionID,
+                    'receipt_code' => $transaction->receipt_code, // expose directly for frontend
+                    'formatted_date' => $transaction->transaction_date->format('F j, Y g:i A'),
+                    'church_name' => $transaction->church->ChurchName,
+                    'service_name' => $transaction->appointment ? $transaction->appointment->service->ServiceName : 'N/A',
+                    'payment_method_display' => $transaction->payment_method === 'card' ? 'Card' : ucfirst($transaction->payment_method),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch appointment transaction details', [
+                'error' => $e->getMessage(),
+                'transaction_id' => $transactionId,
+                'user_id' => auth()->id()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch transaction details'
+            ], 500);
+        }
+    }
+
+    /**
+     * Get appointment transaction by PayMongo session id
+     */
+    public function getAppointmentTransactionBySession(Request $request)
+    {
+        $sessionId = $request->query('session_id');
+        if (!$sessionId) {
+            return response()->json(['success' => false, 'message' => 'Missing session_id'], 400);
+        }
+        $transaction = ChurchTransaction::with(['church', 'user', 'appointment.service'])
+            ->where('paymongo_session_id', $sessionId)
+            ->where('transaction_type', 'appointment_payment')
+            ->first();
+        if (!$transaction) {
+            return response()->json(['success' => false, 'message' => 'Transaction not found'], 404);
+        }
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'transaction' => $transaction,
+                'receipt_number' => (string) $transaction->ChurchTransactionID,
+                'receipt_code' => $transaction->receipt_code, // expose directly for frontend
+                'formatted_date' => $transaction->transaction_date->format('F j, Y g:i A'),
+                'church_name' => optional($transaction->church)->ChurchName,
+                'service_name' => optional($transaction->appointment)->service ? $transaction->appointment->service->ServiceName : 'N/A',
+                'payment_method_display' => $transaction->payment_method === 'card' ? 'Card' : ucfirst($transaction->payment_method),
+            ]
+        ]);
+    }
+
+    /**
+     * Download appointment receipt
+     */
+    public function downloadAppointmentReceipt(Request $request, $transactionId)
+    {
+        try {
+            $transaction = ChurchTransaction::with(['church', 'user', 'appointment.service'])
+                ->where('ChurchTransactionID', $transactionId)
+                ->where('user_id', auth()->id())
+                ->where('transaction_type', 'appointment_payment')
+                ->first();
+
+            if (!$transaction) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Transaction not found'
+                ], 404);
+            }
+
+            $receiptNumber = (string) $transaction->ChurchTransactionID;
+            $paymentMethod = $transaction->payment_method === 'card' ? 'Card' : ucfirst($transaction->payment_method);
+
+            $data = [
+                'brand' => 'FAITHSEEKER',
+                'receiptNumber' => $receiptNumber,
+                'formattedDate' => $transaction->transaction_date->format('F j, Y g:i A'),
+                'transaction' => $transaction,
+                'church' => $transaction->church,
+                'service' => $transaction->appointment ? $transaction->appointment->service->ServiceName : 'N/A',
+                'appointmentDate' => $transaction->appointment ? $transaction->appointment->AppointmentDate->format('F j, Y g:i A') : null,
+                'amount' => $transaction->amount_paid,
+                'paymentMethod' => $paymentMethod,
+                'user' => $transaction->user,
+            ];
+
+            $pdf = Pdf::loadView('receipts.appointment', $data)->setPaper('a4');
+            return $pdf->download('appointment-receipt-' . $receiptNumber . '.pdf');
+        } catch (\Exception $e) {
+            Log::error('Failed to generate appointment receipt', [
+                'error' => $e->getMessage(),
+                'transaction_id' => $transactionId,
+                'user_id' => auth()->id()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate receipt'
+            ], 500);
+        }
+    }
+
+    /**
+     * Create appointment and ChurchTransaction from AppointmentPaymentSession
+     */
+    private function createAppointmentAndTransaction(AppointmentPaymentSession $appointmentSession)
+    {
+        try {
+            DB::beginTransaction();
+            
+            // Always create a new appointment (removed duplicate check to allow multiple appointments)
+            $appointmentId = DB::table('Appointment')->insertGetId([
+                'UserID' => $appointmentSession->user_id,
+                'ChurchID' => $appointmentSession->church_id,
+                'ServiceID' => $appointmentSession->service_id,
+                'ScheduleID' => $appointmentSession->schedule_id,
+                'ScheduleTimeID' => $appointmentSession->schedule_time_id,
+                'AppointmentDate' => $appointmentSession->appointment_date,
+                'Status' => 'Pending',
+                'Notes' => '',
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+            
+            // Reserve slot
+            $schedule = ServiceSchedule::find($appointmentSession->schedule_id);
+            if ($schedule) {
+                $slotDate = $appointmentSession->appointment_date->format('Y-m-d');
+                $this->adjustRemainingSlots($appointmentSession->schedule_time_id, $slotDate, -1, $schedule->SlotCapacity);
+            }
+            
+            // Check if transaction already exists
+            $existingTransaction = ChurchTransaction::where('appointment_id', $appointmentId)
+                ->where('paymongo_session_id', $appointmentSession->paymongo_session_id)
+                ->first();
+            
+            if ($existingTransaction) {
+                DB::commit();
+                return $existingTransaction;
+            }
+            
+            // Create ChurchTransaction (simplified like SubscriptionTransaction)
+            $transaction = ChurchTransaction::create([
+                'user_id' => $appointmentSession->user_id,
+                'church_id' => $appointmentSession->church_id,
+                'appointment_id' => $appointmentId,
+                'payment_method' => $appointmentSession->payment_method,
+                'amount_paid' => $appointmentSession->amount,
+                'currency' => $appointmentSession->currency,
+                'transaction_type' => 'appointment_payment',
+                'transaction_date' => now(),
+                'notes' => sprintf(
+                    '%s payment for %s - %s appointment on %s',
+                    $appointmentSession->payment_method === 'card' ? 'Card' : ucfirst($appointmentSession->payment_method),
+                    $appointmentSession->metadata['church_name'] ?? $appointmentSession->church->ChurchName,
+                    $appointmentSession->metadata['service_name'] ?? $appointmentSession->service->ServiceName,
+                    $appointmentSession->appointment_date->format('Y-m-d')
+                )
+            ]);
+            
+            // Update session status
+            $appointmentSession->update(['status' => 'paid']);
+            
+            DB::commit();
+            
+            Log::info('Appointment and transaction created successfully', [
+                'appointment_id' => $appointmentId,
+                'transaction_id' => $transaction->ChurchTransactionID,
+                'session_id' => $appointmentSession->id
+            ]);
+            
+            return $transaction;
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error creating appointment and transaction', [
+                'error' => $e->getMessage(),
+                'session_id' => $appointmentSession->id
+            ]);
+            return null;
+        }
+    }
+    
+    /**
+     * Create appointment from recent PayMongo payment (when session ID is placeholder)
+     */
+    public function createAppointmentFromRecentPayment(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            if (!$user) {
+                return response()->json(['error' => 'Authentication required.'], 401);
+            }
+
+            // Get the church_id from request
+            $churchId = $request->church_id;
+            if (!$churchId) {
+                return response()->json(['error' => 'Church ID required.'], 400);
+            }
+
+            // Get appointment data from localStorage that was stored before payment
+            $appointmentData = $request->appointment_data;
+            if (!$appointmentData) {
+                return response()->json(['error' => 'No appointment data found.'], 400);
+            }
+
+            // Validate appointment data
+            $validator = Validator::make($appointmentData, [
+                'church_id' => 'required|integer',
+                'service_id' => 'required|integer', 
+                'schedule_id' => 'required|integer',
+                'schedule_time_id' => 'required|integer',
+                'appointment_date' => 'required|string',
+                'church_name' => 'required|string',
+                'service_name' => 'required|string'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['error' => 'Invalid appointment data.', 'errors' => $validator->errors()], 422);
+            }
+
+            DB::beginTransaction();
+
+            try {
+                // Note: Removed duplicate appointment check to allow multiple appointments
+                // for the same user at the same time/date (e.g., booking multiple children for baptism)
+                // Slot availability is still enforced to prevent overbooking
+
+                // Create appointment
+                $appointmentId = DB::table('Appointment')->insertGetId([
+                    'UserID' => $user->id,
+                    'ChurchID' => $appointmentData['church_id'],
+                    'ServiceID' => $appointmentData['service_id'],
+                    'ScheduleID' => $appointmentData['schedule_id'],
+                    'ScheduleTimeID' => $appointmentData['schedule_time_id'],
+                    'AppointmentDate' => $appointmentData['appointment_date'],
+                    'Status' => 'Pending',
+                    'Notes' => '',
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+
+                // Reserve slot
+                $schedule = ServiceSchedule::find($appointmentData['schedule_id']);
+                if ($schedule) {
+                    $slotDate = \Carbon\Carbon::parse($appointmentData['appointment_date'])->format('Y-m-d');
+                    $this->adjustRemainingSlots($appointmentData['schedule_time_id'], $slotDate, -1, $schedule->SlotCapacity);
+                }
+
+                // Create transaction (estimate amount from recent fees)
+                $fees = ScheduleFee::where('ScheduleID', $appointmentData['schedule_id'])->get();
+                $totalAmount = $fees->where('FeeType', 'Fee')->sum('Fee');
+
+                $transaction = ChurchTransaction::create([
+                    'user_id' => $user->id,
+                    'church_id' => $appointmentData['church_id'],
+                    'appointment_id' => $appointmentId,
+                    'paymongo_session_id' => 'placeholder_' . time(), // Placeholder since we don't have the real session ID
+                    'payment_method' => 'gcash', // Assume GCash since it's most common
+                    'amount_paid' => $totalAmount,
+                    'currency' => 'PHP',
+                    'transaction_type' => 'appointment_payment',
+                    'transaction_date' => now(),
+                    'notes' => 'Appointment payment completed successfully via PayMongo',
+                    'metadata' => [
+                        'church_name' => $appointmentData['church_name'],
+                        'service_name' => $appointmentData['service_name'],
+                        'appointment_date' => $appointmentData['appointment_date'],
+                        'payment_status' => 'completed',
+                        'created_from_placeholder' => true
+                    ]
+                ]);
+
+                DB::commit();
+
+                Log::info('Appointment and transaction created from recent payment', [
+                    'appointment_id' => $appointmentId,
+                    'transaction_id' => $transaction->ChurchTransactionID,
+                    'user_id' => $user->id
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Appointment created successfully.',
+                    'redirect_url' => '/payment/success?transaction_id=' . $transaction->ChurchTransactionID . '&type=appointment'
+                ]);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error creating appointment from recent payment', [
+                'error' => $e->getMessage(),
+                'user_id' => $request->user()->id ?? 'unknown'
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to create appointment.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get actual payment method used from PayMongo session attributes
+     */
+    private function getActualPaymentMethod($attributes)
+    {
+        // Log the attributes for debugging
+        Log::info('Detecting payment method from PayMongo attributes', [
+            'payment_method_used' => $attributes['payment_method_used'] ?? 'not_set',
+            'has_payments' => isset($attributes['payments']),
+            'payment_status' => $attributes['payment_status'] ?? $attributes['status'] ?? 'unknown'
+        ]);
+        
+        // Try payment_method_used first (most reliable for completed payments)
+        if (isset($attributes['payment_method_used'])) {
+            $method = strtolower($attributes['payment_method_used']);
+            Log::info('Found payment_method_used', ['method' => $method]);
+            return in_array($method, ['gcash', 'card']) ? $method : 'card';
+        }
+        
+        // Try payments array for completed payments
+        if (isset($attributes['payments']) && is_array($attributes['payments']) && count($attributes['payments']) > 0) {
+            foreach ($attributes['payments'] as $payment) {
+                if (isset($payment['attributes']['source']['type'])) {
+                    $sourceType = strtolower($payment['attributes']['source']['type']);
+                    Log::info('Found payment source type', ['source_type' => $sourceType]);
+                    
+                    if ($sourceType === 'gcash') return 'gcash';
+                    if ($sourceType === 'card') return 'card';
+                }
+                
+                // Also check payment method in payment attributes
+                if (isset($payment['attributes']['payment_method'])) {
+                    $paymentMethod = strtolower($payment['attributes']['payment_method']);
+                    Log::info('Found payment method in payment', ['payment_method' => $paymentMethod]);
+                    
+                    if ($paymentMethod === 'gcash') return 'gcash';
+                    if ($paymentMethod === 'card') return 'card';
+                }
+            }
+        }
+        
+        // Try payment_intent for pending/processing payments
+        if (isset($attributes['payment_intent'])) {
+            $paymentIntent = $attributes['payment_intent'];
+            
+            // Check payment_method_allowed array
+            if (isset($paymentIntent['attributes']['payment_method_allowed'])) {
+                $methods = $paymentIntent['attributes']['payment_method_allowed'];
+                Log::info('Found payment_method_allowed', ['methods' => $methods]);
+                
+                if (is_array($methods) && count($methods) > 0) {
+                    $method = strtolower($methods[0]);
+                    return in_array($method, ['gcash', 'card']) ? $method : 'card';
+                }
+            }
+            
+            // Check if there's a selected payment method
+            if (isset($paymentIntent['attributes']['payment_method'])) {
+                $method = strtolower($paymentIntent['attributes']['payment_method']);
+                Log::info('Found payment method in payment intent', ['method' => $method]);
+                return in_array($method, ['gcash', 'card']) ? $method : 'card';
+            }
+        }
+        
+        // Check line_items or description for hints
+        if (isset($attributes['description'])) {
+            $description = strtolower($attributes['description']);
+            if (strpos($description, 'gcash') !== false) {
+                Log::info('Detected GCash from description');
+                return 'gcash';
+            }
+        }
+        
+        Log::warning('Could not determine payment method, defaulting to gcash');
+        // Default fallback - gcash is more commonly used
+        return 'gcash';
+    }
+    
+    /**
+     * Get church transactions for appointment payments
+     */
+    public function getChurchTransactions(Request $request, $churchName)
+    {
+        try {
+            // Sanitize church name by removing any unexpected suffix (e.g., ":1")
+            $churchName = preg_replace('/:\d+$/', '', $churchName);
+            // Convert URL-friendly church name to proper case (e.g., "holy-trinity-church" to "Holy Trinity Church")
+            $name = str_replace('-', ' ', ucwords($churchName, '-'));
+
+            // Find the church by name (case-insensitive)
+            $church = Church::whereRaw('LOWER(ChurchName) = ?', [strtolower($name)])->first();
+            
+            if (!$church) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Church not found'
+                ], 404);
+            }
+            
+            // Get transactions with related data (include refunded transactions for display)
+            $transactions = ChurchTransaction::with([
+                'user.profile',
+                'church',
+                'appointment' => function($query) {
+                    $query->with(['service', 'user.profile']);
+                }
+            ])
+            ->where('church_id', $church->ChurchID)
+            ->where('transaction_type', 'appointment_payment')
+            ->orderBy('transaction_date', 'desc')
+            ->get();
+            
+            return response()->json([
+                'success' => true,
+                'transactions' => $transactions
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch church transactions', [
+                'error' => $e->getMessage(),
+                'church_name' => $churchName
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch transactions'
+            ], 500);
+        }
+    }
+    
+    /**
+     * Generate a unique receipt code
+     */
+    private function generateReceiptCode()
+    {
+        do {
+            // Generate a unique receipt code: TXN + random 8-digit number
+            $receiptCode = 'TXN' . str_pad(mt_rand(1, 99999999), 8, '0', STR_PAD_LEFT);
+        } while (ChurchTransaction::where('receipt_code', $receiptCode)->exists());
+        
+        return $receiptCode;
+    }
+    
+    /**
+     * Mark a transaction as refunded using receipt code
+     */
+    public function markTransactionAsRefunded(Request $request, $transactionId)
+    {
+        try {
+            $validated = $request->validate([
+                'receipt_code' => 'required|string',
+                'refund_reason' => 'nullable|string|max:500',
+                'apply_convenience_fee' => 'boolean'
+            ]);
+            
+            $transaction = ChurchTransaction::with(['appointment'])
+                ->where('ChurchTransactionID', $transactionId)
+                ->where('transaction_type', 'appointment_payment')
+                ->first();
+                
+            if (!$transaction) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Transaction not found'
+                ], 404);
+            }
+            
+            // Check if appointment is cancelled or rejected (refund only allowed for these statuses)
+            if (!$transaction->appointment || !in_array($transaction->appointment->Status, ['Cancelled', 'Rejected'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Refund is only allowed for cancelled or rejected appointments'
+                ], 400);
+            }
+            
+            // Verify receipt code matches the stored receipt code
+            if (strtoupper($validated['receipt_code']) !== strtoupper($transaction->receipt_code)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid receipt code'
+                ], 400);
+            }
+            
+            if ($transaction->refund_status === 'refunded') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Transaction is already refunded'
+                ], 400);
+            }
+            
+            // Calculate refund amount based on convenience fee
+            $originalAmount = $transaction->amount_paid;
+            $refundAmount = $originalAmount;
+            $convenienceFeeAmount = 0;
+            
+            // Check if convenience fee should be applied
+            $applyConvenienceFee = $validated['apply_convenience_fee'] ?? false;
+            if ($applyConvenienceFee) {
+                $convenienceFee = ChurchConvenienceFee::getActiveForChurch($transaction->church_id);
+                if ($convenienceFee) {
+                    $convenienceFeeAmount = $convenienceFee->calculateFee($originalAmount);
+                    $refundAmount = $convenienceFee->calculateRefundAmount($originalAmount);
+                }
+            }
+            
+            $transaction->update([
+                'refund_status' => 'refunded',
+                'refund_date' => now(),
+                'refund_reason' => $validated['refund_reason'] ?? 'Appointment cancelled/rejected - refund processed',
+                'metadata' => array_merge($transaction->metadata ?? [], [
+                    'refund_calculation' => [
+                        'original_amount' => $originalAmount,
+                        'convenience_fee_applied' => $applyConvenienceFee,
+                        'convenience_fee_amount' => $convenienceFeeAmount,
+                        'refund_amount' => $refundAmount
+                    ]
+                ])
+            ]);
+            
+            Log::info('Transaction marked as refunded', [
+                'transaction_id' => $transactionId,
+                'receipt_code' => $validated['receipt_code'],
+                'refund_reason' => $validated['refund_reason']
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaction marked as refunded successfully',
+                'transaction' => $transaction->fresh()
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to mark transaction as refunded', [
+                'error' => $e->getMessage(),
+                'transaction_id' => $transactionId
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to mark transaction as refunded'
+            ], 500);
+        }
+    }
+    
+    /**
+     * Generate appointment receipt content
+     */
+    private function generateAppointmentReceiptContent(ChurchTransaction $transaction)
+    {
+        $receiptNumber = (string) $transaction->ChurchTransactionID;
+        $paymentMethod = $transaction->payment_method === 'multi' ? 'GCash' : $transaction->payment_method;
+        
+        $content = "\n";
+        $content .= "================================================\n";
+        $content .= "                FAITHSEEKER                    \n";
+        $content .= "           APPOINTMENT RECEIPT                \n";
+        $content .= "================================================\n\n";
+        
+        $content .= "Transaction ID: {$receiptNumber}\n";
+        $content .= "Receipt Code: " . ($transaction->receipt_code ?? 'N/A') . "\n";
+        $content .= "Transaction Date: " . $transaction->transaction_date->format('F j, Y g:i A') . "\n";
+        $content .= "Customer: " . $transaction->user->name . "\n";
+        $content .= "Email: " . $transaction->user->email . "\n\n";
+        
+        $content .= "------------------------------------------------\n";
+        $content .= "APPOINTMENT DETAILS\n";
+        $content .= "------------------------------------------------\n";
+        $content .= "Church: " . $transaction->church->ChurchName . "\n";
+        $content .= "Service: " . ($transaction->appointment ? $transaction->appointment->service->ServiceName : 'N/A') . "\n";
+        $content .= "Date: " . ($transaction->appointment ? $transaction->appointment->AppointmentDate->format('Y-m-d H:i') : 'N/A') . "\n";
+        $content .= "Payment Method: " . $paymentMethod . "\n";
+        $content .= "PayMongo Session: " . $transaction->paymongo_session_id . "\n";
+        
+        $content .= "\n------------------------------------------------\n";
+        $content .= "PAYMENT SUMMARY\n";
+        $content .= "------------------------------------------------\n";
+        $content .= "Amount Paid: ₱" . number_format($transaction->amount_paid, 2) . "\n";
+        $content .= "Payment Status: PAID\n";
+        
+        $content .= "\n------------------------------------------------\n";
+        $content .= "NOTES\n";
+        $content .= "------------------------------------------------\n";
+        $content .= ($transaction->notes ?? 'No additional notes') . "\n";
+        
+        $content .= "\n================================================\n";
+        $content .= "     Thank you for your appointment!           \n";
+        $content .= "   Your booking is pending church approval.   \n";
+        $content .= "================================================\n";
+        
+        return $content;
+    }
+}
