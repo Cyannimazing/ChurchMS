@@ -97,6 +97,7 @@ const ChurchEditPage = () => {
     ChurchName: "",
     Description: "",
     ParishDetails: "",
+    Street: "",
     City: "",
     Province: "",
     Latitude: "",
@@ -182,6 +183,7 @@ const ChurchEditPage = () => {
           ChurchName: response.data.church.ChurchName || "",
           Description: response.data.church.Description || "",
           ParishDetails: response.data.church.ParishDetails || "",
+          Street: response.data.church.Street || "",
           City: response.data.church.City || "",
           Province: response.data.church.Province || "",
           Latitude: response.data.church.Latitude || "",
@@ -796,6 +798,7 @@ const ChurchEditPage = () => {
       data.append("ChurchName", formData.ChurchName);
       data.append("Description", formData.Description);
       data.append("ParishDetails", formData.ParishDetails);
+      data.append("Street", formData.Street);
       data.append("City", formData.City);
       data.append("Province", formData.Province);
       data.append("Latitude", formData.Latitude);
@@ -1365,6 +1368,27 @@ const ChurchEditPage = () => {
                       messages={errors.ParishDetails}
                       className="mt-2"
                     />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="Street">
+                      Street/Address <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="mt-1 relative rounded-md shadow-sm">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <MapPin className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        id="Street"
+                        name="Street"
+                        value={formData.Street}
+                        onChange={handleInputChange}
+                        className="mt-2 block w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        placeholder="123 Main Street, Barangay Name"
+                      />
+                    </div>
+                    <InputError messages={errors.Street} className="mt-2" />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">

@@ -105,9 +105,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/churches/{churchId}/payment-config/status', [PaymentConfigController::class, 'updateStatus'])->name('churches.paymentConfig.updateStatus');
     Route::delete('/churches/{churchId}/payment-config', [PaymentConfigController::class, 'destroy'])->name('churches.paymentConfig.destroy');
 
-    // Certificate Configuration Routes
-    Route::get('/certificate-configurations/{churchName}/{certificateType?}', [CertificateConfigurationController::class, 'getConfiguration'])->where('churchName', '[A-Za-z0-9\s\-_]+');
-    Route::post('/certificate-configurations/{churchName}', [CertificateConfigurationController::class, 'saveConfiguration'])->where('churchName', '[A-Za-z0-9\s\-_]+');
 });
 
 //Staff Management
@@ -181,6 +178,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Save form data for appointment
     Route::post('/appointments/{appointmentId}/staff-form-data', [AppointmentController::class, 'saveFormData'])->where('appointmentId', '[0-9]+')->name('appointments.saveFormData');
     
+    // Get appointment answers for certificate generation
+    Route::get('/appointments/{appointmentId}/answers', [AppointmentController::class, 'getAppointmentAnswers'])->where('appointmentId', '[0-9]+')->name('appointments.answers');
+    
     // Payment success handling (for completing paid appointments)
     Route::post('/appointments/payment/success', [AppointmentController::class, 'handlePaymentSuccess'])->name('appointments.payment.success');
     
@@ -234,3 +234,18 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // Public member registration (no auth required for regular users to apply)
 Route::post('/public/church-members', [ChurchMemberController::class, 'store'])->name('public.church-members.store');
+
+// Certificate Configuration Management
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/certificate-config/{churchName}/{certificateType}', [CertificateConfigurationController::class, 'getConfiguration'])->where('churchName', '[A-Za-z0-9\\s\\-_]+')->name('certificate-config.get');
+    Route::post('/certificate-config/{churchName}', [CertificateConfigurationController::class, 'saveConfiguration'])->where('churchName', '[A-Za-z0-9\\s\\-_]+')->name('certificate-config.save');
+    
+    // Get certificate field data auto-populated from appointment answers
+    Route::get('/appointments/{appointmentId}/certificate-data/{certificateType}', [CertificateConfigurationController::class, 'getCertificateFieldData'])->where('appointmentId', '[0-9]+')->name('appointments.certificate-data');
+    
+    // Certificate verification
+    Route::post('/certificate-verification', [CertificateConfigurationController::class, 'createCertificateVerification'])->name('certificate.verification.create');
+});
+
+// Public certificate verification (no auth required)
+Route::get('/verify-certificate/{token}', [CertificateConfigurationController::class, 'verifyCertificate'])->name('certificate.verify');

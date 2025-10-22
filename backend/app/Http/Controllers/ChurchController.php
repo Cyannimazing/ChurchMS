@@ -28,6 +28,7 @@ class ChurchController extends Controller
             'ChurchName' => 'required|string|max:255|unique:Church,ChurchName',
             'Latitude' => 'required|numeric|between:-90,90',
             'Longitude' => 'required|numeric|between:-180,180',
+            'Street' => 'nullable|string|max:255',
             'City' => 'required|string|max:255',
             'Province' => 'required|string|max:255',
             'Description' => 'nullable|string|min:10|max:1000',
@@ -97,6 +98,7 @@ class ChurchController extends Controller
                     'IsPublic' => false, // Churches start as private until approved
                     'Latitude' => $validated['Latitude'],
                     'Longitude' => $validated['Longitude'],
+                    'Street' => $validated['Street'] ?? null,
                     'City' => $validated['City'],
                     'Province' => $validated['Province'],
                     'ChurchStatus' => Church::STATUS_PENDING, // All new churches start as pending
@@ -185,6 +187,7 @@ class ChurchController extends Controller
                         'Location' => [
                             'Latitude' => $church->Latitude,
                             'Longitude' => $church->Longitude,
+                            'Street' => $church->Street,
                             'City' => $church->City,
                             'Province' => $church->Province,
                         ],
@@ -562,6 +565,7 @@ class ChurchController extends Controller
                     'IsPublic' => $church->IsPublic,
                     'Latitude' => $church->Latitude,
                     'Longitude' => $church->Longitude,
+                    'Street' => $church->Street,
                     'City' => $church->City,
                     'Province' => $church->Province,
                     'Description' => $church->profile ? $church->profile->Description : null,
@@ -759,6 +763,7 @@ class ChurchController extends Controller
                 'ChurchName' => 'sometimes|string|max:255|unique:Church,ChurchName,' . $church->ChurchID . ',ChurchID',
                 'Latitude' => 'sometimes|numeric|between:-90,90',
                 'Longitude' => 'sometimes|numeric|between:-180,180',
+                'Street' => 'sometimes|string|max:255',
                 'City' => 'sometimes|string|max:255',
                 'Province' => 'sometimes|string|max:255',
                 'Description' => 'sometimes|string|min:10|max:1000',
@@ -781,6 +786,9 @@ class ChurchController extends Controller
                 }
                 if (isset($validated['Longitude'])) {
                     $church->Longitude = $validated['Longitude'];
+                }
+                if (isset($validated['Street'])) {
+                    $church->Street = $validated['Street'];
                 }
                 if (isset($validated['City'])) {
                     $church->City = $validated['City'];

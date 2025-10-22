@@ -13,6 +13,7 @@ class Church extends Model
         'IsPublic',
         'Latitude',
         'Longitude',
+        'Street',
         'City',
         'Province',
         'ChurchStatus',

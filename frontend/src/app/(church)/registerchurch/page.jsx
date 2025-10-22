@@ -40,6 +40,7 @@ const ChurchRegistrationPage = () => {
     ChurchName: "",
     Description: "",
     ParishDetails: "",
+    Street: "",
     City: "",
     Province: "",
     Latitude: "",
@@ -120,6 +121,10 @@ const ChurchRegistrationPage = () => {
 
   const validateStep2 = () => {
     const stepErrors = {};
+    
+    if (!formData.Street) {
+      stepErrors.Street = ["Street/Address is required"];
+    }
     
     if (!formData.Province) {
       stepErrors.Province = ["Province is required"];
@@ -716,6 +721,30 @@ const ChurchRegistrationPage = () => {
                     </div>
 
                     <div className="space-y-6">
+                      <div>
+                        <Label htmlFor="Street">
+                          Street/Address <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="mt-1 relative rounded-md shadow-sm">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <MapPin className="h-5 w-5 text-gray-400" />
+                          </div>
+                          <input
+                            type="text"
+                            id="Street"
+                            name="Street"
+                            value={formData.Street}
+                            onChange={handleChange}
+                            className="block w-full pl-10 pr-3 py-3 text-sm border-2 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            placeholder="123 Main Street, Barangay Name"
+                          />
+                        </div>
+                        <InputError
+                          messages={errors.Street}
+                          className="mt-2"
+                        />
+                      </div>
+
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="Province">

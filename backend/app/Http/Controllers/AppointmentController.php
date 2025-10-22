@@ -900,6 +900,9 @@ class AppointmentController extends Controller
                                 'a.Notes',
                                 'c.ChurchName',
                                 'c.ChurchID',
+                                'c.Street',
+                                'c.City',
+                                'c.Province',
                                 's.ServiceName',
                                 's.ServiceID',
                                 's.Description as ServiceDescription',
@@ -1037,6 +1040,12 @@ class AppointmentController extends Controller
                 'ServiceID' => $appointment->ServiceID,
                 'ServiceName' => $appointment->ServiceName,
                 'ServiceDescription' => $appointment->ServiceDescription,
+                'church' => [
+                    'church_name' => $appointment->ChurchName,
+                    'street' => $appointment->Street,
+                    'city' => $appointment->City,
+                    'province' => $appointment->Province
+                ],
                 'service' => [
                     'ServiceID' => $appointment->ServiceID,
                     'ServiceName' => $appointment->ServiceName,
@@ -3069,5 +3078,44 @@ class AppointmentController extends Controller
         $content .= "================================================\n";
         
         return $content;
+    }
+
+    /**
+     * Get appointment answers for certificate generation
+     */
+    public function getAppointmentAnswers(Request $request, int $appointmentId): JsonResponse
+    {
+        try {
+            // Verify appointment exists
+            $appointment = DB::table('Appointment')
+                ->where('AppointmentID', $appointmentId)
+                ->first();
+
+            if (!$appointment) {
+                return response()->json([
+                    'error' => 'Appointment not found.'
+                ], 404);
+            }
+
+            // Get all answers for this appointment
+            $answers = DB::table('AppointmentInputAnswer')
+                ->where('AppointmentID', $appointmentId)
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'answers' => $answers
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch appointment answers', [
+                'error' => $e->getMessage(),
+                'appointment_id' => $appointmentId
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to fetch appointment answers'
+            ], 500);
+        }
     }
 }

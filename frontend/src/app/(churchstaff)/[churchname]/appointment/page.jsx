@@ -3,12 +3,15 @@
 import React, { useState, useEffect } from "react";
 import axios from "@/lib/axios";
 import { useRouter, useParams } from "next/navigation";
-import { Calendar, Clock, MapPin, Users, Eye, Check, X, AlertTriangle, Search, FileText, User, Mail, Phone, MapPin as Location, Download } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, Eye, Check, X, AlertTriangle, Search, FileText, User, Mail, Phone, MapPin as Location, Download, FileText as CertificateIcon } from "lucide-react";
 import { useAuth } from "@/hooks/auth.jsx";
 import DataLoading from "@/components/DataLoading";
 import SearchAndPagination from "@/components/SearchAndPagination";
 import { Button } from "@/components/Button.jsx";
 import FormRenderer from "@/components/FormRenderer.jsx";
+import CertificateGenerator from "@/components/CertificateGenerator.jsx";
+import CertificateTypeModal from "@/components/CertificateTypeModal.jsx";
+import ConfirmDialog from "@/components/ConfirmDialog.jsx";
 import { exportToPDF, isServiceDownloadable } from "@/utils/pdfExport";
 
 const AppointmentPage = () => {
@@ -35,6 +38,16 @@ const AppointmentPage = () => {
   
   // Form data state for staff input
   const [staffFormData, setStaffFormData] = useState({});
+  
+  // Confirm dialog state
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  
+  // Certificate generation state
+  const [showCertificateTypeModal, setShowCertificateTypeModal] = useState(false);
+  const [showCertificateModal, setShowCertificateModal] = useState(false);
+  const [selectedCertificateType, setSelectedCertificateType] = useState('marriage');
+  
 
   // Check if user is ChurchOwner or has appointment_list permission
   const hasAccess =
@@ -269,6 +282,39 @@ const AppointmentPage = () => {
     }
   };
 
+  // Handle confirm dialog actions
+  const handleConfirmAction = () => {
+    if (confirmAction) {
+      const { appointmentId, status } = confirmAction;
+      handleUpdateAppointmentStatus(appointmentId, status);
+    }
+    setShowConfirmDialog(false);
+    setConfirmAction(null);
+  };
+
+  const handleCancelAction = () => {
+    setShowConfirmDialog(false);
+    setConfirmAction(null);
+  };
+
+  // Show confirm dialog for status updates
+  const showStatusConfirmDialog = (appointmentId, status) => {
+    setConfirmAction({ appointmentId, status });
+    setShowConfirmDialog(true);
+  };
+
+  // Certificate generation functions
+  const handleGenerateCertificate = () => {
+      setShowCertificateTypeModal(true);
+  };
+
+  const handleCertificateTypeSelection = (type) => {
+    setSelectedCertificateType(type);
+      setShowCertificateTypeModal(false);
+      setShowCertificateModal(true);
+  };
+
+
   const handleSaveFormData = async () => {
     console.log('Save button clicked');
     console.log('Selected appointment:', selectedAppointment?.AppointmentID);
@@ -381,6 +427,7 @@ const AppointmentPage = () => {
                             <option value="All">All</option>
                             <option value="Pending">Pending</option>
                             <option value="Approved">Approved</option>
+                            <option value="Completed">Completed</option>
                             <option value="Cancelled">Cancelled</option>
                           </select>
                         </div>
@@ -791,7 +838,7 @@ const AppointmentPage = () => {
                   {selectedAppointment?.Status === 'Pending' && (
                     <>
                       <Button
-                        onClick={() => handleUpdateAppointmentStatus(selectedAppointment.AppointmentID, 'Cancelled')}
+                        onClick={() => showStatusConfirmDialog(selectedAppointment.AppointmentID, 'Cancelled')}
                         variant="outline"
                         className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200"
                         disabled={isUpdatingStatus}
@@ -800,7 +847,7 @@ const AppointmentPage = () => {
                         {isUpdatingStatus ? 'Updating...' : 'Cancel Appointment'}
                       </Button>
                       <Button
-                        onClick={() => handleUpdateAppointmentStatus(selectedAppointment.AppointmentID, 'Approved')}
+                        onClick={() => showStatusConfirmDialog(selectedAppointment.AppointmentID, 'Approved')}
                         className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700"
                         disabled={isUpdatingStatus}
                       >
@@ -813,7 +860,7 @@ const AppointmentPage = () => {
                   {selectedAppointment?.Status === 'Approved' && (
                     <>
                       <Button
-                        onClick={() => handleUpdateAppointmentStatus(selectedAppointment.AppointmentID, 'Cancelled')}
+                        onClick={() => showStatusConfirmDialog(selectedAppointment.AppointmentID, 'Cancelled')}
                         variant="outline"
                         className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200"
                         disabled={isUpdatingStatus}
@@ -822,11 +869,7 @@ const AppointmentPage = () => {
                         {isUpdatingStatus ? 'Updating...' : 'Cancel Appointment'}
                       </Button>
                       <Button
-                        onClick={() => {
-                          if (window.confirm('Are you sure you want to mark this appointment as completed?')) {
-                            handleUpdateAppointmentStatus(selectedAppointment.AppointmentID, 'Completed');
-                          }
-                        }}
+                        onClick={() => showStatusConfirmDialog(selectedAppointment.AppointmentID, 'Completed')}
                         className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
                         disabled={isUpdatingStatus}
                       >
@@ -835,12 +878,62 @@ const AppointmentPage = () => {
                       </Button>
                     </>
                   )}
+                  
+                  {selectedAppointment?.Status === 'Completed' && (
+                    <Button
+                      onClick={handleGenerateCertificate}
+                      className="flex items-center bg-green-600 hover:bg-green-700"
+                      disabled={isUpdatingStatus}
+                    >
+                      <CertificateIcon className="h-4 w-4 mr-2" />
+                      Generate Certificate
+                    </Button>
+                  )}
+                  
                 </div>
               </div>
             )}
           </div>
         </div>
       )}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={showConfirmDialog}
+        onClose={handleCancelAction}
+        onConfirm={handleConfirmAction}
+        title="Confirm Status Update"
+        message={
+          confirmAction?.status === 'Completed' 
+            ? 'Are you sure you want to mark this appointment as completed?'
+            : confirmAction?.status === 'Cancelled'
+            ? 'Are you sure you want to cancel this appointment?'
+            : confirmAction?.status === 'Approved'
+            ? 'Are you sure you want to approve this appointment?'
+            : `Are you sure you want to update this appointment status to ${confirmAction?.status}?`
+        }
+        confirmText="Yes, Update Status"
+        cancelText="Cancel"
+        type={confirmAction?.status === 'Cancelled' ? 'warning' : confirmAction?.status === 'Completed' ? 'info' : 'info'}
+        isLoading={isUpdatingStatus}
+      />
+
+      {/* Certificate Type Selection Modal */}
+      <CertificateTypeModal
+        isOpen={showCertificateTypeModal}
+        onClose={() => setShowCertificateTypeModal(false)}
+        onSelectType={handleCertificateTypeSelection}
+      />
+
+      {/* Certificate Generator Modal */}
+      <CertificateGenerator
+        isOpen={showCertificateModal}
+        onClose={() => setShowCertificateModal(false)}
+        selectedAppointment={selectedAppointment}
+        certificateType={selectedCertificateType}
+        staffFormData={staffFormData}
+      />
+
     </div>
   );
 };

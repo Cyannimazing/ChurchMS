@@ -13,22 +13,23 @@ class CertificateConfiguration extends Model
     protected $fillable = [
         'ChurchID',
         'CertificateType',
-        'SacramentServiceID',
-        'field_mappings',
-        'form_data',
+        'ServiceID',
+        'FieldMappings',
+        'IsEnabled',
     ];
     
     protected $casts = [
-        'ChurchID' => 'integer',
-        'field_mappings' => 'array',
-        'form_data' => 'array',
+        'FieldMappings' => 'array',
+        'IsEnabled' => 'boolean',
     ];
     
-    /**
-     * Get the church that owns this certificate configuration.
-     */
     public function church(): BelongsTo
     {
         return $this->belongsTo(Church::class, 'ChurchID', 'ChurchID');
+    }
+    
+    public function service(): BelongsTo
+    {
+        return $this->belongsTo(SacramentService::class, 'ServiceID', 'ServiceID');
     }
 }
