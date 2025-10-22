@@ -89,12 +89,16 @@ const ChurchEditPage = () => {
   });
   const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
   const [copiedPublic, setCopiedPublic] = useState(false);
+  const [provinces, setProvinces] = useState([]);
+  const [cities, setCities] = useState([]);
 
   // Form state
   const [formData, setFormData] = useState({
     ChurchName: "",
     Description: "",
     ParishDetails: "",
+    City: "",
+    Province: "",
     Latitude: "",
     Longitude: "",
     ProfilePicture: null,
@@ -148,6 +152,19 @@ const ChurchEditPage = () => {
       .catch((err) => console.error("Failed to load Leaflet CSS:", err));
   }, []);
 
+  // Fetch provinces on component mount
+  useEffect(() => {
+    const fetchProvinces = async () => {
+      try {
+        const response = await axios.get('/api/provinces');
+        setProvinces(response.data);
+      } catch (error) {
+        console.error('Error fetching provinces:', error);
+      }
+    };
+    fetchProvinces();
+  }, []);
+
   // Fetch church data
   useEffect(() => {
     const fetchChurchData = async () => {
@@ -165,6 +182,8 @@ const ChurchEditPage = () => {
           ChurchName: response.data.church.ChurchName || "",
           Description: response.data.church.Description || "",
           ParishDetails: response.data.church.ParishDetails || "",
+          City: response.data.church.City || "",
+          Province: response.data.church.Province || "",
           Latitude: response.data.church.Latitude || "",
           Longitude: response.data.church.Longitude || "",
           ProfilePicture: null,
@@ -269,6 +288,19 @@ const ChurchEditPage = () => {
         setFileStatus(newFileStatus);
         console.log("Updated file status:", newFileStatus);
         
+        // Fetch cities if province is already set
+        if (response.data.church.Province && provinces.length > 0) {
+          const selectedProvince = provinces.find(p => p.name === response.data.church.Province);
+          if (selectedProvince) {
+            try {
+              const citiesResponse = await axios.get(`/api/provinces/${selectedProvince.id}/cities`);
+              setCities(citiesResponse.data);
+            } catch (error) {
+              console.error('Error fetching cities:', error);
+            }
+          }
+        }
+        
         // Fetch payment configuration for this church
         try {
           const paymentResponse = await axios.get(`/api/churches/${churchId}/payment-config`);
@@ -308,13 +340,55 @@ const ChurchEditPage = () => {
     }
   }, [churchId, router]);
 
+  // Fetch cities when church data and provinces are both loaded
+  useEffect(() => {
+    const fetchCitiesForProvince = async () => {
+      if (church && church.Province && provinces.length > 0) {
+        const selectedProvince = provinces.find(p => p.name === church.Province);
+        if (selectedProvince) {
+          try {
+            const citiesResponse = await axios.get(`/api/provinces/${selectedProvince.id}/cities`);
+            setCities(citiesResponse.data);
+          } catch (error) {
+            console.error('Error fetching cities for loaded church:', error);
+          }
+        }
+      }
+    };
+    
+    fetchCitiesForProvince();
+  }, [church, provinces]);
+
   // Handle input change
-  const handleInputChange = (e) => {
+  const handleInputChange = async (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    
+    // If province changes, fetch cities for that province
+    if (name === "Province") {
+      const selectedProvince = provinces.find(p => p.name === value);
+      if (selectedProvince) {
+        try {
+          const response = await axios.get(`/api/provinces/${selectedProvince.id}/cities`);
+          setCities(response.data);
+        } catch (error) {
+          console.error('Error fetching cities:', error);
+          setCities([]);
+        }
+      } else {
+        setCities([]);
+      }
+      
+      setFormData((prev) => ({
+        ...prev,
+        Province: value,
+        City: "", // Reset city when province changes
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
 
     // Clear errors for this field
     if (errors[name]) {
@@ -722,6 +796,8 @@ const ChurchEditPage = () => {
       data.append("ChurchName", formData.ChurchName);
       data.append("Description", formData.Description);
       data.append("ParishDetails", formData.ParishDetails);
+      data.append("City", formData.City);
+      data.append("Province", formData.Province);
       data.append("Latitude", formData.Latitude);
       data.append("Longitude", formData.Longitude);
 
@@ -1289,6 +1365,58 @@ const ChurchEditPage = () => {
                       messages={errors.ParishDetails}
                       className="mt-2"
                     />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="Province">
+                        Province <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="mt-1 relative rounded-md shadow-sm">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <MapPin className="h-5 w-5 text-gray-400" />
+                        </div>
+                        <select
+                          id="Province"
+                          name="Province"
+                          value={formData.Province}
+                          onChange={handleInputChange}
+                          className="mt-2 block w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">Select Province</option>
+                          {provinces.map((province) => (
+                            <option key={province.id} value={province.name}>
+                              {province.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <InputError messages={errors.Province} className="mt-2" />
+                    </div>
+                    <div>
+                      <Label htmlFor="City">
+                        City/Municipality <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="mt-1 relative rounded-md shadow-sm">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <MapPin className="h-5 w-5 text-gray-400" />
+                        </div>
+                        <select
+                          id="City"
+                          name="City"
+                          value={formData.City}
+                          onChange={handleInputChange}
+                          disabled={!formData.Province}
+                          className="mt-2 block w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        >
+                          <option value="">{formData.Province ? "Select City/Municipality" : "Select Province First"}</option>
+                          {cities.map((city) => (
+                            <option key={city.id} value={city.name}>{city.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <InputError messages={errors.City} className="mt-2" />
+                    </div>
                   </div>
 
                   <div>

@@ -811,15 +811,29 @@ const AppointmentPage = () => {
                   )}
                   
                   {selectedAppointment?.Status === 'Approved' && (
-                    <Button
-                      onClick={() => handleUpdateAppointmentStatus(selectedAppointment.AppointmentID, 'Cancelled')}
-                      variant="outline"
-                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200"
-                      disabled={isUpdatingStatus}
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      {isUpdatingStatus ? 'Updating...' : 'Cancel Appointment'}
-                    </Button>
+                    <>
+                      <Button
+                        onClick={() => handleUpdateAppointmentStatus(selectedAppointment.AppointmentID, 'Cancelled')}
+                        variant="outline"
+                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200"
+                        disabled={isUpdatingStatus}
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        {isUpdatingStatus ? 'Updating...' : 'Cancel Appointment'}
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          if (window.confirm('Are you sure you want to mark this appointment as completed?')) {
+                            handleUpdateAppointmentStatus(selectedAppointment.AppointmentID, 'Completed');
+                          }
+                        }}
+                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                        disabled={isUpdatingStatus}
+                      >
+                        <Check className="h-4 w-4 mr-2" />
+                        {isUpdatingStatus ? 'Updating...' : 'Mark as Completed'}
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>

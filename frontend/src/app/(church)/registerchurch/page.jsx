@@ -32,12 +32,16 @@ const ChurchRegistrationPage = () => {
   const [isLeafletLoaded, setIsLeafletLoaded] = useState(false);
   const toastRef = useRef(null);
   const router = useRouter();
+  const [provinces, setProvinces] = useState([]);
+  const [cities, setCities] = useState([]);
 
   // Form state
   const [formData, setFormData] = useState({
     ChurchName: "",
     Description: "",
     ParishDetails: "",
+    City: "",
+    Province: "",
     Latitude: "",
     Longitude: "",
     ProfilePicture: null,
@@ -116,6 +120,15 @@ const ChurchRegistrationPage = () => {
 
   const validateStep2 = () => {
     const stepErrors = {};
+    
+    if (!formData.Province) {
+      stepErrors.Province = ["Province is required"];
+    }
+    
+    if (!formData.City) {
+      stepErrors.City = ["City is required"];
+    }
+    
     if (!formData.Latitude || !formData.Longitude) {
       stepErrors.location = ["Please select a location on the map"];
     }
@@ -151,13 +164,49 @@ const ChurchRegistrationPage = () => {
     return Object.keys(stepErrors).length === 0;
   };
 
+  // Fetch provinces on component mount
+  useEffect(() => {
+    const fetchProvinces = async () => {
+      try {
+        const response = await axios.get('/api/provinces');
+        setProvinces(response.data);
+      } catch (error) {
+        console.error('Error fetching provinces:', error);
+      }
+    };
+    fetchProvinces();
+  }, []);
+
   // Handle input change
-  const handleChange = (e) => {
+  const handleChange = async (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    
+    // If province changes, fetch cities for that province
+    if (name === "Province") {
+      const selectedProvince = provinces.find(p => p.name === value);
+      if (selectedProvince) {
+        try {
+          const response = await axios.get(`/api/provinces/${selectedProvince.id}/cities`);
+          setCities(response.data);
+        } catch (error) {
+          console.error('Error fetching cities:', error);
+          setCities([]);
+        }
+      } else {
+        setCities([]);
+      }
+      
+      setFormData((prev) => ({
+        ...prev,
+        Province: value,
+        City: "", // Reset city when province changes
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
 
     // Clear errors for this field
     if (errors[name]) {
@@ -667,13 +716,71 @@ const ChurchRegistrationPage = () => {
                     </div>
 
                     <div className="space-y-6">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="Province">
+                            Province <span className="text-red-500">*</span>
+                          </Label>
+                          <div className="mt-1 relative rounded-md shadow-sm">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                              <MapPin className="h-5 w-5 text-gray-400" />
+                            </div>
+                            <select
+                              id="Province"
+                              name="Province"
+                              value={formData.Province}
+                              onChange={handleChange}
+                              className="block w-full pl-10 pr-3 py-3 text-sm border-2 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            >
+                              <option value="">Select Province</option>
+                              {provinces.map((province) => (
+                                <option key={province.id} value={province.name}>
+                                  {province.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <InputError
+                            messages={errors.Province}
+                            className="mt-2"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="City">
+                            City/Municipality <span className="text-red-500">*</span>
+                          </Label>
+                          <div className="mt-1 relative rounded-md shadow-sm">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                              <MapPin className="h-5 w-5 text-gray-400" />
+                            </div>
+                            <select
+                              id="City"
+                              name="City"
+                              value={formData.City}
+                              onChange={handleChange}
+                              disabled={!formData.Province}
+                              className="block w-full pl-10 pr-3 py-3 text-sm border-2 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                            >
+                              <option value="">{formData.Province ? "Select City/Municipality" : "Select Province First"}</option>
+                              {cities.map((city) => (
+                                <option key={city.id} value={city.name}>{city.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <InputError
+                            messages={errors.City}
+                            className="mt-2"
+                          />
+                        </div>
+                      </div>
+
                       <div>
                         <Label>
                           Select Location on Map{" "}
                           <span className="text-red-500">*</span>
                         </Label>
                         <p className="text-sm text-gray-500 mb-4">
-                          Click on the map to set your church's location or use
+                          Click on the map to set your church's exact location or use
                           the "Use My Current Location" button.
                         </p>
 

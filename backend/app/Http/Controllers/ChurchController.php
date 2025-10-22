@@ -28,6 +28,8 @@ class ChurchController extends Controller
             'ChurchName' => 'required|string|max:255|unique:Church,ChurchName',
             'Latitude' => 'required|numeric|between:-90,90',
             'Longitude' => 'required|numeric|between:-180,180',
+            'City' => 'required|string|max:255',
+            'Province' => 'required|string|max:255',
             'Description' => 'nullable|string|min:10|max:1000',
             'ParishDetails' => 'nullable|string|min:10|max:1000',
             'ProfilePicture' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
@@ -41,6 +43,8 @@ class ChurchController extends Controller
             'ChurchName.required' => 'Church name is required.',
             'Latitude.required' => 'Latitude is required.',
             'Longitude.required' => 'Longitude is required.',
+            'City.required' => 'City is required.',
+            'Province.required' => 'Province is required.',
             'Description.min' => 'Description must be at least 10 characters.',
             'ParishDetails.min' => 'Parish details must be at least 10 characters.',
             'ProfilePicture.image' => 'Profile picture must be an image (JPEG, PNG, or JPG).',
@@ -93,6 +97,8 @@ class ChurchController extends Controller
                     'IsPublic' => false, // Churches start as private until approved
                     'Latitude' => $validated['Latitude'],
                     'Longitude' => $validated['Longitude'],
+                    'City' => $validated['City'],
+                    'Province' => $validated['Province'],
                     'ChurchStatus' => Church::STATUS_PENDING, // All new churches start as pending
                     'user_id' => $user->id,
                 ]);
@@ -179,6 +185,8 @@ class ChurchController extends Controller
                         'Location' => [
                             'Latitude' => $church->Latitude,
                             'Longitude' => $church->Longitude,
+                            'City' => $church->City,
+                            'Province' => $church->Province,
                         ],
                         'Profile' => [
                             'Description' => $profile->Description,
@@ -554,6 +562,8 @@ class ChurchController extends Controller
                     'IsPublic' => $church->IsPublic,
                     'Latitude' => $church->Latitude,
                     'Longitude' => $church->Longitude,
+                    'City' => $church->City,
+                    'Province' => $church->Province,
                     'Description' => $church->profile ? $church->profile->Description : null,
                     'ParishDetails' => $church->profile ? $church->profile->ParishDetails : null,
                     'ProfilePicturePath' => $church->profile ? $church->profile->ProfilePicturePath : null,
@@ -749,6 +759,8 @@ class ChurchController extends Controller
                 'ChurchName' => 'sometimes|string|max:255|unique:Church,ChurchName,' . $church->ChurchID . ',ChurchID',
                 'Latitude' => 'sometimes|numeric|between:-90,90',
                 'Longitude' => 'sometimes|numeric|between:-180,180',
+                'City' => 'sometimes|string|max:255',
+                'Province' => 'sometimes|string|max:255',
                 'Description' => 'sometimes|string|min:10|max:1000',
                 'ParishDetails' => 'sometimes|string|min:10|max:1000',
                 'ProfilePicture' => 'sometimes|image|mimes:jpeg,png,jpg|max:2048',
@@ -770,6 +782,12 @@ class ChurchController extends Controller
                 if (isset($validated['Longitude'])) {
                     $church->Longitude = $validated['Longitude'];
                 }
+                if (isset($validated['City'])) {
+                    $church->City = $validated['City'];
+                }
+                if (isset($validated['Province'])) {
+                    $church->Province = $validated['Province'];
+                }
                 
                 // If church was rejected and is being updated, set back to pending
                 if ($church->ChurchStatus === Church::STATUS_REJECTED) {
@@ -778,22 +796,37 @@ class ChurchController extends Controller
                 
                 $church->save();
 
-                // Update profile
-                if ($church->profile && (isset($validated['Description']) || isset($validated['ParishDetails']))) {
-                    $church->profile()->update([
-                        'Description' => $validated['Description'] ?? $church->profile->Description,
-                        'ParishDetails' => $validated['ParishDetails'] ?? $church->profile->ParishDetails,
-                    ]);
+                // Update or create profile text fields
+                if (isset($validated['Description']) || isset($validated['ParishDetails'])) {
+                    if ($church->profile) {
+                        $church->profile()->update([
+                            'Description' => $validated['Description'] ?? $church->profile->Description,
+                            'ParishDetails' => $validated['ParishDetails'] ?? $church->profile->ParishDetails,
+                        ]);
+                    } else {
+                        ChurchProfile::create([
+                            'ChurchID' => $church->ChurchID,
+                            'Description' => $validated['Description'] ?? null,
+                            'ParishDetails' => $validated['ParishDetails'] ?? null,
+                        ]);
+                    }
                 }
 
                 // Handle profile picture
                 if ($request->hasFile('ProfilePicture')) {
                     $filename = $this->handleProfilePicture($request->file('ProfilePicture'), $church);
                     
-                    if ($filename && $church->profile) {
-                        $church->profile()->update([
-                            'ProfilePicturePath' => $filename
-                        ]);
+                    if ($filename) {
+                        if ($church->profile) {
+                            $church->profile()->update([
+                                'ProfilePicturePath' => $filename
+                            ]);
+                        } else {
+                            ChurchProfile::create([
+                                'ChurchID' => $church->ChurchID,
+                                'ProfilePicturePath' => $filename,
+                            ]);
+                        }
                     }
                 }
 
@@ -864,6 +897,8 @@ class ChurchController extends Controller
                         'IsPublic' => $church->IsPublic,
                         'Latitude' => $church->Latitude,
                         'Longitude' => $church->Longitude,
+                        'City' => $church->City,
+                        'Province' => $church->Province,
                         'Description' => $church->profile ? $church->profile->Description : null,
                         'ParishDetails' => $church->profile ? $church->profile->ParishDetails : null,
                         'ProfilePicturePath' => $church->profile ? $church->profile->ProfilePicturePath : null,

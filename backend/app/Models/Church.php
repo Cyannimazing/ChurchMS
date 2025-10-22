@@ -13,6 +13,8 @@ class Church extends Model
         'IsPublic',
         'Latitude',
         'Longitude',
+        'City',
+        'Province',
         'ChurchStatus',
         'user_id', // Added to link to User
     ];

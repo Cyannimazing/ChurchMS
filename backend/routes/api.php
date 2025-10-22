@@ -17,6 +17,13 @@ use App\Http\Controllers\ChurchMemberController;
 use App\Http\Controllers\ConvenienceFeeController;
 use App\Http\Controllers\SignatureController;
 use App\Http\Controllers\SubServiceController;
+use App\Http\Controllers\LocationController;
+use App\Http\Controllers\CertificateConfigurationController;
+
+// Locations (public routes)
+Route::get('/provinces', [LocationController::class, 'getProvinces']);
+Route::get('/provinces/{provinceId}/cities', [LocationController::class, 'getCitiesByProvince']);
+Route::get('/locations', [LocationController::class, 'getAllLocations']);
 
 //USERS
 Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
@@ -97,6 +104,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/churches/{churchId}/payment-config', [PaymentConfigController::class, 'store'])->name('churches.paymentConfig.store');
     Route::put('/churches/{churchId}/payment-config/status', [PaymentConfigController::class, 'updateStatus'])->name('churches.paymentConfig.updateStatus');
     Route::delete('/churches/{churchId}/payment-config', [PaymentConfigController::class, 'destroy'])->name('churches.paymentConfig.destroy');
+
+    // Certificate Configuration Routes
+    Route::get('/certificate-configurations/{churchName}/{certificateType?}', [CertificateConfigurationController::class, 'getConfiguration'])->where('churchName', '[A-Za-z0-9\s\-_]+');
+    Route::post('/certificate-configurations/{churchName}', [CertificateConfigurationController::class, 'saveConfiguration'])->where('churchName', '[A-Za-z0-9\s\-_]+');
 });
 
 //Staff Management

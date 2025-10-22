@@ -9,6 +9,7 @@ class ChurchProfile extends Model
     protected $table = 'ChurchProfile';
     protected $primaryKey = 'ChurchID';
     protected $fillable = [
+        'ChurchID',
         'Description',
         'ParishDetails',
         'ProfilePicturePath',
