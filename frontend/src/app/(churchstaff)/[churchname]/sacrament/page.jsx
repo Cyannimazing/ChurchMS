@@ -72,6 +72,7 @@ const SacramentPage = () => {
     Description: "",
     isStaffForm: true,
     isDownloadableContent: false,
+    isCertificateGeneration: false,
     advanceBookingNumber: 3,
     advanceBookingUnit: "weeks",
     member_discount_type: "",
@@ -156,6 +157,7 @@ const SacramentPage = () => {
       Description: "",
       isStaffForm: true,
       isDownloadableContent: false,
+      isCertificateGeneration: false,
       advanceBookingNumber: 3,
       advanceBookingUnit: "weeks",
       member_discount_type: "",
@@ -184,6 +186,7 @@ const SacramentPage = () => {
         Description: localSacrament.Description || "",
         isStaffForm: localSacrament.isStaffForm !== undefined ? localSacrament.isStaffForm : true,
         isDownloadableContent: localSacrament.isDownloadableContent !== undefined ? localSacrament.isDownloadableContent : false,
+        isCertificateGeneration: localSacrament.isCertificateGeneration !== undefined ? localSacrament.isCertificateGeneration : false,
         advanceBookingNumber: localSacrament.advanceBookingNumber || 3,
         advanceBookingUnit: localSacrament.advanceBookingUnit || "weeks",
         member_discount_type: localSacrament.member_discount_type || "",
@@ -205,6 +208,7 @@ const SacramentPage = () => {
         Description: sacrament.Description || "",
         isStaffForm: sacrament.isStaffForm !== undefined ? sacrament.isStaffForm : true,
         isDownloadableContent: sacrament.isDownloadableContent !== undefined ? sacrament.isDownloadableContent : false,
+        isCertificateGeneration: sacrament.isCertificateGeneration !== undefined ? sacrament.isCertificateGeneration : false,
         advanceBookingNumber: sacrament.advanceBookingNumber || 3,
         advanceBookingUnit: sacrament.advanceBookingUnit || "weeks",
         member_discount_type: sacrament.member_discount_type || "",
@@ -275,6 +279,7 @@ const SacramentPage = () => {
         Description: form.Description || "",
         isStaffForm: form.isStaffForm,
         isDownloadableContent: form.isDownloadableContent,
+        isCertificateGeneration: form.isCertificateGeneration,
         advanceBookingNumber: form.advanceBookingNumber,
         advanceBookingUnit: form.advanceBookingUnit,
         member_discount_type: form.member_discount_type || null,
@@ -414,6 +419,7 @@ const SacramentPage = () => {
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sub-Services</th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member Discount</th>
+                          <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Certificate</th>
                           <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Actions
                           </th>
@@ -422,7 +428,7 @@ const SacramentPage = () => {
                       <tbody className="bg-white divide-y divide-gray-200">
                         {isInitialLoading ? (
                           <tr>
-                            <td colSpan={5} className="px-6 py-8">
+                            <td colSpan={6} className="px-6 py-8">
                               <DataLoading message="Loading sacraments..." />
                             </td>
                           </tr>
@@ -472,6 +478,19 @@ const SacramentPage = () => {
                                   )}
                                 </div>
                               </td>
+                              <td className="px-6 py-4 text-center">
+                                <div className="text-sm">
+                                  {sacrament.isCertificateGeneration ? (
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                      Enabled
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                      Disabled
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
                               <td className="px-4 py-3">
                                 <div className="flex justify-center items-center space-x-2">
                                   <Button
@@ -509,7 +528,7 @@ const SacramentPage = () => {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                            <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                               {searchTerm ? 'No sacraments found matching your search.' : 'No sacraments available.'}
                             </td>
                           </tr>
@@ -648,6 +667,27 @@ const SacramentPage = () => {
                 </div>
                 <p className="mt-1 text-xs text-gray-500">
                   Check this box if this sacrament should have downloadable content available for users.
+                </p>
+              </div>
+              
+              <div>
+                <div className="flex items-center">
+                  <input
+                    id="isCertificateGeneration"
+                    type="checkbox"
+                    checked={form.isCertificateGeneration}
+                    onChange={(e) => setForm({ ...form, isCertificateGeneration: e.target.checked })}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  />
+                  <Label
+                    htmlFor="isCertificateGeneration"
+                    className="ml-2 text-sm font-medium text-gray-700"
+                  >
+                    Enable Certificate Generation
+                  </Label>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Check this box if this sacrament should allow certificate generation for completed appointments.
                 </p>
               </div>
               

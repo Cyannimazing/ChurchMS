@@ -60,10 +60,13 @@ class CertificateVerification extends Model
 
     /**
      * Get verification URL
+     * This should point to the frontend verification page
      */
     public function getVerificationUrl(): string
     {
-        return url("/verify-certificate/{$this->VerificationToken}");
+        // Get frontend URL from config or use current domain
+        $frontendUrl = config('app.frontend_url', config('app.url'));
+        return "{$frontendUrl}/verify-certificate/{$this->VerificationToken}";
     }
 
     /**

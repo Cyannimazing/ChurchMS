@@ -260,7 +260,7 @@ class CertificateConfigurationController extends Controller
     public function verifyCertificate(string $token): JsonResponse
     {
         try {
-            $verification = CertificateVerification::with(['church', 'appointment'])
+            $verification = CertificateVerification::with(['church.profile', 'appointment'])
                 ->where('VerificationToken', $token)
                 ->first();
 
@@ -288,6 +288,8 @@ class CertificateConfigurationController extends Controller
                     'church_name' => $verification->church->ChurchName,
                     'church_city' => $verification->church->City,
                     'church_province' => $verification->church->Province,
+                    'church_street' => $verification->church->Street,
+                    'church_profile_image' => $verification->church->profile ? asset('storage/' . $verification->church->profile->ProfilePicturePath) : null,
                     'verified_at' => now()->format('Y-m-d H:i:s'),
                     'certificate_data' => $verification->CertificateData
                 ]
@@ -301,4 +303,5 @@ class CertificateConfigurationController extends Controller
             ], 500);
         }
     }
+
 }

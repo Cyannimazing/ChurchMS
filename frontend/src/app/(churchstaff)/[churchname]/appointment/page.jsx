@@ -879,7 +879,9 @@ const AppointmentPage = () => {
                     </>
                   )}
                   
-                  {selectedAppointment?.Status === 'Completed' && (
+                  {selectedAppointment?.Status === 'Completed' && 
+                   (appointmentDetails?.service?.isCertificateGeneration || 
+                    appointmentDetails?.sacramentService?.isCertificateGeneration) && (
                     <Button
                       onClick={handleGenerateCertificate}
                       className="flex items-center bg-green-600 hover:bg-green-700"

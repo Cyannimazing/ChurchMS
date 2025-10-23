@@ -21,6 +21,7 @@ class SacramentService extends Model
         'advanceBookingUnit',
         'member_discount_type',
         'member_discount_value',
+        'isCertificateGeneration',
     ];
     
     protected $casts = [
@@ -29,6 +30,7 @@ class SacramentService extends Model
         'isDownloadableContent' => 'boolean',
         'advanceBookingNumber' => 'integer',
         'member_discount_value' => 'decimal:2',
+        'isCertificateGeneration' => 'boolean',
     ];
     
     /**

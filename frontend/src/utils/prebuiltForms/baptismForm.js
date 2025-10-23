@@ -93,51 +93,19 @@ export const createBaptismForm = () => {
       zIndex: 1
     },
     
-    // Child's First Name
+    // Child's Full Name
     {
       id: baseId + 6,
       type: 'text',
       x: 10,
       y: 290,
-      width: 240,
+      width: 740,
       height: 40,
-      label: "Child's First Name",
-      placeholder: 'Enter first name',
+      label: "Child's Full Name (First Middle Last)",
+      placeholder: 'Enter child\'s full legal name',
       required: true,
       containerId: mainContainer.id,
-      elementId: 'child_first_name',
-      zIndex: 1
-    },
-    
-    // Child's Middle Name
-    {
-      id: baseId + 7,
-      type: 'text',
-      x: 260,
-      y: 290,
-      width: 240,
-      height: 40,
-      label: "Child's Middle Name",
-      placeholder: 'Enter middle name',
-      required: true,
-      containerId: mainContainer.id,
-      elementId: 'child_middle_name',
-      zIndex: 1
-    },
-    
-    // Child's Last Name
-    {
-      id: baseId + 8,
-      type: 'text',
-      x: 510,
-      y: 290,
-      width: 240,
-      height: 40,
-      label: "Child's Last Name",
-      placeholder: 'Enter last name',
-      required: true,
-      containerId: mainContainer.id,
-      elementId: 'child_last_name',
+      elementId: 'child_full_name',
       zIndex: 1
     },
     

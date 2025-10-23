@@ -25,6 +25,15 @@ const CertificateConfig = () => {
     enabled: true,
     headerText: "CERTIFICATE OF BAPTISM",
     footerText: "This certifies that the above named person was baptized in this church.",
+    fields: {
+      childName: { label: "Child Name", field: "" },
+      fatherName: { label: "Father's Complete Name", field: "" },
+      motherName: { label: "Mother's Full Maiden Name", field: "" },
+      birthPlace: { label: "Born in (Location)", field: "" },
+      birthDate: { label: "Child Birth Date", field: "" },
+      sponsor1: { label: "Sponsor 1", field: "" },
+      sponsor2: { label: "Sponsor 2", field: "" },
+    },
   });
 
   const [matrimonyConfig, setMatrimonyConfig] = useState({
@@ -55,10 +64,10 @@ const CertificateConfig = () => {
   });
 
   const certificates = [
-    { id: 'baptism', name: 'Baptism', config: baptismConfig, setConfig: setBaptismConfig, icon: '💧' },
-    { id: 'matrimony', name: 'Matrimony', config: matrimonyConfig, setConfig: setMatrimonyConfig, icon: '💍' },
-    { id: 'confirmation', name: 'Confirmation', config: confirmationConfig, setConfig: setConfirmationConfig, icon: '✝️' },
-    { id: 'firstCommunion', name: 'First Communion', config: firstCommunionConfig, setConfig: setFirstCommunionConfig, icon: '🍞' },
+    { id: 'baptism', name: 'Baptism', config: baptismConfig, setConfig: setBaptismConfig },
+    { id: 'matrimony', name: 'Matrimony', config: matrimonyConfig, setConfig: setMatrimonyConfig },
+    { id: 'confirmation', name: 'Confirmation', config: confirmationConfig, setConfig: setConfirmationConfig },
+    { id: 'firstCommunion', name: 'First Communion', config: firstCommunionConfig, setConfig: setFirstCommunionConfig },
   ];
 
   // Fetch sacrament services on mount
@@ -171,6 +180,15 @@ const CertificateConfig = () => {
           enabled: true,
           headerText: "CERTIFICATE OF BAPTISM",
           footerText: "This certifies that the above named person was baptized in this church.",
+          fields: {
+            childName: { label: "Child Name", field: "" },
+            fatherName: { label: "Father's Complete Name", field: "" },
+            motherName: { label: "Mother's Full Maiden Name", field: "" },
+            birthPlace: { label: "Born in (Location)", field: "" },
+            birthDate: { label: "Child Birth Date", field: "" },
+            sponsor1: { label: "Sponsor 1", field: "" },
+            sponsor2: { label: "Sponsor 2", field: "" },
+          },
         },
         matrimony: {
           templateName: "Matrimony Certificate Template",
@@ -250,37 +268,23 @@ const CertificateConfig = () => {
 
             {!selectedCertificate ? (
               // Selection View
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
                 {certificates.map((cert) => (
                   <div
                     key={cert.id}
                     onClick={() => setSelectedCertificate(cert.id)}
-                    className="group relative bg-white border-2 border-gray-200 rounded-lg p-6 hover:border-blue-500 hover:shadow-lg transition-all duration-200 cursor-pointer"
+                    className="group relative bg-white border border-gray-200 rounded-lg p-5 hover:border-blue-500 hover:shadow-md transition-all duration-200 cursor-pointer"
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="text-4xl">{cert.icon}</div>
-                        <div>
-                          <h3 className="text-xl font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                            {cert.name}
-                          </h3>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {cert.config.enabled ? (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Enabled
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                Disabled
-                              </span>
-                            )}
-                          </p>
-                        </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                          {cert.name} Certificate
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Configure {cert.name.toLowerCase()} certificate settings
+                        </p>
                       </div>
-                      <ChevronRight className="h-6 w-6 text-gray-400 group-hover:text-blue-600 transition-colors" />
-                    </div>
-                    <div className="mt-4 text-sm text-gray-600">
-                      <p className="font-medium">{cert.config.templateName}</p>
+                      <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
                     </div>
                   </div>
                 ))}
@@ -292,29 +296,11 @@ const CertificateConfig = () => {
                   // Matrimony Template Configuration
                   <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                       <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className="text-3xl">{selectedCert?.icon}</div>
-                            <div>
-                              <h3 className="text-lg font-semibold text-gray-900">{selectedCert?.name}</h3>
-                              <p className="text-sm text-gray-600">Configure field mappings</p>
-                            </div>
+                        <div className="flex items-center space-x-3">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">{selectedCert?.name} Certificate</h3>
+                            <p className="text-sm text-gray-600">Configure field mappings for certificate generation</p>
                           </div>
-                          <label className="flex items-center cursor-pointer">
-                            <div className="relative">
-                              <input
-                                type="checkbox"
-                                className="sr-only"
-                                checked={selectedCert?.config.enabled}
-                                onChange={(e) => selectedCert?.setConfig({ ...selectedCert.config, enabled: e.target.checked })}
-                              />
-                              <div className={`block w-14 h-8 rounded-full transition-colors ${selectedCert?.config.enabled ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
-                              <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${selectedCert?.config.enabled ? 'transform translate-x-6' : ''}`}></div>
-                            </div>
-                            <span className="ml-3 text-sm font-medium text-gray-700">
-                              {selectedCert?.config.enabled ? 'Enabled' : 'Disabled'}
-                            </span>
-                          </label>
                         </div>
                       </div>
                       
@@ -375,33 +361,84 @@ const CertificateConfig = () => {
                           </div>
                       </div>
                   </div>
+                ) : selectedCertificate === 'baptism' ? (
+                  // Baptism Template Configuration
+                  <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                      <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                        <div className="flex items-center space-x-3">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">{selectedCert?.name} Certificate</h3>
+                            <p className="text-sm text-gray-600">Configure field mappings for certificate generation</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="px-6 py-6 space-y-6">
+                          
+                          {/* Sacrament Service Selection */}
+                          <div className="mb-6">
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Select Sacrament Service
+                            </label>
+                            <select
+                              value={selectedServiceId}
+                              onChange={(e) => setSelectedServiceId(e.target.value)}
+                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:border-gray-300"
+                              disabled={!selectedCert?.config.enabled || isLoadingServices}
+                            >
+                              <option value="">Select a sacrament service</option>
+                              {Array.isArray(sacramentServices) && sacramentServices.map((service) => (
+                                <option key={service.ServiceID} value={service.ServiceID}>
+                                  {service.ServiceName}
+                                </option>
+                              ))}
+                            </select>
+                            {isLoadingServices && (
+                              <p className="text-xs text-gray-500 mt-2">Loading services...</p>
+                            )}
+                          </div>
+
+                          {/* Field Mapping Dropdowns */}
+                          <div className="space-y-4">
+                              {selectedCert?.config.fields && Object.entries(selectedCert.config.fields).map(([key, field]) => (
+                              <div key={key}>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  {field.label}
+                                </label>
+                                <select
+                                  value={field.field}
+                                  onChange={(e) => {
+                                    const updatedFields = { ...selectedCert.config.fields };
+                                    updatedFields[key] = { ...field, field: e.target.value };
+                                    selectedCert.setConfig({ ...selectedCert.config, fields: updatedFields });
+                                  }}
+                                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:border-gray-300"
+                                  disabled={!selectedCert?.config.enabled || isLoadingFields}
+                                >
+                                  <option value="">Select a field</option>
+                                  {Array.isArray(serviceInputFields) && serviceInputFields.map((inputField) => (
+                                    <option key={inputField.InputFieldID} value={`${inputField.InputFieldID}-${inputField.elementId || inputField.element_id}`}>
+                                      {inputField.label} ({inputField.InputFieldID} - {inputField.elementId || inputField.element_id || 'No Element ID'})
+                                    </option>
+                                  ))}
+                                </select>
+                                {isLoadingFields && (
+                                  <p className="text-xs text-gray-500 mt-1">Loading fields...</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                      </div>
+                  </div>
                 ) : (
                   // Other certificates (simple view)
                   <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                     <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="text-3xl">{selectedCert?.icon}</div>
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900">{selectedCert?.name}</h3>
-                            <p className="text-sm text-gray-600">Configure {selectedCert?.name.toLowerCase()} certificate settings</p>
-                          </div>
+                      <div className="flex items-center space-x-3">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">{selectedCert?.name} Certificate</h3>
+                          <p className="text-sm text-gray-600">Configure certificate settings and template text</p>
                         </div>
-                        <label className="flex items-center cursor-pointer">
-                          <div className="relative">
-                            <input
-                              type="checkbox"
-                              className="sr-only"
-                              checked={selectedCert?.config.enabled}
-                              onChange={(e) => selectedCert?.setConfig({ ...selectedCert.config, enabled: e.target.checked })}
-                            />
-                            <div className={`block w-14 h-8 rounded-full transition-colors ${selectedCert?.config.enabled ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
-                            <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${selectedCert?.config.enabled ? 'transform translate-x-6' : ''}`}></div>
-                          </div>
-                          <span className="ml-3 text-sm font-medium text-gray-700">
-                            {selectedCert?.config.enabled ? 'Enabled' : 'Disabled'}
-                          </span>
-                        </label>
                       </div>
                     </div>
                     

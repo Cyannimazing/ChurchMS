@@ -105,6 +105,7 @@ class SacramentServiceController extends Controller
                 'advanceBookingUnit' => 'nullable|string|in:weeks,months',
                 'member_discount_type' => 'nullable|string|in:percentage,fixed',
                 'member_discount_value' => 'nullable|numeric|min:0',
+                'isCertificateGeneration' => 'nullable|boolean',
                 'sub_services' => 'nullable|array',
                 'sub_services.*.SubServiceName' => 'required|string|max:100',
                 'sub_services.*.Description' => 'nullable|string',
@@ -152,6 +153,7 @@ class SacramentServiceController extends Controller
                     'advanceBookingUnit' => $request->advanceBookingUnit,
                     'member_discount_type' => $request->member_discount_type,
                     'member_discount_value' => $request->member_discount_value,
+                    'isCertificateGeneration' => $request->isCertificateGeneration ?? false,
                 ]);
 
                 // Create sub-services if provided
@@ -227,6 +229,7 @@ class SacramentServiceController extends Controller
                 'advanceBookingUnit' => 'nullable|string|in:weeks,months',
                 'member_discount_type' => 'nullable|string|in:percentage,fixed',
                 'member_discount_value' => 'nullable|numeric|min:0',
+                'isCertificateGeneration' => 'nullable|boolean',
                 'sub_services' => 'nullable|array',
                 'sub_services.*.SubServiceName' => 'required|string|max:100',
                 'sub_services.*.Description' => 'nullable|string',
@@ -283,6 +286,7 @@ class SacramentServiceController extends Controller
                     'advanceBookingUnit' => $request->advanceBookingUnit,
                     'member_discount_type' => $request->member_discount_type,
                     'member_discount_value' => $request->member_discount_value,
+                    'isCertificateGeneration' => $request->isCertificateGeneration ?? false,
                 ]);
 
                 // Delete existing sub-services (cascade will delete schedules)

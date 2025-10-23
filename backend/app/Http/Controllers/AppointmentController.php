@@ -906,7 +906,8 @@ class AppointmentController extends Controller
                                 's.ServiceName',
                                 's.ServiceID',
                                 's.Description as ServiceDescription',
-                                's.isDownloadableContent'
+                                's.isDownloadableContent',
+                                's.isCertificateGeneration'
                             ])
                             ->first();
 
@@ -1050,7 +1051,8 @@ class AppointmentController extends Controller
                     'ServiceID' => $appointment->ServiceID,
                     'ServiceName' => $appointment->ServiceName,
                     'Description' => $appointment->ServiceDescription,
-                    'isDownloadableContent' => $appointment->isDownloadableContent
+                    'isDownloadableContent' => $appointment->isDownloadableContent,
+                    'isCertificateGeneration' => $appointment->isCertificateGeneration
                 ],
                 'formConfiguration' => [
                     'form_elements' => $formElements,

@@ -43,12 +43,6 @@ const CertificateTypeModal = ({ isOpen, onClose, onSelectType }) => {
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-xl font-semibold">Select Certificate Type</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X className="h-6 w-6" />
-          </button>
         </div>
 
         <div className="p-6">
@@ -59,7 +53,7 @@ const CertificateTypeModal = ({ isOpen, onClose, onSelectType }) => {
                 <button
                   key={type.id}
                   onClick={() => onSelectType(type.id)}
-                  className="p-6 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors text-left group"
+                  className="p-6 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors text-left group cursor-pointer"
                 >
                   <div className="flex items-start space-x-4">
                     <div className={`p-3 rounded-full bg-gray-100 group-hover:bg-blue-100 transition-colors`}>

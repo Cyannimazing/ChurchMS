@@ -3,7 +3,14 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import axios from "@/lib/axios";
-import { CheckCircle, XCircle, AlertCircle, Calendar, MapPin, User, FileText } from "lucide-react";
+import { CheckCircle2, XCircle, AlertCircle, Calendar, MapPin, User, FileText } from "lucide-react";
+
+const LabelValue = ({ label, value, className = "" }) => (
+  <div className={`flex flex-col ${className}`}>
+    <span className="text-xs uppercase tracking-wide text-gray-500">{label}</span>
+    <span className="text-gray-900">{value}</span>
+  </div>
+);
 
 const CertificateVerificationPage = () => {
   const { token } = useParams();
@@ -12,25 +19,19 @@ const CertificateVerificationPage = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (token) {
-      verifyCertificate();
-    }
+    if (token) verifyCertificate();
   }, [token]);
 
   const verifyCertificate = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`/api/verify-certificate/${token}`);
-      setVerification(response.data);
+      const { data } = await axios.get(`/api/verify-certificate/${token}`);
+      setVerification(data);
     } catch (err) {
       console.error('Error verifying certificate:', err);
-      if (err.response?.status === 404) {
-        setError('Certificate not found or invalid verification token.');
-      } else if (err.response?.status === 410) {
-        setError('Certificate verification is no longer active.');
-      } else {
-        setError('An error occurred while verifying the certificate.');
-      }
+      if (err.response?.status === 404) setError('Certificate not found or invalid verification token.');
+      else if (err.response?.status === 410) setError('Certificate verification is no longer active.');
+      else setError('An error occurred while verifying the certificate.');
     } finally {
       setLoading(false);
     }
@@ -38,12 +39,14 @@ const CertificateVerificationPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4">
-          <div className="flex items-center justify-center mb-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="lg:p-6 w-full min-h-screen pt-20">
+        <div className="max-w-5xl mx-auto">
+          <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200 p-8 flex items-center justify-center">
+            <div className="flex items-center space-x-3 text-gray-600">
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-300 border-t-blue-600"></div>
+              <span>Verifying certificate...</span>
+            </div>
           </div>
-          <p className="text-center text-gray-600">Verifying certificate...</p>
         </div>
       </div>
     );
@@ -51,23 +54,24 @@ const CertificateVerificationPage = () => {
 
   if (error || !verification?.valid) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4">
-          <div className="flex items-center justify-center mb-4">
-            <XCircle className="h-16 w-16 text-red-500" />
-          </div>
-          <h1 className="text-2xl font-bold text-center text-gray-900 mb-4">
-            Certificate Invalid
-          </h1>
-          <p className="text-center text-gray-600 mb-6">
-            {error || verification?.error || 'This certificate could not be verified.'}
-          </p>
-          <div className="bg-red-50 border border-red-200 rounded-md p-4">
-            <div className="flex items-center">
-              <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
-              <span className="text-sm text-red-800">
-                This certificate may be fraudulent or the verification link may have expired.
-              </span>
+      <div className="lg:p-6 w-full min-h-screen pt-20">
+        <div className="max-w-5xl mx-auto">
+          <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <h1 className="text-2xl font-semibold text-gray-900">Certificate Verification</h1>
+            </div>
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <XCircle className="h-6 w-6 text-red-600" />
+                <span className="text-red-700 font-medium">Certificate Invalid</span>
+              </div>
+              <p className="text-gray-600 mb-4">{error || verification?.error || 'This certificate could not be verified.'}</p>
+              <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                <div className="flex items-start">
+                  <AlertCircle className="h-5 w-5 text-red-500 mr-2 mt-0.5" />
+                  <p className="text-sm text-red-800">This certificate may be fraudulent or the verification link may have expired.</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -76,125 +80,92 @@ const CertificateVerificationPage = () => {
   }
 
   const certificate = verification.certificate;
+  const typeLabel = certificate.type === 'matrimony' ? 'Marriage' : (certificate.type === 'firstCommunion' ? 'First Communion' : certificate.type);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        {/* Verification Success Header */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <CheckCircle className="h-16 w-16 text-green-500" />
+    <div className="lg:p-6 w-full min-h-screen pt-20 flex items-center justify-center">
+      <div className="max-w-5xl mx-auto w-full">
+        <div className="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
+          {/* Header */}
+          <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+            <h1 className="text-2xl font-semibold text-gray-900">Certificate Verification</h1>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Verified</span>
           </div>
-          <h1 className="text-3xl font-bold text-center text-gray-900 mb-2">
-            Certificate Verified
-          </h1>
-          <p className="text-center text-gray-600">
-            This certificate has been successfully verified as authentic.
-          </p>
-          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
-            <p className="text-sm text-green-800 text-center">
-              ✓ Verified on {new Date(certificate.verified_at).toLocaleString()}
-            </p>
-          </div>
-        </div>
-
-        {/* Certificate Details */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 border-b pb-2">
-            Certificate Details
-          </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Certificate Type */}
-            <div className="flex items-start space-x-3">
-              <FileText className="h-6 w-6 text-blue-500 mt-1" />
-              <div>
-                <h3 className="font-medium text-gray-900">Certificate Type</h3>
-                <p className="text-gray-600 capitalize">
-                  {certificate.type === 'matrimony' ? 'Marriage' : 
-                   certificate.type === 'firstCommunion' ? 'First Communion' : 
-                   certificate.type}
-                </p>
-              </div>
+          {/* Verification Status */}
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center space-x-3 text-green-700 bg-green-50 border border-green-200 rounded-md px-4 py-3">
+              <CheckCircle2 className="h-5 w-5" />
+              <span>Verified on {new Date(certificate.verified_at).toLocaleString()}</span>
             </div>
+          </div>
 
-            {/* Recipient */}
-            <div className="flex items-start space-x-3">
-              <User className="h-6 w-6 text-green-500 mt-1" />
-              <div>
-                <h3 className="font-medium text-gray-900">Recipient</h3>
-                <p className="text-gray-600">{certificate.recipient_name}</p>
-              </div>
-            </div>
-
-            {/* Date */}
-            <div className="flex items-start space-x-3">
-              <Calendar className="h-6 w-6 text-purple-500 mt-1" />
-              <div>
-                <h3 className="font-medium text-gray-900">Certificate Date</h3>
-                <p className="text-gray-600">{certificate.certificate_date}</p>
-              </div>
-            </div>
-
-            {/* Issued By */}
-            <div className="flex items-start space-x-3">
-              <User className="h-6 w-6 text-orange-500 mt-1" />
-              <div>
-                <h3 className="font-medium text-gray-900">Issued By</h3>
-                <p className="text-gray-600">{certificate.issued_by}</p>
-              </div>
-            </div>
-
-            {/* Church Location */}
-            <div className="flex items-start space-x-3 md:col-span-2">
-              <MapPin className="h-6 w-6 text-red-500 mt-1" />
-              <div>
-                <h3 className="font-medium text-gray-900">Church</h3>
-                <p className="text-gray-600">{certificate.church_name}</p>
-                <p className="text-sm text-gray-500">
-                  {certificate.church_city}, {certificate.church_province}
-                </p>
+          {/* Certificate Details */}
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Certificate Details</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <LabelValue label="Certificate Type" value={<span className="capitalize">{typeLabel}</span>} />
+              <LabelValue label="Recipient" value={certificate.recipient_name} />
+              <LabelValue label="Certificate Date" value={certificate.certificate_date} />
+              <LabelValue 
+                label="Issued Date" 
+                value={
+                  certificate.certificate_data?.issueDateDayMonth && certificate.certificate_data?.issueDateYear
+                    ? (() => {
+                        const dayMonth = certificate.certificate_data.issueDateDayMonth;
+                        const year = certificate.certificate_data.issueDateYear;
+                        const match = dayMonth.match(/(\d+)\s+day of\s+(\w+)/);
+                        if (match) {
+                          return `${match[2]} ${match[1]}, ${year}`;
+                        }
+                        return `${dayMonth}, ${year}`;
+                      })()
+                    : certificate.created_at 
+                      ? new Date(certificate.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                      : 'N/A'
+                } 
+              />
+              <div className="md:col-span-2">
+                <LabelValue 
+                  label="Church Information" 
+                  value={
+                    <div className="flex items-start space-x-4">
+                      {certificate.church_profile_image && (
+                        <img 
+                          src={certificate.church_profile_image} 
+                          alt={`${certificate.church_name} Logo`}
+                          className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      )}
+                      <div className="flex-1">
+                        <div className="font-medium text-lg">{certificate.church_name}</div>
+                        <div className="text-sm text-gray-600">
+                          {certificate.church_street && (
+                            <>{certificate.church_street}, </>
+                          )}
+                          {certificate.certificate_data?.church_info?.street && !certificate.church_street && (
+                            <>{certificate.certificate_data.church_info.street}, </>
+                          )}
+                          {certificate.church_city}, {certificate.church_province}
+                        </div>
+                      </div>
+                    </div>
+                  } 
+                />
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Certificate Data */}
-        {certificate.certificate_data && Object.keys(certificate.certificate_data).length > 0 && (
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 border-b pb-2">
-              Additional Certificate Information
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Object.entries(certificate.certificate_data).map(([key, value]) => {
-                // Skip church_info as it's already displayed above
-                if (key === 'church_info' || !value || value === '') return null;
-                
-                return (
-                  <div key={key} className="border rounded-md p-3 bg-gray-50">
-                    <h4 className="font-medium text-gray-700 capitalize mb-1">
-                      {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                    </h4>
-                    <p className="text-gray-600">{value}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Security Notice */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-md p-4">
-          <div className="flex items-start">
-            <AlertCircle className="h-5 w-5 text-blue-400 mr-2 mt-0.5" />
-            <div className="text-sm text-blue-800">
-              <p className="font-medium mb-1">Security Notice</p>
-              <p>
-                This certificate verification is provided by the issuing church's digital system. 
-                Each QR code is unique and cannot be duplicated. If you suspect this certificate 
-                is fraudulent, please contact the issuing church directly.
-              </p>
+          {/* Security Note */}
+          <div className="px-6 py-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+              <div className="flex items-start">
+                <AlertCircle className="h-5 w-5 text-blue-500 mr-2 mt-0.5" />
+                <p className="text-sm text-blue-800">
+                  This verification is issued by the church's system. If you suspect fraud, please contact the issuing church.
+                </p>
+              </div>
             </div>
           </div>
         </div>
