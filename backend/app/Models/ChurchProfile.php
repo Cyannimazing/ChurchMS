@@ -13,6 +13,9 @@ class ChurchProfile extends Model
         'Description',
         'ParishDetails',
         'ProfilePicturePath',
+        'Diocese',
+        'ContactNumber',
+        'Email',
     ];
 
     /**

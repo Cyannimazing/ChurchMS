@@ -417,11 +417,14 @@ class SacramentServiceController extends Controller
             DB::beginTransaction();
 
             try {
-                // Delete existing form elements and requirements for this service
-                ServiceInputField::where('ServiceID', $serviceId)->delete();
+                // Get existing input fields to preserve InputFieldIDs
+                $existingFields = ServiceInputField::where('ServiceID', $serviceId)->get()->keyBy('element_id');
+                $processedElementIds = [];
+
+                // Delete existing requirements (they can be recreated safely)
                 ServiceRequirement::where('ServiceID', $serviceId)->delete();
 
-                // Save form elements
+                // Save form elements, preserving existing InputFieldIDs where possible
                 foreach ($request->form_elements as $index => $element) {
                     $inputType = $element['type'];
                     
@@ -430,7 +433,8 @@ class SacramentServiceController extends Controller
                         $inputType = 'phone';
                     }
 
-                    ServiceInputField::create([
+                    $elementId = $element['elementId'] ?? null;
+                    $fieldData = [
                         'ServiceID' => $serviceId,
                         'Label' => $element['label'] ?? '',
                         'InputType' => $inputType,
@@ -439,7 +443,7 @@ class SacramentServiceController extends Controller
                         'Placeholder' => $element['placeholder'] ?? '',
                         'HelpText' => null,
                         'SortOrder' => $index,
-                        'element_id' => $element['elementId'] ?? null,
+                        'element_id' => $elementId,
                         'x_position' => $element['properties']['x'] ?? null,
                         'y_position' => $element['properties']['y'] ?? null,
                         'width' => $element['properties']['width'] ?? null,
@@ -450,7 +454,36 @@ class SacramentServiceController extends Controller
                         'text_align' => $element['properties']['align'] ?? 'left',
                         'text_color' => $element['properties']['color'] ?? '#000000',
                         'textarea_rows' => $element['properties']['rows'] ?? null,
-                    ]);
+                    ];
+
+                    // If element_id exists and we have an existing field, update it to preserve InputFieldID
+                    if ($elementId && isset($existingFields[$elementId])) {
+                        $existingFields[$elementId]->update($fieldData);
+                        $processedElementIds[] = $elementId;
+                    } else {
+                        // Create new field for new elements
+                        ServiceInputField::create($fieldData);
+                        if ($elementId) {
+                            $processedElementIds[] = $elementId;
+                        }
+                    }
+                }
+
+                // Delete fields that are no longer in the configuration
+                $elementsToDelete = $existingFields->keys()->diff($processedElementIds)->filter();
+                if ($elementsToDelete->isNotEmpty()) {
+                    ServiceInputField::where('ServiceID', $serviceId)
+                        ->whereIn('element_id', $elementsToDelete->toArray())
+                        ->delete();
+                }
+
+                // Also delete fields that have null element_id and are not in the new configuration
+                // (these might be orphaned fields from before element_id was implemented)
+                $hasNullElementIds = collect($request->form_elements)->pluck('elementId')->contains(null);
+                if (!$hasNullElementIds) {
+                    ServiceInputField::where('ServiceID', $serviceId)
+                        ->whereNull('element_id')
+                        ->delete();
                 }
 
                 // Save requirements

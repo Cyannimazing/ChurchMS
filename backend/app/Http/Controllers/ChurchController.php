@@ -33,6 +33,9 @@ class ChurchController extends Controller
             'Province' => 'required|string|max:255',
             'Description' => 'nullable|string|min:10|max:1000',
             'ParishDetails' => 'nullable|string|min:10|max:1000',
+            'Diocese' => 'required|string|max:255',
+            'ContactNumber' => 'nullable|string|max:50',
+            'Email' => 'nullable|email|max:255',
             'ProfilePicture' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'SEC' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:5120',
             'BIR' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:5120',
@@ -110,6 +113,9 @@ class ChurchController extends Controller
                     'ChurchID' => $church->ChurchID,
                     'Description' => isset($validated['Description']) ? $validated['Description'] : null,
                     'ParishDetails' => isset($validated['ParishDetails']) ? $validated['ParishDetails'] : null,
+                    'Diocese' => isset($validated['Diocese']) ? $validated['Diocese'] : null,
+                    'ContactNumber' => isset($validated['ContactNumber']) ? $validated['ContactNumber'] : null,
+                    'Email' => isset($validated['Email']) ? $validated['Email'] : null,
                 ];
 
                 // Handle profile picture
@@ -570,6 +576,9 @@ class ChurchController extends Controller
                     'Province' => $church->Province,
                     'Description' => $church->profile ? $church->profile->Description : null,
                     'ParishDetails' => $church->profile ? $church->profile->ParishDetails : null,
+                    'Diocese' => $church->profile ? $church->profile->Diocese : null,
+                    'ContactNumber' => $church->profile ? $church->profile->ContactNumber : null,
+                    'Email' => $church->profile ? $church->profile->Email : null,
                     'ProfilePicturePath' => $church->profile ? $church->profile->ProfilePicturePath : null,
                     'ProfilePictureUrl' => $church->profile && $church->profile->ProfilePicturePath ? 
                         url('/api/churches/' . $church->ChurchID . '/profile-picture') : null,
@@ -768,6 +777,9 @@ class ChurchController extends Controller
                 'Province' => 'sometimes|string|max:255',
                 'Description' => 'sometimes|string|min:10|max:1000',
                 'ParishDetails' => 'sometimes|string|min:10|max:1000',
+                'Diocese' => 'required|string|max:255',
+                'ContactNumber' => 'sometimes|string|max:50',
+                'Email' => 'sometimes|email|max:255',
                 'ProfilePicture' => 'sometimes|image|mimes:jpeg,png,jpg|max:2048',
                 'SEC' => 'sometimes|file|mimes:jpeg,png,jpg,pdf|max:5120',
                 'BIR' => 'sometimes|file|mimes:jpeg,png,jpg,pdf|max:5120',
@@ -805,17 +817,23 @@ class ChurchController extends Controller
                 $church->save();
 
                 // Update or create profile text fields
-                if (isset($validated['Description']) || isset($validated['ParishDetails'])) {
+                if (isset($validated['Description']) || isset($validated['ParishDetails']) || isset($validated['Diocese']) || isset($validated['ContactNumber']) || isset($validated['Email'])) {
                     if ($church->profile) {
                         $church->profile()->update([
                             'Description' => $validated['Description'] ?? $church->profile->Description,
                             'ParishDetails' => $validated['ParishDetails'] ?? $church->profile->ParishDetails,
+                            'Diocese' => $validated['Diocese'] ?? $church->profile->Diocese,
+                            'ContactNumber' => $validated['ContactNumber'] ?? $church->profile->ContactNumber,
+                            'Email' => $validated['Email'] ?? $church->profile->Email,
                         ]);
                     } else {
                         ChurchProfile::create([
                             'ChurchID' => $church->ChurchID,
                             'Description' => $validated['Description'] ?? null,
                             'ParishDetails' => $validated['ParishDetails'] ?? null,
+                            'Diocese' => $validated['Diocese'] ?? null,
+                            'ContactNumber' => $validated['ContactNumber'] ?? null,
+                            'Email' => $validated['Email'] ?? null,
                         ]);
                     }
                 }
@@ -909,6 +927,9 @@ class ChurchController extends Controller
                         'Province' => $church->Province,
                         'Description' => $church->profile ? $church->profile->Description : null,
                         'ParishDetails' => $church->profile ? $church->profile->ParishDetails : null,
+                        'Diocese' => $church->profile ? $church->profile->Diocese : null,
+                        'ContactNumber' => $church->profile ? $church->profile->ContactNumber : null,
+                        'Email' => $church->profile ? $church->profile->Email : null,
                         'ProfilePicturePath' => $church->profile ? $church->profile->ProfilePicturePath : null,
                         'ProfilePictureUrl' => $church->profile && $church->profile->ProfilePicturePath ? 
                             url('/api/churches/' . $church->ChurchID . '/profile-picture') : null,

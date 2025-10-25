@@ -68,8 +68,19 @@ const ScheduleCalendarView = ({
                  weekOfMonth === recurrence.WeekOfMonth;
         
         case 'OneTime':
+          // Parse the specific date and normalize to midnight local time to avoid timezone issues
           const specificDate = new Date(recurrence.SpecificDate);
-          return isSameDay(date, specificDate);
+          const normalizedSpecificDate = new Date(
+            specificDate.getFullYear(),
+            specificDate.getMonth(),
+            specificDate.getDate()
+          );
+          const normalizedCheckDate = new Date(
+            date.getFullYear(),
+            date.getMonth(),
+            date.getDate()
+          );
+          return normalizedCheckDate.getTime() === normalizedSpecificDate.getTime();
         
         default:
           return false;

@@ -8,7 +8,7 @@ export const createHolyCommunionForm = () => {
         x: 50,
         y: 50,
         width: 820,
-        height: 1150,
+        height: 860,
         backgroundColor: '#ffffff',
         borderColor: '#e5e7eb',
         borderWidth: 2,
@@ -59,49 +59,24 @@ export const createHolyCommunionForm = () => {
             type: 'text',
             x: 10,
             y: 210,
-            width: 240,
+            width: 500,
             height: 40,
-            label: 'Name - First',
-            placeholder: 'First Name',
+            label: "Child's Full Name *",
+            placeholder: 'Full Name',
             required: true,
             containerId: mainContainer.id,
-            elementId: 'child_first_name'
-        },
-        {
-            id: baseId + 5,
-            type: 'text',
-            x: 260,
-            y: 210,
-            width: 240,
-            height: 40,
-            label: 'Middle',
-            placeholder: 'Middle Name',
-            containerId: mainContainer.id,
-            elementId: 'child_middle_name'
-        },
-        {
-            id: baseId + 6,
-            type: 'text',
-            x: 510,
-            y: 210,
-            width: 240,
-            height: 40,
-            label: 'Last',
-            placeholder: 'Last Name',
-            required: true,
-            containerId: mainContainer.id,
-            elementId: 'child_last_name'
+            elementId: 'child_full_name'
         },
         
         // Gender selection
         {
-            id: baseId + 7,
+            id: baseId + 5,
             type: 'radio',
-            x: 10,
-            y: 280,
-            width: 300,
+            x: 530,
+            y: 210,
+            width: 220,
             height: 60,
-            label: 'Please choose one *',
+            label: 'Gender *',
             options: ['Male', 'Female'],
             required: true,
             containerId: mainContainer.id
@@ -109,107 +84,63 @@ export const createHolyCommunionForm = () => {
         
         // Birth Date
         {
-            id: baseId + 8,
+            id: baseId + 6,
             type: 'date',
             x: 10,
-            y: 360,
-            width: 300,
+            y: 290,
+            width: 240,
             height: 40,
             label: 'Birth Date *',
             required: true,
             containerId: mainContainer.id
         },
         
-        // Location of Birth
+        // Place of Birth
         {
-            id: baseId + 9,
+            id: baseId + 7,
             type: 'text',
-            x: 10,
-            y: 420,
-            width: 740,
+            x: 260,
+            y: 290,
+            width: 490,
             height: 40,
-            label: 'Location of Birth *',
-            placeholder: 'Location of Birth',
+            label: 'Place of Birth *',
+            placeholder: 'Place of Birth',
             required: true,
             containerId: mainContainer.id
         },
         
         // Father's Name
         {
-            id: baseId + 10,
+            id: baseId + 8,
             type: 'text',
             x: 10,
-            y: 480,
-            width: 240,
+            y: 350,
+            width: 360,
             height: 40,
-            label: 'Father\'s Name - First',
-            placeholder: 'First Name',
-            containerId: mainContainer.id
-        },
-        {
-            id: baseId + 11,
-            type: 'text',
-            x: 260,
-            y: 480,
-            width: 240,
-            height: 40,
-            label: 'Middle',
-            placeholder: 'Middle Name',
-            containerId: mainContainer.id
-        },
-        {
-            id: baseId + 12,
-            type: 'text',
-            x: 510,
-            y: 480,
-            width: 240,
-            height: 40,
-            label: 'Last',
-            placeholder: 'Last Name',
+            label: 'Father\'s Full Name',
+            placeholder: 'Father\'s Full Name',
             containerId: mainContainer.id
         },
         
         // Mother's Name
         {
-            id: baseId + 13,
+            id: baseId + 9,
             type: 'text',
-            x: 10,
-            y: 540,
-            width: 240,
+            x: 390,
+            y: 350,
+            width: 360,
             height: 40,
-            label: 'Mother\'s Name - First',
-            placeholder: 'First Name',
-            containerId: mainContainer.id
-        },
-        {
-            id: baseId + 14,
-            type: 'text',
-            x: 260,
-            y: 540,
-            width: 240,
-            height: 40,
-            label: 'Middle',
-            placeholder: 'Middle Name',
-            containerId: mainContainer.id
-        },
-        {
-            id: baseId + 15,
-            type: 'text',
-            x: 510,
-            y: 540,
-            width: 240,
-            height: 40,
-            label: 'Last',
-            placeholder: 'Last Name',
+            label: 'Mother\'s Full Name',
+            placeholder: 'Mother\'s Full Name',
             containerId: mainContainer.id
         },
         
         // Mother's Maiden Name
         {
-            id: baseId + 16,
+            id: baseId + 10,
             type: 'text',
             x: 10,
-            y: 600,
+            y: 410,
             width: 360,
             height: 40,
             label: 'Mother\'s Maiden Name *',
@@ -220,10 +151,10 @@ export const createHolyCommunionForm = () => {
         
         // Contact Information
         {
-            id: baseId + 17,
+            id: baseId + 11,
             type: 'email',
             x: 10,
-            y: 660,
+            y: 470,
             width: 240,
             height: 40,
             label: 'Email Address',
@@ -231,10 +162,10 @@ export const createHolyCommunionForm = () => {
             containerId: mainContainer.id
         },
         {
-            id: baseId + 18,
+            id: baseId + 12,
             type: 'tel',
             x: 260,
-            y: 660,
+            y: 470,
             width: 240,
             height: 40,
             label: 'Telephone',
@@ -242,10 +173,10 @@ export const createHolyCommunionForm = () => {
             containerId: mainContainer.id
         },
         {
-            id: baseId + 19,
+            id: baseId + 13,
             type: 'tel',
             x: 510,
-            y: 660,
+            y: 470,
             width: 240,
             height: 40,
             label: 'Cell',
@@ -255,10 +186,10 @@ export const createHolyCommunionForm = () => {
         
         // Address
         {
-            id: baseId + 20,
+            id: baseId + 14,
             type: 'text',
             x: 10,
-            y: 720,
+            y: 530,
             width: 500,
             height: 40,
             label: 'Address',
@@ -266,10 +197,10 @@ export const createHolyCommunionForm = () => {
             containerId: mainContainer.id
         },
         {
-            id: baseId + 21,
+            id: baseId + 15,
             type: 'text',
             x: 520,
-            y: 720,
+            y: 530,
             width: 110,
             height: 40,
             label: 'Province',
@@ -277,10 +208,10 @@ export const createHolyCommunionForm = () => {
             containerId: mainContainer.id
         },
         {
-            id: baseId + 22,
+            id: baseId + 16,
             type: 'text',
             x: 640,
-            y: 720,
+            y: 530,
             width: 110,
             height: 40,
             label: 'Postal Code',
@@ -288,57 +219,58 @@ export const createHolyCommunionForm = () => {
             containerId: mainContainer.id
         },
         
-        // Baptism in Parish
+        // Baptism Status
         {
-            id: baseId + 23,
+            id: baseId + 17,
             type: 'radio',
             x: 10,
-            y: 780,
+            y: 590,
             width: 600,
             height: 60,
-            label: 'My child was baptised in our parish *',
+            label: 'Was the child baptized already? *',
             options: ['Yes', 'No'],
             required: true,
             containerId: mainContainer.id
         },
         
-        // Baptism certificate note
+        // Church name if baptized
         {
-            id: baseId + 24,
-            type: 'paragraph',
+            id: baseId + 18,
+            type: 'text',
             x: 10,
-            y: 860,
-            width: 740,
-            height: 100,
-            content: 'If your child was baptised in our parish, your child\'s information will be checked by the parish office. No baptismal certificate required. If your child wasn\'t baptised in our parish, you must obtain your child\'s baptismal certificate by contacting the parish where the baptism occurred and ask them to forward it to you personally or email parish@email.ca',
-            textColor: '#6b7280',
-            containerId: mainContainer.id
-        },
-        
-        // Date of baptism if in parish
-        {
-            id: baseId + 25,
-            type: 'date',
-            x: 10,
-            y: 980,
-            width: 400,
+            y: 670,
+            width: 360,
             height: 40,
-            label: 'If your child was baptized in our parish, please stipulate the date',
+            label: 'If yes, state the name of the church',
+            placeholder: 'Church name',
             containerId: mainContainer.id
         },
         
-        // Permission & Agreement
+        // Baptism Date
         {
-            id: baseId + 26,
-            type: 'checkbox',
-            x: 10,
-            y: 1040,
-            width: 700,
-            height: 30,
-            label: 'Permission & Agreement * - I agree and give my permission',
-            required: true,
+            id: baseId + 19,
+            type: 'date',
+            x: 390,
+            y: 670,
+            width: 360,
+            height: 40,
+            label: 'Baptism Date',
             containerId: mainContainer.id
-        }
+        },
+        
+        // Church Location
+        {
+            id: baseId + 20,
+            type: 'text',
+            x: 10,
+            y: 730,
+            width: 740,
+            height: 40,
+            label: 'Church Location',
+            placeholder: 'Church location (City, Province)',
+            containerId: mainContainer.id
+        },
+        
     ];
 
     const requirements = [];

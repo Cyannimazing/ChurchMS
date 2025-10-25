@@ -570,12 +570,49 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
     return schedules.filter(schedule => {
       const scheduleDate = new Date(schedule.StartDate)
       
-      // Only check for recurring schedules - StartDate is just when schedule becomes available
+      console.log('Checking schedule for date:', {
+        scheduleId: schedule.ScheduleID,
+        checkDate: date.toISOString(),
+        IsRecurring: schedule.IsRecurring,
+        RecurrencePattern: schedule.RecurrencePattern,
+        recurrences: schedule.recurrences,
+        StartDate: schedule.StartDate
+      })
+      
+      // Check schedules with recurrence patterns
       if (schedule.IsRecurring && schedule.RecurrencePattern) {
         const pattern = schedule.RecurrencePattern.toLowerCase().trim()
         
+        // Handle "one time on [date]" patterns
+        if (pattern.startsWith('one time on ')) {
+          // For OneTime events, check the recurrence data for exact date
+          if (schedule.recurrences && schedule.recurrences.length > 0) {
+            const recurrence = schedule.recurrences[0]
+            if (recurrence.RecurrenceType === 'OneTime' && recurrence.SpecificDate) {
+              const specificDate = new Date(recurrence.SpecificDate)
+              // Normalize both dates to midnight local time for comparison
+              const normalizedSpecificDate = new Date(
+                specificDate.getFullYear(),
+                specificDate.getMonth(),
+                specificDate.getDate()
+              )
+              const normalizedCheckDate = new Date(
+                date.getFullYear(),
+                date.getMonth(),
+                date.getDate()
+              )
+              console.log('OneTime date comparison:', {
+                pattern,
+                specificDate: normalizedSpecificDate.toISOString(),
+                checkDate: normalizedCheckDate.toISOString(),
+                match: normalizedCheckDate.getTime() === normalizedSpecificDate.getTime()
+              })
+              return normalizedCheckDate.getTime() === normalizedSpecificDate.getTime()
+            }
+          }
+        }
         // Handle "every [day]" patterns with precise matching
-        if (pattern.startsWith('every ')) {
+        else if (pattern.startsWith('every ')) {
           const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
           
           // Extract the day part after "every "
@@ -634,7 +671,28 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
           }
         }
       } else {
-        // For non-recurring schedules, only match the exact start date
+        // For non-recurring schedules (OneTime events)
+        // Check if schedule has recurrence data with SpecificDate
+        if (schedule.recurrences && schedule.recurrences.length > 0) {
+          const recurrence = schedule.recurrences[0]
+          if (recurrence.RecurrenceType === 'OneTime' && recurrence.SpecificDate) {
+            const specificDate = new Date(recurrence.SpecificDate)
+            // Normalize both dates to midnight local time for comparison
+            const normalizedSpecificDate = new Date(
+              specificDate.getFullYear(),
+              specificDate.getMonth(),
+              specificDate.getDate()
+            )
+            const normalizedCheckDate = new Date(
+              date.getFullYear(),
+              date.getMonth(),
+              date.getDate()
+            )
+            return normalizedCheckDate.getTime() === normalizedSpecificDate.getTime()
+          }
+        }
+        
+        // Fallback: match the exact start date
         if (isSameDay(scheduleDate, date)) {
           return true
         }

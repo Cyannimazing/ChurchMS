@@ -54,6 +54,16 @@ const CertificateConfig = () => {
     enabled: true,
     headerText: "CERTIFICATE OF CONFIRMATION",
     footerText: "This certifies that the above named person has received the sacrament of confirmation.",
+    fields: {
+      confirmandName: { label: "Confirmand Name", field: "" },
+      fatherName: { label: "Father's Name", field: "" },
+      motherName: { label: "Mother's Name", field: "" },
+      baptizedDate: { label: "Baptized Date", field: "" },
+      baptizedChurch: { label: "Baptized Church", field: "" },
+      baptizedLocation: { label: "Baptized Location (Street & City)", field: "" },
+      sponsorName: { label: "Sponsor Name", field: "" },
+      confirmationName: { label: "Confirmation Name", field: "" },
+    },
   });
 
   const [firstCommunionConfig, setFirstCommunionConfig] = useState({
@@ -61,6 +71,14 @@ const CertificateConfig = () => {
     enabled: true,
     headerText: "CERTIFICATE OF FIRST HOLY COMMUNION",
     footerText: "This certifies that the above named person has received their first holy communion.",
+    fields: {
+      childName: { label: "Child Name", field: "" },
+      fatherName: { label: "Father Name", field: "" },
+      motherName: { label: "Mother Name", field: "" },
+      baptizedDate: { label: "Baptized Date", field: "" },
+      baptizedChurch: { label: "Baptized Church", field: "" },
+      baptizedLocation: { label: "Baptized Location", field: "" },
+    },
   });
 
   const certificates = [
@@ -207,12 +225,30 @@ const CertificateConfig = () => {
           enabled: true,
           headerText: "CERTIFICATE OF CONFIRMATION",
           footerText: "This certifies that the above named person has received the sacrament of confirmation.",
+          fields: {
+            confirmandName: { label: "Confirmand Name", field: "" },
+            fatherName: { label: "Father's Name", field: "" },
+            motherName: { label: "Mother's Name", field: "" },
+            baptizedDate: { label: "Baptized Date", field: "" },
+            baptizedChurch: { label: "Baptized Church", field: "" },
+            baptizedLocation: { label: "Baptized Location (Street & City)", field: "" },
+            sponsorName: { label: "Sponsor Name", field: "" },
+            confirmationName: { label: "Confirmation Name", field: "" },
+          },
         },
         firstCommunion: {
           templateName: "First Communion Certificate Template",
           enabled: true,
           headerText: "CERTIFICATE OF FIRST HOLY COMMUNION",
           footerText: "This certifies that the above named person has received their first holy communion.",
+          fields: {
+            childName: { label: "Child Name", field: "" },
+            fatherName: { label: "Father Name", field: "" },
+            motherName: { label: "Mother Name", field: "" },
+            baptizedDate: { label: "Baptized Date", field: "" },
+            baptizedChurch: { label: "Baptized Church", field: "" },
+            baptizedLocation: { label: "Baptized Location", field: "" },
+          },
         },
       };
       
@@ -225,9 +261,9 @@ const CertificateConfig = () => {
   const selectedCert = certificates.find(cert => cert.id === selectedCertificate);
 
   return (
-    <div className="lg:p-6 w-full min-h-screen pt-20">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white overflow-hidden shadow-sm rounded-lg">
+    <div className="lg:p-6 w-full h-screen pt-20">
+      <div className="w-full h-full">
+        <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
           <div className="p-6 bg-white border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div>
@@ -253,7 +289,7 @@ const CertificateConfig = () => {
             </div>
           </div>
 
-          <div className="p-6">
+          <div className="p-6 flex-1 overflow-auto">
             {alertMessage && (
               <div className="mb-6">
                 <Alert
@@ -363,6 +399,144 @@ const CertificateConfig = () => {
                   </div>
                 ) : selectedCertificate === 'baptism' ? (
                   // Baptism Template Configuration
+                  <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                      <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                        <div className="flex items-center space-x-3">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">{selectedCert?.name} Certificate</h3>
+                            <p className="text-sm text-gray-600">Configure field mappings for certificate generation</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="px-6 py-6 space-y-6">
+                          
+                          {/* Sacrament Service Selection */}
+                          <div className="mb-6">
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Select Sacrament Service
+                            </label>
+                            <select
+                              value={selectedServiceId}
+                              onChange={(e) => setSelectedServiceId(e.target.value)}
+                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:border-gray-300"
+                              disabled={!selectedCert?.config.enabled || isLoadingServices}
+                            >
+                              <option value="">Select a sacrament service</option>
+                              {Array.isArray(sacramentServices) && sacramentServices.map((service) => (
+                                <option key={service.ServiceID} value={service.ServiceID}>
+                                  {service.ServiceName}
+                                </option>
+                              ))}
+                            </select>
+                            {isLoadingServices && (
+                              <p className="text-xs text-gray-500 mt-2">Loading services...</p>
+                            )}
+                          </div>
+
+                          {/* Field Mapping Dropdowns */}
+                          <div className="space-y-4">
+                              {selectedCert?.config.fields && Object.entries(selectedCert.config.fields).map(([key, field]) => (
+                              <div key={key}>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  {field.label}
+                                </label>
+                                <select
+                                  value={field.field}
+                                  onChange={(e) => {
+                                    const updatedFields = { ...selectedCert.config.fields };
+                                    updatedFields[key] = { ...field, field: e.target.value };
+                                    selectedCert.setConfig({ ...selectedCert.config, fields: updatedFields });
+                                  }}
+                                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:border-gray-300"
+                                  disabled={!selectedCert?.config.enabled || isLoadingFields}
+                                >
+                                  <option value="">Select a field</option>
+                                  {Array.isArray(serviceInputFields) && serviceInputFields.map((inputField) => (
+                                    <option key={inputField.InputFieldID} value={`${inputField.InputFieldID}-${inputField.elementId || inputField.element_id}`}>
+                                      {inputField.label} ({inputField.InputFieldID} - {inputField.elementId || inputField.element_id || 'No Element ID'})
+                                    </option>
+                                  ))}
+                                </select>
+                                {isLoadingFields && (
+                                  <p className="text-xs text-gray-500 mt-1">Loading fields...</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                      </div>
+                  </div>
+                ) : selectedCertificate === 'confirmation' ? (
+                  // Confirmation Template Configuration
+                  <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                      <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                        <div className="flex items-center space-x-3">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">{selectedCert?.name} Certificate</h3>
+                            <p className="text-sm text-gray-600">Configure field mappings for certificate generation</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="px-6 py-6 space-y-6">
+                          
+                          {/* Sacrament Service Selection */}
+                          <div className="mb-6">
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Select Sacrament Service
+                            </label>
+                            <select
+                              value={selectedServiceId}
+                              onChange={(e) => setSelectedServiceId(e.target.value)}
+                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:border-gray-300"
+                              disabled={!selectedCert?.config.enabled || isLoadingServices}
+                            >
+                              <option value="">Select a sacrament service</option>
+                              {Array.isArray(sacramentServices) && sacramentServices.map((service) => (
+                                <option key={service.ServiceID} value={service.ServiceID}>
+                                  {service.ServiceName}
+                                </option>
+                              ))}
+                            </select>
+                            {isLoadingServices && (
+                              <p className="text-xs text-gray-500 mt-2">Loading services...</p>
+                            )}
+                          </div>
+
+                          {/* Field Mapping Dropdowns */}
+                          <div className="space-y-4">
+                              {selectedCert?.config.fields && Object.entries(selectedCert.config.fields).map(([key, field]) => (
+                              <div key={key}>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  {field.label}
+                                </label>
+                                <select
+                                  value={field.field}
+                                  onChange={(e) => {
+                                    const updatedFields = { ...selectedCert.config.fields };
+                                    updatedFields[key] = { ...field, field: e.target.value };
+                                    selectedCert.setConfig({ ...selectedCert.config, fields: updatedFields });
+                                  }}
+                                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:border-gray-300"
+                                  disabled={!selectedCert?.config.enabled || isLoadingFields}
+                                >
+                                  <option value="">Select a field</option>
+                                  {Array.isArray(serviceInputFields) && serviceInputFields.map((inputField) => (
+                                    <option key={inputField.InputFieldID} value={`${inputField.InputFieldID}-${inputField.elementId || inputField.element_id}`}>
+                                      {inputField.label} ({inputField.InputFieldID} - {inputField.elementId || inputField.element_id || 'No Element ID'})
+                                    </option>
+                                  ))}
+                                </select>
+                                {isLoadingFields && (
+                                  <p className="text-xs text-gray-500 mt-1">Loading fields...</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                      </div>
+                  </div>
+                ) : selectedCertificate === 'firstCommunion' ? (
+                  // First Communion Template Configuration
                   <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                       <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
                         <div className="flex items-center space-x-3">

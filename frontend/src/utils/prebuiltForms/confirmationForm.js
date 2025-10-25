@@ -8,7 +8,7 @@ export const createConfirmationForm = () => {
         x: 50,
         y: 50,
         width: 820,
-        height: 2010,
+        height: 1100,
         backgroundColor: '#ffffff',
         borderColor: '#e5e7eb',
         borderWidth: 2,
@@ -53,70 +53,45 @@ export const createConfirmationForm = () => {
             containerId: mainContainer.id
         },
         
-        // Candidate's Name
+        // Candidate's Full Name
         {
             id: baseId + 4,
             type: 'text',
             x: 10,
             y: 140,
-            width: 240,
+            width: 480,
             height: 40,
-            label: 'Candidate\'s Name - First *',
-            placeholder: 'First Name',
+            label: 'Candidate\'s Full Name',
+            placeholder: 'Full Name',
             required: true,
             containerId: mainContainer.id,
-            elementId: 'candidate_first_name'
+            elementId: 'candidate_full_name'
         },
+        
+        // Confirmation Name
         {
             id: baseId + 5,
-            type: 'text',
-            x: 260,
-            y: 140,
-            width: 240,
-            height: 40,
-            label: 'Middle',
-            placeholder: 'Middle Name',
-            containerId: mainContainer.id,
-            elementId: 'candidate_middle_name'
-        },
-        {
-            id: baseId + 6,
             type: 'text',
             x: 510,
             y: 140,
             width: 240,
             height: 40,
-            label: 'Last',
-            placeholder: 'Last Name',
+            label: 'Confirmation Name',
+            placeholder: 'Confirmation Name',
             required: true,
             containerId: mainContainer.id,
-            elementId: 'candidate_last_name'
-        },
-        
-        // Gender selection
-        {
-            id: baseId + 7,
-            type: 'radio',
-            x: 10,
-            y: 200,
-            width: 300,
-            height: 60,
-            label: 'Please choose one *',
-            options: ['Male', 'Female'],
-            required: true,
-            containerId: mainContainer.id,
-            elementId: 'candidate_gender'
+            elementId: 'confirmation_name'
         },
         
         // Birth Date
         {
-            id: baseId + 8,
+            id: baseId + 6,
             type: 'date',
             x: 10,
-            y: 280,
-            width: 300,
+            y: 200,
+            width: 360,
             height: 40,
-            label: 'Birth Date *',
+            label: 'Birth Date',
             required: true,
             containerId: mainContainer.id,
             elementId: 'candidate_birth_date'
@@ -124,441 +99,292 @@ export const createConfirmationForm = () => {
         
         // Location of Birth
         {
-            id: baseId + 9,
+            id: baseId + 7,
             type: 'text',
-            x: 10,
-            y: 340,
-            width: 740,
+            x: 390,
+            y: 200,
+            width: 360,
             height: 40,
-            label: 'Location of Birth *',
+            label: 'Location of Birth',
             placeholder: 'Location of Birth',
             required: true,
             containerId: mainContainer.id,
             elementId: 'candidate_birth_place'
         },
         
-        // Father's Name
+        // Already Baptized Question
+        {
+            id: baseId + 8,
+            type: 'radio',
+            x: 10,
+            y: 260,
+            width: 400,
+            height: 60,
+            label: 'Already Baptized?',
+            options: ['Yes', 'No'],
+            required: true,
+            containerId: mainContainer.id,
+            elementId: 'already_baptized'
+        },
+        
+        // Baptized Date (conditional - if Yes)
+        {
+            id: baseId + 9,
+            type: 'date',
+            x: 10,
+            y: 340,
+            width: 360,
+            height: 40,
+            label: 'Baptized Date',
+            required: false,
+            containerId: mainContainer.id,
+            elementId: 'baptized_date'
+        },
+        
+        // Church Name (conditional - if Yes)
         {
             id: baseId + 10,
             type: 'text',
-            x: 10,
-            y: 400,
-            width: 240,
+            x: 390,
+            y: 340,
+            width: 360,
             height: 40,
-            label: 'Father\'s Name - First',
-            placeholder: 'First Name',
-            containerId: mainContainer.id
+            label: 'Church Name',
+            placeholder: 'Church Name',
+            required: false,
+            containerId: mainContainer.id,
+            elementId: 'baptized_church_name'
         },
+        
+        // Church Location (conditional - if Yes)
         {
             id: baseId + 11,
             type: 'text',
-            x: 260,
+            x: 10,
             y: 400,
-            width: 240,
+            width: 740,
             height: 40,
-            label: 'Middle',
-            placeholder: 'Middle Name',
-            containerId: mainContainer.id
+            label: 'Church Location',
+            placeholder: 'Church Location',
+            required: false,
+            containerId: mainContainer.id,
+            elementId: 'baptized_church_location'
         },
+        
+        // First Communion Question
         {
             id: baseId + 12,
-            type: 'text',
-            x: 510,
-            y: 400,
-            width: 240,
+            type: 'radio',
+            x: 10,
+            y: 460,
+            width: 400,
+            height: 60,
+            label: 'Already received First Communion?',
+            options: ['Yes', 'No'],
+            required: true,
+            containerId: mainContainer.id,
+            elementId: 'already_first_communion'
+        },
+        
+        // First Communion Date (conditional - if Yes)
+        {
+            id: baseId + 13,
+            type: 'date',
+            x: 10,
+            y: 540,
+            width: 360,
             height: 40,
-            label: 'Last',
-            placeholder: 'Last Name',
-            containerId: mainContainer.id
+            label: 'First Communion Date',
+            required: false,
+            containerId: mainContainer.id,
+            elementId: 'first_communion_date'
+        },
+        
+        // First Communion Church Name (conditional - if Yes)
+        {
+            id: baseId + 14,
+            type: 'text',
+            x: 390,
+            y: 540,
+            width: 360,
+            height: 40,
+            label: 'Church Name',
+            placeholder: 'Church Name',
+            required: false,
+            containerId: mainContainer.id,
+            elementId: 'first_communion_church_name'
+        },
+        
+        // First Communion Church Location (conditional - if Yes)
+        {
+            id: baseId + 15,
+            type: 'text',
+            x: 10,
+            y: 600,
+            width: 740,
+            height: 40,
+            label: 'Church Location',
+            placeholder: 'Church Location',
+            required: false,
+            containerId: mainContainer.id,
+            elementId: 'first_communion_church_location'
+        },
+        
+        // Father's Full Name
+        {
+            id: baseId + 16,
+            type: 'text',
+            x: 10,
+            y: 660,
+            width: 480,
+            height: 40,
+            label: 'Father\'s Full Name',
+            placeholder: 'Full Name',
+            containerId: mainContainer.id,
+            elementId: 'father_full_name'
         },
         
         // Father's Religion
         {
-            id: baseId + 13,
-            type: 'text',
-            x: 10,
-            y: 460,
-            width: 360,
-            height: 40,
-            label: 'Father\'s Religion *',
-            placeholder: 'Father\'s Religion',
-            required: true,
-            containerId: mainContainer.id
-        },
-        
-        // Mother's Name
-        {
-            id: baseId + 14,
-            type: 'text',
-            x: 10,
-            y: 520,
-            width: 240,
-            height: 40,
-            label: 'Mother\'s Name - First',
-            placeholder: 'First Name',
-            containerId: mainContainer.id
-        },
-        {
-            id: baseId + 15,
-            type: 'text',
-            x: 260,
-            y: 520,
-            width: 240,
-            height: 40,
-            label: 'Middle',
-            placeholder: 'Middle Name',
-            containerId: mainContainer.id
-        },
-        {
-            id: baseId + 16,
+            id: baseId + 17,
             type: 'text',
             x: 510,
-            y: 520,
+            y: 660,
             width: 240,
             height: 40,
-            label: 'Last',
-            placeholder: 'Last Name',
-            containerId: mainContainer.id
+            label: 'Religion',
+            placeholder: 'Religion',
+            required: true,
+            containerId: mainContainer.id,
+            elementId: 'father_religion'
+        },
+        
+        // Mother's Full Name
+        {
+            id: baseId + 18,
+            type: 'text',
+            x: 10,
+            y: 720,
+            width: 480,
+            height: 40,
+            label: 'Mother\'s Full Name',
+            placeholder: 'Full Name',
+            containerId: mainContainer.id,
+            elementId: 'mother_full_name'
         },
         
         // Mother's Religion
         {
-            id: baseId + 17,
+            id: baseId + 19,
             type: 'text',
-            x: 10,
-            y: 580,
-            width: 360,
+            x: 510,
+            y: 720,
+            width: 240,
             height: 40,
-            label: 'Mother\'s Religion *',
-            placeholder: 'Mother\'s Religion',
+            label: 'Religion',
+            placeholder: 'Religion',
             required: true,
-            containerId: mainContainer.id
+            containerId: mainContainer.id,
+            elementId: 'mother_religion'
         },
         
         // Contact Information
         {
-            id: baseId + 18,
+            id: baseId + 20,
             type: 'email',
             x: 10,
-            y: 640,
+            y: 780,
             width: 240,
             height: 40,
             label: 'Email Address',
             placeholder: 'Email Address',
-            containerId: mainContainer.id
+            containerId: mainContainer.id,
+            elementId: 'email_address'
         },
         {
-            id: baseId + 19,
+            id: baseId + 21,
             type: 'tel',
             x: 260,
-            y: 640,
+            y: 780,
             width: 240,
             height: 40,
             label: 'Telephone',
             placeholder: 'Telephone',
-            containerId: mainContainer.id
+            containerId: mainContainer.id,
+            elementId: 'telephone'
         },
         {
-            id: baseId + 20,
+            id: baseId + 22,
             type: 'tel',
             x: 510,
-            y: 640,
+            y: 780,
             width: 240,
             height: 40,
             label: 'Cell',
             placeholder: 'Cell',
-            containerId: mainContainer.id
+            containerId: mainContainer.id,
+            elementId: 'cell_phone'
         },
         
         // Address
         {
-            id: baseId + 21,
+            id: baseId + 23,
             type: 'text',
             x: 10,
-            y: 700,
+            y: 840,
             width: 740,
             height: 40,
             label: 'Address',
             placeholder: 'Address',
-            containerId: mainContainer.id
+            containerId: mainContainer.id,
+            elementId: 'address'
         },
         
         // School (if a child)
         {
-            id: baseId + 22,
+            id: baseId + 24,
             type: 'text',
             x: 10,
-            y: 760,
+            y: 900,
             width: 740,
             height: 40,
             label: 'Name of school (if a child)',
             placeholder: 'Name of school (if a child)',
-            containerId: mainContainer.id
+            containerId: mainContainer.id,
+            elementId: 'school_name'
         },
         
-        // Baptized in Eastern Catholic Church
-        {
-            id: baseId + 23,
-            type: 'radio',
-            x: 10,
-            y: 820,
-            width: 600,
-            height: 60,
-            label: 'Was the person baptized in a Catholic Church? *',
-            options: ['Yes', 'No'],
-            required: true,
-            containerId: mainContainer.id
-        },
-        {
-            id: baseId + 24,
-            type: 'paragraph',
-            x: 10,
-            y: 890,
-            width: 740,
-            height: 60,
-            content: 'If yes, Confirmation was conferred at the time of Baptism, the Sacrament of Confirmation is not repeated.',
-            textColor: '#6b7280',
-            containerId: mainContainer.id
-        },
         
-        // Baptized in Orthodox Church
+        // Sponsor's Full Name
         {
             id: baseId + 25,
-            type: 'radio',
+            type: 'text',
             x: 10,
             y: 960,
-            width: 600,
-            height: 60,
-            label: 'Was the person baptized in the Orthodox Church? *',
-            options: ['Yes', 'No'],
-            required: true,
-            containerId: mainContainer.id
-        },
-        {
-            id: baseId + 26,
-            type: 'paragraph',
-            x: 10,
-            y: 1030,
-            width: 740,
-            height: 60,
-            content: 'If yes, Confirmation was conferred at the time of Baptism, the Sacrament of Confirmation is not repeated.',
-            textColor: '#6b7280',
-            containerId: mainContainer.id
-        },
-        
-        // Baptized in another Christian community
-        {
-            id: baseId + 27,
-            type: 'radio',
-            x: 10,
-            y: 1100,
-            width: 600,
-            height: 60,
-            label: 'Was the person baptized in another Christian ecclesial community? *',
-            options: ['Yes', 'No'],
-            required: true,
-            containerId: mainContainer.id
-        },
-        {
-            id: baseId + 28,
-            type: 'paragraph',
-            x: 10,
-            y: 1170,
-            width: 740,
-            height: 60,
-            content: 'When making a Profession of Faith, the person is received into the Roman Catholic Church.',
-            textColor: '#6b7280',
-            containerId: mainContainer.id
-        },
-        {
-            id: baseId + 29,
-            type: 'text',
-            x: 10,
-            y: 1240,
-            width: 740,
+            width: 480,
             height: 40,
-            label: 'If yes, which denomination?',
-            placeholder: 'Which denomination?',
-            containerId: mainContainer.id
-        },
-        
-        // First Reconciliation
-        {
-            id: baseId + 30,
-            type: 'radio',
-            x: 10,
-            y: 1300,
-            width: 600,
-            height: 60,
-            label: 'Has the person received First Reconciliation? *',
-            options: ['Yes', 'No'],
+            label: 'Sponsor\'s Full Name',
+            placeholder: 'Full Name',
             required: true,
-            containerId: mainContainer.id
-        },
-        
-        // First Holy Eucharist
-        {
-            id: baseId + 31,
-            type: 'radio',
-            x: 10,
-            y: 1380,
-            width: 600,
-            height: 60,
-            label: 'Has the person received First Holy Eucharist? *',
-            options: ['Yes', 'No'],
-            required: true,
-            containerId: mainContainer.id
-        },
-        
-        // Sponsor's Name
-        {
-            id: baseId + 32,
-            type: 'text',
-            x: 10,
-            y: 1460,
-            width: 240,
-            height: 40,
-            label: 'Sponsor\'s Name - First',
-            placeholder: 'First Name',
-            required: true,
-            containerId: mainContainer.id
-        },
-        {
-            id: baseId + 33,
-            type: 'text',
-            x: 260,
-            y: 1460,
-            width: 240,
-            height: 40,
-            label: 'Middle',
-            placeholder: 'Middle Name',
-            containerId: mainContainer.id
-        },
-        {
-            id: baseId + 34,
-            type: 'text',
-            x: 510,
-            y: 1460,
-            width: 240,
-            height: 40,
-            label: 'Last',
-            placeholder: 'Last Name',
-            required: true,
-            containerId: mainContainer.id
+            containerId: mainContainer.id,
+            elementId: 'sponsor_full_name'
         },
         
         // Sponsor Gender
         {
-            id: baseId + 35,
+            id: baseId + 26,
             type: 'radio',
-            x: 10,
-            y: 1520,
-            width: 300,
-            height: 60,
-            label: 'Please choose one *',
-            options: ['Male', 'Female'],
-            required: true,
-            containerId: mainContainer.id
-        },
-        
-        // Testimonial of Suitability (Sponsor)
-        {
-            id: baseId + 36,
-            type: 'checkbox',
-            x: 10,
-            y: 1600,
-            width: 700,
-            height: 30,
-            label: 'Testimonial of Suitability by Parent(s) (if a child) * - Suitable',
-            required: true,
-            containerId: mainContainer.id
-        },
-        
-        // Second Sponsor (Optional)
-        {
-            id: baseId + 37,
-            type: 'text',
-            x: 10,
-            y: 1650,
-            width: 240,
-            height: 40,
-            label: 'Second Sponsor\'s Name (Optional) - First',
-            placeholder: 'First Name',
-            containerId: mainContainer.id
-        },
-        {
-            id: baseId + 38,
-            type: 'text',
-            x: 260,
-            y: 1650,
-            width: 240,
-            height: 40,
-            label: 'Middle',
-            placeholder: 'Middle Name',
-            containerId: mainContainer.id
-        },
-        {
-            id: baseId + 39,
-            type: 'text',
             x: 510,
-            y: 1650,
+            y: 960,
             width: 240,
-            height: 40,
-            label: 'Last',
-            placeholder: 'Last Name',
-            containerId: mainContainer.id
-        },
-        
-        // Second Sponsor Gender
-        {
-            id: baseId + 40,
-            type: 'radio',
-            x: 10,
-            y: 1710,
-            width: 300,
             height: 60,
-            label: 'Please choose one',
+            label: 'Gender',
             options: ['Male', 'Female'],
-            containerId: mainContainer.id
-        },
-        
-        // Second Sponsor Testimonial
-        {
-            id: baseId + 41,
-            type: 'checkbox',
-            x: 10,
-            y: 1790,
-            width: 700,
-            height: 30,
-            label: 'Testimonial of Suitability by Parent(s) (if a child) - Suitable',
-            containerId: mainContainer.id
-        },
-        
-        // Permission for child under 14
-        {
-            id: baseId + 42,
-            type: 'checkbox',
-            x: 10,
-            y: 1840,
-            width: 700,
-            height: 30,
-            label: 'Permission of Parent for a child under the age of 14 to make a Profession of Faith * - Permission',
             required: true,
-            containerId: mainContainer.id
+            containerId: mainContainer.id,
+            elementId: 'sponsor_gender'
         },
         
-        // Final Permission & Agreement
-        {
-            id: baseId + 43,
-            type: 'checkbox',
-            x: 10,
-            y: 1890,
-            width: 700,
-            height: 30,
-            label: 'Permission & Agreement * - I agree and give my permission',
-            required: true,
-            containerId: mainContainer.id
-        }
     ];
 
     const requirements = [];

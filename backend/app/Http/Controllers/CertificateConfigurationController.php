@@ -134,6 +134,9 @@ class CertificateConfigurationController extends Controller
                 ], 404);
             }
 
+            // Get church with profile to access Diocese
+            $church = Church::with('profile')->find($appointment->ChurchID);
+
             // Get certificate configuration for this church and certificate type
             $config = CertificateConfiguration::where('ChurchID', $appointment->ChurchID)
                 ->where('CertificateType', $certificateType)
@@ -177,6 +180,11 @@ class CertificateConfigurationController extends Controller
                     $fieldData[$certificateField] = null;
                     \Log::info('Field not matched', ['field' => $certificateField, 'extracted_id' => $inputFieldId]);
                 }
+            }
+
+            // Add Diocese from church profile for confirmation certificates
+            if ($certificateType === 'confirmation' && $church && $church->profile && $church->profile->Diocese) {
+                $fieldData['diocese'] = $church->profile->Diocese;
             }
 
             return response()->json([

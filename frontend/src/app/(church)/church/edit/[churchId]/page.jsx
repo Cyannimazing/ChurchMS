@@ -100,6 +100,9 @@ const ChurchEditPage = () => {
     Street: "",
     City: "",
     Province: "",
+    Diocese: "",
+    ContactNumber: "",
+    Email: "",
     Latitude: "",
     Longitude: "",
     ProfilePicture: null,
@@ -186,6 +189,9 @@ const ChurchEditPage = () => {
           Street: response.data.church.Street || "",
           City: response.data.church.City || "",
           Province: response.data.church.Province || "",
+          Diocese: response.data.church.Diocese || "",
+          ContactNumber: response.data.church.ContactNumber || "",
+          Email: response.data.church.Email || "",
           Latitude: response.data.church.Latitude || "",
           Longitude: response.data.church.Longitude || "",
           ProfilePicture: null,
@@ -801,6 +807,9 @@ const ChurchEditPage = () => {
       data.append("Street", formData.Street);
       data.append("City", formData.City);
       data.append("Province", formData.Province);
+      data.append("Diocese", formData.Diocese);
+      data.append("ContactNumber", formData.ContactNumber);
+      data.append("Email", formData.Email);
       data.append("Latitude", formData.Latitude);
       data.append("Longitude", formData.Longitude);
 
@@ -1368,6 +1377,67 @@ const ChurchEditPage = () => {
                       messages={errors.ParishDetails}
                       className="mt-2"
                     />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="Diocese">
+                      Diocese <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="mt-1">
+                      <input
+                        type="text"
+                        id="Diocese"
+                        name="Diocese"
+                        value={formData.Diocese || ''}
+                        onChange={handleInputChange}
+                        required
+                        className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        placeholder="Diocese of Davao"
+                      />
+                    </div>
+                    <InputError
+                      messages={errors.Diocese}
+                      className="mt-2"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="ContactNumber">Contact Number</Label>
+                      <div className="mt-1">
+                        <input
+                          type="tel"
+                          id="ContactNumber"
+                          name="ContactNumber"
+                          value={formData.ContactNumber || ''}
+                          onChange={handleInputChange}
+                          className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                          placeholder="+63 912 345 6789"
+                        />
+                      </div>
+                      <InputError
+                        messages={errors.ContactNumber}
+                        className="mt-2"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="Email">Email Address</Label>
+                      <div className="mt-1">
+                        <input
+                          type="email"
+                          id="Email"
+                          name="Email"
+                          value={formData.Email || ''}
+                          onChange={handleInputChange}
+                          className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                          placeholder="church@example.com"
+                        />
+                      </div>
+                      <InputError
+                        messages={errors.Email}
+                        className="mt-2"
+                      />
+                    </div>
                   </div>
 
                   <div>

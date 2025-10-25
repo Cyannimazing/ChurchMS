@@ -19,6 +19,7 @@ use App\Http\Controllers\SignatureController;
 use App\Http\Controllers\SubServiceController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\CertificateConfigurationController;
+use App\Http\Controllers\ClergyController;
 
 // Locations (public routes)
 Route::get('/provinces', [LocationController::class, 'getProvinces']);
@@ -121,6 +122,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('staff', [ChurchStaffController::class, 'store']);
     Route::get('staff/{staffId}', [ChurchStaffController::class, 'show']);
     Route::put('staff/{staffId}', [ChurchStaffController::class, 'update']);
+});
+
+//Clergy Management
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/clergy', [ClergyController::class, 'index']);
+    Route::post('/clergy', [ClergyController::class, 'store']);
+    Route::get('/clergy/{id}', [ClergyController::class, 'show']);
+    Route::put('/clergy/{id}', [ClergyController::class, 'update']);
+    Route::delete('/clergy/{id}', [ClergyController::class, 'destroy']);
+    Route::patch('/clergy/{id}/toggle-status', [ClergyController::class, 'toggleStatus']);
 });
 
 //Sacrament Services Management

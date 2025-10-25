@@ -12,7 +12,68 @@ import FormRenderer from "@/components/FormRenderer.jsx";
 import CertificateGenerator from "@/components/CertificateGenerator.jsx";
 import CertificateTypeModal from "@/components/CertificateTypeModal.jsx";
 import ConfirmDialog from "@/components/ConfirmDialog.jsx";
+import Alert from "@/components/Alert";
 import { exportToPDF, isServiceDownloadable } from "@/utils/pdfExport";
+
+// Warning Block Component
+const WarningBlock = ({ type, title, description, count, onShow, onClear, isActive }) => {
+  const typeStyles = {
+    danger: {
+      bg: 'bg-red-50',
+      border: 'border-red-200',
+      icon: 'text-red-500',
+      button: 'bg-red-600 hover:bg-red-700 text-white',
+      clearButton: 'bg-red-100 hover:bg-red-200 text-red-800'
+    },
+    warning: {
+      bg: 'bg-amber-50',
+      border: 'border-amber-200', 
+      icon: 'text-amber-500',
+      button: 'bg-amber-600 hover:bg-amber-700 text-white',
+      clearButton: 'bg-amber-100 hover:bg-amber-200 text-amber-800'
+    }
+  };
+
+  const styles = typeStyles[type] || typeStyles.warning;
+
+  return (
+    <div className={`p-4 rounded-lg border ${styles.bg} ${styles.border} ${isActive ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}`}>
+      <div className="flex items-start">
+        <div className="flex-shrink-0">
+          <AlertTriangle className={`h-5 w-5 ${styles.icon}`} />
+        </div>
+        <div className="ml-3 flex-1">
+          <h3 className="text-sm font-medium text-gray-900">{title}</h3>
+          <p className="mt-1 text-sm text-gray-600">{description}</p>
+          <div className="mt-3 flex items-center space-x-2">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white text-gray-900">
+              {count} appointment{count !== 1 ? 's' : ''}
+            </span>
+            {count > 0 && (
+              <>
+                <Button
+                  onClick={onShow}
+                  className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded ${styles.button}`}
+                >
+                  Show All
+                </Button>
+                {isActive && (
+                  <Button
+                    onClick={onClear}
+                    variant="outline"
+                    className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded ${styles.clearButton}`}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const AppointmentPage = () => {
   const { user } = useAuth({ middleware: "auth" });
@@ -24,10 +85,13 @@ const AppointmentPage = () => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("Pending");
-  const [serviceFilter, setServiceFilter] = useState("All");
+  const [activeServiceTab, setActiveServiceTab] = useState("All");
+  const [yearFilter, setYearFilter] = useState("All");
   const [filteredAppointments, setFilteredAppointments] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
+  // Warning quick-filters: 'none' | 'expired_pending' | 'due_approved'
+  const [warningFilter, setWarningFilter] = useState('none');
   
   // Review modal state
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -47,6 +111,10 @@ const AppointmentPage = () => {
   const [showCertificateTypeModal, setShowCertificateTypeModal] = useState(false);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [selectedCertificateType, setSelectedCertificateType] = useState('marriage');
+  
+  // Alert state
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertType, setAlertType] = useState("");
   
 
   // Check if user is ChurchOwner or has appointment_list permission
@@ -86,21 +154,42 @@ const AppointmentPage = () => {
 
   // Get unique services for filter dropdown
   const uniqueServices = [...new Set(appointments.map(apt => apt.ServiceName))].filter(Boolean).sort();
+  
+  // Get unique years from appointments
+  const uniqueYears = [...new Set(appointments.map(apt => {
+    const appointmentDate = new Date(apt.AppointmentDate);
+    return appointmentDate.getFullYear();
+  }))].sort((a, b) => b - a); // Sort years in descending order (newest first)
 
-  // Filter appointments based on search term, status, and service
+  // Filter appointments based on search term, status, active service tab, year, and warning quick-filters
   useEffect(() => {
     let filtered = [...appointments];
-    
+
+    // Apply active service tab filter
+    if (activeServiceTab !== "All") {
+      filtered = filtered.filter(appointment => appointment.ServiceName === activeServiceTab);
+    }
+
     // Apply status filter
     if (statusFilter !== "All") {
       filtered = filtered.filter(appointment => appointment.Status === statusFilter);
     }
     
-    // Apply service filter
-    if (serviceFilter !== "All") {
-      filtered = filtered.filter(appointment => appointment.ServiceName === serviceFilter);
+    // Apply year filter
+    if (yearFilter !== "All") {
+      filtered = filtered.filter(appointment => {
+        const appointmentDate = new Date(appointment.AppointmentDate);
+        return appointmentDate.getFullYear().toString() === yearFilter;
+      });
     }
-    
+
+    // Apply warning quick-filters
+    if (warningFilter === 'expired_pending') {
+      filtered = filtered.filter(a => isAppointmentExpired(a.created_at, a.Status));
+    } else if (warningFilter === 'due_approved') {
+      filtered = filtered.filter(a => isAppointmentDueOrOverdue(a));
+    }
+
     // Apply search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
@@ -110,13 +199,13 @@ const AppointmentPage = () => {
         appointment.UserEmail?.toLowerCase().includes(searchLower)
       ));
     }
-    
+
     // Sort by AppointmentDate ascending (oldest first)
     filtered.sort((a, b) => new Date(a.AppointmentDate) - new Date(b.AppointmentDate));
-    
+
     setFilteredAppointments(filtered);
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, serviceFilter, appointments]);
+  }, [searchTerm, statusFilter, activeServiceTab, yearFilter, warningFilter, appointments]);
 
   // Pagination
   const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
@@ -187,6 +276,20 @@ const AppointmentPage = () => {
   const isAppointmentExpired = (createdAt, status) => {
     return status === 'Pending' && createdAt && 
       new Date() - new Date(createdAt) > 72 * 60 * 60 * 1000;
+  };
+
+  // Helper: check if an Approved appointment is due today or overdue
+  const isAppointmentDueOrOverdue = (appointment) => {
+    if (appointment?.Status !== 'Approved' || !appointment?.AppointmentDate) return false;
+    const apptDate = new Date(appointment.AppointmentDate);
+    const today = new Date();
+    // Normalize to start of day for date-only comparison
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const startOfAppt = new Date(apptDate.getFullYear(), apptDate.getMonth(), apptDate.getDate());
+
+    if (startOfAppt < startOfToday) return true; // past days are overdue
+    if (startOfAppt.getTime() === startOfToday.getTime()) return true; // due today
+    return false;
   };
 
   const formatTime = (time) => {
@@ -321,12 +424,14 @@ const AppointmentPage = () => {
     console.log('Staff form data:', staffFormData);
     
     if (!selectedAppointment?.AppointmentID) {
-      alert('No appointment selected');
+      setAlertMessage('No appointment selected');
+      setAlertType('error');
       return;
     }
     
     if (!staffFormData || Object.keys(staffFormData).length === 0) {
-      alert('Please fill out the form before saving');
+      setAlertMessage('Please fill out the form before saving');
+      setAlertType('error');
       return;
     }
 
@@ -339,14 +444,21 @@ const AppointmentPage = () => {
       });
       
       console.log('Save response:', response);
-      alert('Form data saved successfully!');
+      setAlertMessage('Form data saved successfully!');
+      setAlertType('success');
+      
+      // Close modal after a short delay
+      setTimeout(() => {
+        handleCloseReviewModal();
+      }, 1500);
       
     } catch (err) {
       console.error('Error saving form data:', err);
       console.error('Error details:', err.response?.data);
       
       const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to save form data';
-      alert(`Error saving form data: ${errorMessage}`);
+      setAlertMessage(`Error saving form data: ${errorMessage}`);
+      setAlertType('error');
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -369,7 +481,7 @@ const AppointmentPage = () => {
   if (!hasAccess) {
     return (
       <div className="lg:p-6 w-full h-screen pt-20">
-        <div className="max-w-7xl mx-auto h-full">
+        <div className="w-full h-full">
           <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
             <div className="p-6 bg-white border-b border-gray-200">
               <h2 className="text-xl font-semibold text-red-600">
@@ -387,9 +499,21 @@ const AppointmentPage = () => {
 
   return (
     <div className="lg:p-6 w-full h-screen pt-20">
-      <div className="max-w-7xl mx-auto h-full">
+      <div className="w-full h-full">
         <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
           <div className="p-6 bg-white border-b border-gray-200 flex-1 overflow-auto">
+            {alertMessage && (
+              <div className="mb-6">
+                <Alert
+                  type={alertType}
+                  message={alertMessage}
+                  onClose={() => setAlertMessage("")}
+                  autoClose={true}
+                  autoCloseDelay={5000}
+                />
+              </div>
+            )}
+            
             <h1 className="text-2xl font-semibold text-gray-900 mb-6">
               Church Appointments
             </h1>
@@ -409,51 +533,235 @@ const AppointmentPage = () => {
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="px-6 py-4 space-y-4">
-                    {/* Filters */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                        <div className="flex items-center space-x-2">
-                          <label htmlFor="status-filter" className="text-sm font-medium text-gray-700">
-                            Filter by Status:
-                          </label>
-                          <select
-                            id="status-filter"
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-gray-400 bg-white cursor-pointer"
-                          >
-                            <option value="All">All</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Approved">Approved</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Cancelled">Cancelled</option>
-                          </select>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <label htmlFor="service-filter" className="text-sm font-medium text-gray-700">
-                            Filter by Service:
-                          </label>
-                          <select
-                            id="service-filter"
-                            value={serviceFilter}
-                            onChange={(e) => setServiceFilter(e.target.value)}
-                            className="px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-gray-400 bg-white cursor-pointer"
-                          >
-                            <option value="All">All</option>
-                            {uniqueServices.map(serviceName => (
-                              <option key={serviceName} value={serviceName}>{serviceName}</option>
-                            ))}
-                          </select>
+
+                  {/* Warning Reports - Only show if there are records */}
+                  {(() => {
+                    const expiredCount = appointments.filter(a => isAppointmentExpired(a.created_at, a.Status)).length;
+                    const dueCount = appointments.filter(a => isAppointmentDueOrOverdue(a)).length;
+                    
+                    if (expiredCount === 0 && dueCount === 0) return null;
+                    
+                    return (
+                      <div className="px-6 py-4 bg-amber-50 border-t border-b border-amber-200">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Pending 72h+ */}
+                            {expiredCount > 0 && (
+                              <WarningBlock
+                                type="danger"
+                                title="Pending over 72 hours"
+                                description="These pending applications are older than 72 hours and can be cancelled to free up slots."
+                                count={expiredCount}
+                                onShow={() => { setWarningFilter('expired_pending'); setStatusFilter('All'); setActiveServiceTab('All'); setSearchTerm(''); setCurrentPage(1); }}
+                                onClear={() => setWarningFilter('none')}
+                                isActive={warningFilter === 'expired_pending'}
+                              />
+                            )}
+
+                            {/* Approved due today/past */}
+                            {dueCount > 0 && (
+                              <WarningBlock
+                                type="warning"
+                                title="Approved due today or overdue"
+                                description="These approved appointments are due today or past their scheduled date. Consider marking them as completed."
+                                count={dueCount}
+                                onShow={() => { setWarningFilter('due_approved'); setStatusFilter('All'); setActiveServiceTab('All'); setSearchTerm(''); setCurrentPage(1); }}
+                                onClear={() => setWarningFilter('none')}
+                                isActive={warningFilter === 'due_approved'}
+                              />
+                            )}
+                          </div>
+                          {warningFilter !== 'none' && (
+                            <div className="md:w-auto">
+                              <Button
+                                variant="outline"
+                                onClick={() => setWarningFilter('none')}
+                                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 border-gray-300"
+                              >
+                                <X className="h-4 w-4 mr-1" />
+                                Clear warning filter
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
+                    );
+                  })()}
+                  
+                  {/* Service Tabs */}
+                  <div className="border-b border-gray-200">
+                    <nav className="flex space-x-0 overflow-x-auto">
+                      {["All", ...uniqueServices].map((serviceName) => {
+                        const count = serviceName === "All" 
+                          ? appointments.length 
+                          : appointments.filter(apt => apt.ServiceName === serviceName).length;
+                        
+                        return (
+                          <button
+                            key={serviceName}
+                            onClick={() => setActiveServiceTab(serviceName)}
+                            className={`
+                              relative px-6 py-3 text-sm font-medium whitespace-nowrap transition-colors duration-200 cursor-pointer
+                              ${
+                                activeServiceTab === serviceName
+                                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                              }
+                            `}
+                          >
+                            <span className="flex items-center space-x-2">
+                              <span>{serviceName}</span>
+                              <span className={`
+                                inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                ${
+                                  activeServiceTab === serviceName
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-gray-100 text-gray-600'
+                                }
+                              `}>
+                                {count}
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </nav>
+                  </div>
+                  
+                  <div className="px-6 py-4 space-y-4">
+                    {/* Status Filter Buttons */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</span>
+                        {["All", "Pending", "Approved", "Completed", "Cancelled"].map((status) => {
+                          const count = status === "All" 
+                            ? (activeServiceTab === "All" ? appointments.length : appointments.filter(apt => apt.ServiceName === activeServiceTab).length)
+                            : (activeServiceTab === "All" 
+                                ? appointments.filter(apt => apt.Status === status).length
+                                : appointments.filter(apt => apt.ServiceName === activeServiceTab && apt.Status === status).length);
+                          
+                          const getStatusButtonStyles = (status) => {
+                            const isActive = statusFilter === status;
+                            const baseClasses = "inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border cursor-pointer";
+                            
+                            switch (status) {
+                              case 'All':
+                                return `${baseClasses} ${
+                                  isActive 
+                                    ? 'bg-gray-600 text-white border-gray-600 shadow-sm' 
+                                    : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                                }`;
+                              case 'Pending':
+                                return `${baseClasses} ${
+                                  isActive 
+                                    ? 'bg-yellow-500 text-white border-yellow-500 shadow-sm' 
+                                    : 'bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100'
+                                }`;
+                              case 'Approved':
+                                return `${baseClasses} ${
+                                  isActive 
+                                    ? 'bg-green-600 text-white border-green-600 shadow-sm' 
+                                    : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                }`;
+                              case 'Completed':
+                                return `${baseClasses} ${
+                                  isActive 
+                                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
+                                    : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                }`;
+                              case 'Cancelled':
+                                return `${baseClasses} ${
+                                  isActive 
+                                    ? 'bg-red-600 text-white border-red-600 shadow-sm' 
+                                    : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                                }`;
+                              default:
+                                return `${baseClasses} ${
+                                  isActive 
+                                    ? 'bg-gray-600 text-white border-gray-600 shadow-sm' 
+                                    : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                                }`;
+                            }
+                          };
+                          
+                          const getStatusIcon = (status) => {
+                            switch (status) {
+                              case 'Pending':
+                                return <AlertTriangle className="w-3 h-3 mr-1" />;
+                              case 'Approved':
+                              case 'Completed':
+                                return <Check className="w-3 h-3 mr-1" />;
+                              case 'Cancelled':
+                                return <X className="w-3 h-3 mr-1" />;
+                              default:
+                                return null;
+                            }
+                          };
+                          
+                          return (
+                            <button
+                              key={status}
+                              onClick={() => setStatusFilter(status)}
+                              className={getStatusButtonStyles(status)}
+                              disabled={count === 0}
+                            >
+                              {getStatusIcon(status)}
+                              <span>{status}</span>
+                              <span className="ml-2 px-1.5 py-0.5 bg-white/20 rounded-full text-xs">
+                                {count}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
                       
-                      <div className="text-sm text-gray-600">
-                        Showing {filteredAppointments.length} appointment{filteredAppointments.length !== 1 ? 's' : ''}
-                        {statusFilter !== "All" && ` with status: ${statusFilter}`}
-                        {serviceFilter !== "All" && ` for service: ${serviceFilter}`}
+                      {/* Year Filter */}
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm font-medium text-gray-700">Filter by Year:</span>
+                        </div>
+                        {(() => {
+                          const currentYear = new Date().getFullYear();
+                          const currentYearCount = appointments.filter(apt => new Date(apt.AppointmentDate).getFullYear() === currentYear).length;
+                          const selectValue = yearFilter === currentYear.toString() ? 'current' : yearFilter;
+                          return (
+                            <select
+                              value={selectValue}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                if (v === 'current') {
+                                  setYearFilter(currentYear.toString());
+                                } else {
+                                  setYearFilter(v);
+                                }
+                              }}
+                              className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[180px] cursor-pointer"
+                            >
+                              <option value="All">All Years ({appointments.length})</option>
+                              <option value="current">This Year ({currentYearCount})</option>
+                              <option value="" disabled>──────────</option>
+                              {uniqueYears.map((year) => {
+                                const yearCount = appointments.filter(apt => {
+                                  const appointmentDate = new Date(apt.AppointmentDate);
+                                  return appointmentDate.getFullYear() === year;
+                                }).length;
+                                return (
+                                  <option key={year} value={year.toString()}>
+                                    {year} ({yearCount})
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          );
+                        })()}
+                        
+                        <div className="text-sm text-gray-600">
+                          Showing {filteredAppointments.length} appointment{filteredAppointments.length !== 1 ? 's' : ''}
+                          {activeServiceTab !== "All" && ` for ${activeServiceTab}`}
+                          {statusFilter !== "All" && ` with status: ${statusFilter}`}
+                          {yearFilter !== "All" && ` in year ${yearFilter}`}
+                        </div>
                       </div>
                     </div>
                     
@@ -499,8 +807,9 @@ const AppointmentPage = () => {
                         ) : currentAppointments.length > 0 ? (
                           currentAppointments.map((appointment) => {
                             const isExpired = isAppointmentExpired(appointment.created_at, appointment.Status);
+                            const isDue = isAppointmentDueOrOverdue(appointment);
                             return (
-                            <tr key={appointment.AppointmentID} className={`hover:bg-gray-50 ${isExpired ? 'bg-red-50 border-l-4 border-l-red-400' : ''}`}>
+                            <tr key={appointment.AppointmentID} className={`hover:bg-gray-50 ${isExpired ? 'bg-red-50 border-l-4 border-l-red-400' : isDue ? 'bg-amber-50 border-l-4 border-l-amber-400' : ''}`}>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
                                   <div className="flex-shrink-0 h-10 w-10">
@@ -561,6 +870,25 @@ const AppointmentPage = () => {
                                     <Eye className="h-3 w-3 mr-1" />
                                     Review
                                   </Button>
+                                  {isExpired && (
+                                    <Button
+                                      onClick={() => showStatusConfirmDialog(appointment.AppointmentID, 'Cancelled')}
+                                      variant="outline"
+                                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto"
+                                    >
+                                      <X className="h-3 w-3 mr-1" />
+                                      Cancel
+                                    </Button>
+                                  )}
+                                  {isDue && (
+                                    <Button
+                                      onClick={() => showStatusConfirmDialog(appointment.AppointmentID, 'Completed')}
+                                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 min-h-0 h-auto"
+                                    >
+                                      <Check className="h-3 w-3 mr-1" />
+                                      Mark Completed
+                                    </Button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -683,10 +1011,6 @@ const AppointmentPage = () => {
                       </div>
                     </div>
 
-                    {/* Loading message */}
-                    <div className="flex items-center justify-center py-8">
-                      <DataLoading message="Loading appointment details..." />
-                    </div>
                   </>
                 ) : (
                   <>
@@ -810,7 +1134,7 @@ const AppointmentPage = () => {
             {!isLoadingDetails && (
               <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
                 <div className="flex space-x-3">
-                  {appointmentDetails?.formConfiguration && (
+                  {appointmentDetails?.formConfiguration && selectedAppointment?.Status !== 'Cancelled' && (
                     <Button
                       onClick={() => handleSaveFormData()}
                       variant="outline"
@@ -821,7 +1145,7 @@ const AppointmentPage = () => {
                       Save Form Data
                     </Button>
                   )}
-                  {(appointmentDetails?.service?.isDownloadableContent || appointmentDetails?.isDownloadableContent || appointmentDetails?.sacramentService?.isDownloadableContent) && (
+                  {(appointmentDetails?.service?.isDownloadableContent || appointmentDetails?.isDownloadableContent || appointmentDetails?.sacramentService?.isDownloadableContent) && selectedAppointment?.Status !== 'Cancelled' && (
                     <Button
                       onClick={handleExportPDF}
                       variant="outline"

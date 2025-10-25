@@ -43,6 +43,9 @@ const ChurchRegistrationPage = () => {
     Street: "",
     City: "",
     Province: "",
+    Diocese: "",
+    ContactNumber: "",
+    Email: "",
     Latitude: "",
     Longitude: "",
     ProfilePicture: null,
@@ -113,6 +116,12 @@ const ChurchRegistrationPage = () => {
       stepErrors.ParishDetails = [
         "Parish details must not exceed 1000 characters",
       ];
+    }
+
+    if (!formData.Diocese) {
+      stepErrors.Diocese = ["Diocese is required"];
+    } else if (formData.Diocese.length > 255) {
+      stepErrors.Diocese = ["Diocese must not exceed 255 characters"];
     }
 
     setErrors(stepErrors);
@@ -691,6 +700,58 @@ const ChurchRegistrationPage = () => {
                         <div className="mt-1 flex justify-between text-xs text-gray-500">
                           <InputError messages={errors.ParishDetails} />
                           <span>{formData.ParishDetails.length}/1000 characters</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="Diocese">
+                          Diocese <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="mt-1">
+                          <input
+                            type="text"
+                            id="Diocese"
+                            name="Diocese"
+                            value={formData.Diocese}
+                            onChange={handleChange}
+                            required
+                            className="block w-full px-3 py-3 text-sm border-2 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            placeholder="Diocese of Davao"
+                          />
+                        </div>
+                        <InputError messages={errors.Diocese} className="mt-2" />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="ContactNumber">Contact Number</Label>
+                          <div className="mt-1">
+                            <input
+                              type="tel"
+                              id="ContactNumber"
+                              name="ContactNumber"
+                              value={formData.ContactNumber}
+                              onChange={handleChange}
+                              className="block w-full px-3 py-3 text-sm border-2 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
+                              placeholder="+63 912 345 6789"
+                            />
+                          </div>
+                          <InputError messages={errors.ContactNumber} className="mt-2" />
+                        </div>
+                        <div>
+                          <Label htmlFor="Email">Email Address</Label>
+                          <div className="mt-1">
+                            <input
+                              type="email"
+                              id="Email"
+                              name="Email"
+                              value={formData.Email}
+                              onChange={handleChange}
+                              className="block w-full px-3 py-3 text-sm border-2 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
+                              placeholder="church@example.com"
+                            />
+                          </div>
+                          <InputError messages={errors.Email} className="mt-2" />
                         </div>
                       </div>
                     </div>

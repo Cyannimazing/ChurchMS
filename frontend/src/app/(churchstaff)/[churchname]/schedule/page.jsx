@@ -41,7 +41,7 @@ const SchedulePage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [scheduleToDelete, setScheduleToDelete] = useState(null);
-  const [viewMode, setViewMode] = useState("table"); // "table" or "calendar"
+  const [viewMode, setViewMode] = useState("calendar"); // "table" or "calendar"
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -201,7 +201,7 @@ const SchedulePage = () => {
   if (!hasAccess) {
     return (
       <div className="lg:p-6 w-full h-screen pt-20">
-        <div className="max-w-7xl mx-auto h-full">
+        <div className="w-full h-full">
           <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
             <div className="p-6 bg-white border-b border-gray-200">
               <h2 className="text-xl font-semibold text-red-600">Unauthorized</h2>
@@ -218,7 +218,7 @@ const SchedulePage = () => {
 
   return (
     <div className="lg:p-6 w-full h-screen pt-20">
-      <div className="max-w-7xl mx-auto h-full">
+      <div className="w-full h-full">
         <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
           <div className="p-6 bg-white border-b border-gray-200 flex-1 overflow-auto">
             <h1 className="text-2xl font-semibold text-gray-900 mb-6">
