@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "@/lib/axios";
 import { useRouter, useParams } from "next/navigation";
-import { Calendar, Clock, MapPin, Users, Eye, Check, X, AlertTriangle, Search, FileText, User, Mail, Phone, MapPin as Location, Download, FileText as CertificateIcon } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, Eye, Check, X, AlertTriangle, Search, FileText, User, Mail, Phone, MapPin as Location, FileText as CertificateIcon, Download } from "lucide-react";
 import { useAuth } from "@/hooks/auth.jsx";
 import DataLoading from "@/components/DataLoading";
 import SearchAndPagination from "@/components/SearchAndPagination";
@@ -13,7 +13,6 @@ import CertificateGenerator from "@/components/CertificateGenerator.jsx";
 import CertificateTypeModal from "@/components/CertificateTypeModal.jsx";
 import ConfirmDialog from "@/components/ConfirmDialog.jsx";
 import Alert from "@/components/Alert";
-import { exportToPDF, isServiceDownloadable } from "@/utils/pdfExport";
 
 // Warning Block Component
 const WarningBlock = ({ type, title, description, count, onShow, onClear, isActive }) => {
@@ -116,6 +115,20 @@ const AppointmentPage = () => {
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState("");
   
+  // Approval state
+  const [canApproveAppointment, setCanApproveAppointment] = useState(true);
+  
+  // Auto-complete state
+  const [showAutoCompleteModal, setShowAutoCompleteModal] = useState(false);
+  const [autoCompleteService, setAutoCompleteService] = useState('All');
+  const [isAutoCompleting, setIsAutoCompleting] = useState(false);
+  
+  // Mass Report state
+  const [showMassReportModal, setShowMassReportModal] = useState(false);
+  const [reportDate, setReportDate] = useState("");
+  const [reportTime, setReportTime] = useState("");
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  
 
   // Check if user is ChurchOwner or has appointment_list permission
   const hasAccess =
@@ -151,6 +164,16 @@ const AppointmentPage = () => {
       fetchAppointments();
     }
   }, [hasAccess, churchname]);
+
+  // Update approval eligibility when appointment details change
+  useEffect(() => {
+    if (appointmentDetails?.formConfiguration) {
+      const canApprove = checkAllRequiredSubmissionsComplete(appointmentDetails.formConfiguration);
+      setCanApproveAppointment(canApprove);
+    } else {
+      setCanApproveAppointment(true); // No requirements means can approve
+    }
+  }, [appointmentDetails]);
 
   // Get unique services for filter dropdown
   const uniqueServices = [...new Set(appointments.map(apt => apt.ServiceName))].filter(Boolean).sort();
@@ -299,6 +322,120 @@ const AppointmentPage = () => {
     const ampm = hour >= 12 ? 'PM' : 'AM';
     const displayHour = hour % 12 || 12;
     return `${displayHour}:${minutes} ${ampm}`;
+  };
+
+  // Function to check if all required submissions are complete
+  const checkAllRequiredSubmissionsComplete = (formConfiguration) => {
+    if (!formConfiguration) return true; // No form config means no requirements
+    
+    // Check main requirements
+    if (formConfiguration.requirements) {
+      for (const req of formConfiguration.requirements) {
+        if (req.needed && !req.isSubmitted) {
+          return false; // Found a needed requirement that is not submitted
+        }
+      }
+    }
+    
+    // Check sub-service requirements
+    if (formConfiguration.sub_services) {
+      for (const subService of formConfiguration.sub_services) {
+        if (subService.requirements) {
+          for (const req of subService.requirements) {
+            if (req.needed && !req.isSubmitted) {
+              return false; // Found a needed sub-service requirement that is not submitted
+            }
+          }
+        }
+      }
+    }
+    
+    return true; // All required submissions are complete
+  };
+
+  // Handle submission status changes from FormRenderer
+  const handleSubmissionStatusChange = (itemId, isSubmitted, type) => {
+    if (!appointmentDetails?.formConfiguration) return;
+    
+    // Update the form configuration with new submission status
+    const updatedFormConfig = { ...appointmentDetails.formConfiguration };
+    
+    if (type === 'requirement') {
+      // Update main requirement
+      updatedFormConfig.requirements = updatedFormConfig.requirements?.map(req => 
+        req.id === itemId ? { ...req, isSubmitted } : req
+      );
+    } else if (type === 'sub_service_requirement') {
+      // Update sub-service requirement
+      updatedFormConfig.sub_services = updatedFormConfig.sub_services?.map(subService => ({
+        ...subService,
+        requirements: subService.requirements?.map(req => 
+          req.id === itemId ? { ...req, isSubmitted } : req
+        )
+      }));
+    }
+    
+    // Update appointment details with new form configuration
+    setAppointmentDetails(prev => ({
+      ...prev,
+      formConfiguration: updatedFormConfig
+    }));
+  };
+
+  // Get due appointments for auto-complete
+  const getDueAppointments = (serviceName = 'All') => {
+    return appointments.filter(appointment => {
+      const isDue = isAppointmentDueOrOverdue(appointment);
+      if (serviceName === 'All') {
+        return isDue;
+      }
+      return isDue && appointment.ServiceName === serviceName;
+    });
+  };
+
+  // Handle auto-complete appointments
+  const handleAutoComplete = async () => {
+    const dueAppointments = getDueAppointments(autoCompleteService);
+    
+    if (dueAppointments.length === 0) {
+      setAlertMessage('No due appointments found for the selected service.');
+      setAlertType('warning');
+      setShowAutoCompleteModal(false);
+      return;
+    }
+
+    setIsAutoCompleting(true);
+    
+    try {
+      const appointmentIds = dueAppointments.map(apt => apt.AppointmentID);
+      
+      // Call backend API to bulk update appointments to completed
+      await axios.put('/api/appointments/bulk-status-update', {
+        appointment_ids: appointmentIds,
+        status: 'Completed'
+      });
+      
+      // Update local state
+      const updatedAppointments = appointments.map(apt => 
+        appointmentIds.includes(apt.AppointmentID) 
+          ? { ...apt, Status: 'Completed' }
+          : apt
+      );
+      
+      setAppointments(updatedAppointments);
+      setFilteredAppointments(updatedAppointments);
+      
+      setAlertMessage(`Successfully completed ${dueAppointments.length} due appointment(s) for ${autoCompleteService === 'All' ? 'all services' : autoCompleteService}.`);
+      setAlertType('success');
+      
+    } catch (err) {
+      console.error('Error auto-completing appointments:', err);
+      setAlertMessage('Failed to auto-complete appointments. Please try again.');
+      setAlertType('error');
+    } finally {
+      setIsAutoCompleting(false);
+      setShowAutoCompleteModal(false);
+    }
   };
 
   // Review modal functions
@@ -478,6 +615,90 @@ const AppointmentPage = () => {
     }
   };
 
+  // Generate Mass Intentions Report
+  const handleGenerateMassReport = async () => {
+    setIsGeneratingReport(true);
+    try {
+      // Find the active service to get ServiceID
+      const activeService = appointments.find(apt => apt.ServiceName === activeServiceTab);
+      
+      if (!activeService) {
+        setAlertMessage('No service selected');
+        setAlertType('error');
+        setIsGeneratingReport(false);
+        return;
+      }
+
+      console.log('Generating report with:', {
+        service_id: activeService.ServiceID,
+        date: reportDate,
+        time: reportTime,
+        serviceName: activeService.ServiceName
+      });
+
+      const response = await axios.post('/api/appointments/mass-intentions-report', {
+        service_id: activeService.ServiceID,
+        date: reportDate,
+        schedule_time_id: reportTime
+      }, {
+        responseType: 'blob'
+      });
+
+      // Create blob link to download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Mass_Intentions_${reportDate}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      setAlertMessage('Report generated successfully!');
+      setAlertType('success');
+      setShowMassReportModal(false);
+    } catch (err) {
+      console.error('Error generating Mass report:', err);
+      console.error('Error response:', err.response);
+      
+      // Try to parse error message from blob if it's JSON
+      let errorMessage = 'Failed to generate Mass report. Please try again.';
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const errorData = JSON.parse(text);
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (parseErr) {
+          console.error('Could not parse error response:', parseErr);
+        }
+      } else if (err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+      
+      setAlertMessage(errorMessage);
+      setAlertType('error');
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
+  // Check if active service is a Mass service
+  const isActiveMassService = () => {
+    if (activeServiceTab === 'All') return false;
+    const service = appointments.find(apt => apt.ServiceName === activeServiceTab);
+    console.log('Checking Mass service:', { activeServiceTab, service, isMass: service?.isMass });
+    return service?.isMass === true || service?.isMass === 1; // Check for both boolean and integer
+  };
+
+  // Reset report date and time when modal opens
+  useEffect(() => {
+    if (showMassReportModal) {
+      setReportDate("");
+      setReportTime("");
+    }
+  }, [showMassReportModal]);
+
   if (!hasAccess) {
     return (
       <div className="lg:p-6 w-full h-screen pt-20">
@@ -531,6 +752,17 @@ const AppointmentPage = () => {
                           Pending applications older than 72 hours are highlighted in red and can be cancelled to free up slots.
                         </p>
                       </div>
+                      
+                      {/* Generate Report Button for Mass Services */}
+                      {isActiveMassService() && (
+                        <Button
+                          onClick={() => setShowMassReportModal(true)}
+                          className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md whitespace-nowrap"
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Generate Report
+                        </Button>
+                      )}
                     </div>
                   </div>
 
@@ -560,15 +792,46 @@ const AppointmentPage = () => {
 
                             {/* Approved due today/past */}
                             {dueCount > 0 && (
-                              <WarningBlock
-                                type="warning"
-                                title="Approved due today or overdue"
-                                description="These approved appointments are due today or past their scheduled date. Consider marking them as completed."
-                                count={dueCount}
-                                onShow={() => { setWarningFilter('due_approved'); setStatusFilter('All'); setActiveServiceTab('All'); setSearchTerm(''); setCurrentPage(1); }}
-                                onClear={() => setWarningFilter('none')}
-                                isActive={warningFilter === 'due_approved'}
-                              />
+                              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex items-start">
+                                    <AlertTriangle className="h-5 w-5 text-amber-500 mr-3 mt-0.5 flex-shrink-0" />
+                                    <div className="flex-1">
+                                      <h3 className="text-sm font-medium text-gray-900">Approved due today or overdue</h3>
+                                      <p className="mt-1 text-sm text-gray-600">These approved appointments are due today or past their scheduled date.</p>
+                                      <div className="mt-3 flex items-center space-x-2">
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white text-gray-900">
+                                          {dueCount} appointment{dueCount !== 1 ? 's' : ''}
+                                        </span>
+                                        <Button
+                                          onClick={() => { setWarningFilter('due_approved'); setStatusFilter('All'); setActiveServiceTab('All'); setSearchTerm(''); setCurrentPage(1); }}
+                                          className="inline-flex items-center px-3 py-1 text-xs font-medium rounded bg-amber-600 hover:bg-amber-700 text-white"
+                                        >
+                                          Show All
+                                        </Button>
+                                        {warningFilter === 'due_approved' && (
+                                          <Button
+                                            onClick={() => setWarningFilter('none')}
+                                            variant="outline"
+                                            className="inline-flex items-center px-3 py-1 text-xs font-medium rounded bg-amber-100 hover:bg-amber-200 text-amber-800"
+                                          >
+                                            Clear
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-col space-y-2 ml-4">
+                                    <Button
+                                      onClick={() => setShowAutoCompleteModal(true)}
+                                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 border border-blue-600 rounded-md transition-colors whitespace-nowrap"
+                                    >
+                                      <Check className="h-4 w-4 mr-2" />
+                                      Auto-Complete All
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
                             )}
                           </div>
                           {warningFilter !== 'none' && (
@@ -1120,6 +1383,8 @@ const AppointmentPage = () => {
                               }));
                             }}
                             readOnly={false}
+                            appointmentId={selectedAppointment?.AppointmentID}
+                            onSubmissionStatusChange={handleSubmissionStatusChange}
                           />
                         </div>
                       </div>
@@ -1145,17 +1410,6 @@ const AppointmentPage = () => {
                       Save Form Data
                     </Button>
                   )}
-                  {(appointmentDetails?.service?.isDownloadableContent || appointmentDetails?.isDownloadableContent || appointmentDetails?.sacramentService?.isDownloadableContent) && selectedAppointment?.Status !== 'Cancelled' && (
-                    <Button
-                      onClick={handleExportPDF}
-                      variant="outline"
-                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200"
-                      disabled={isUpdatingStatus}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Export PDF
-                    </Button>
-                  )}
                 </div>
                 
                 <div className="flex space-x-3">
@@ -1172,8 +1426,13 @@ const AppointmentPage = () => {
                       </Button>
                       <Button
                         onClick={() => showStatusConfirmDialog(selectedAppointment.AppointmentID, 'Approved')}
-                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700"
-                        disabled={isUpdatingStatus}
+                        className={`inline-flex items-center px-4 py-2 text-sm font-medium ${
+                          canApproveAppointment 
+                            ? 'text-white bg-green-600 hover:bg-green-700' 
+                            : 'text-gray-400 bg-gray-300 cursor-not-allowed'
+                        }`}
+                        disabled={isUpdatingStatus || !canApproveAppointment}
+                        title={!canApproveAppointment ? 'All required submissions must be completed before approval' : ''}
                       >
                         <Check className="h-4 w-4 mr-2" />
                         {isUpdatingStatus ? 'Updating...' : 'Approve Appointment'}
@@ -1259,6 +1518,279 @@ const AppointmentPage = () => {
         certificateType={selectedCertificateType}
         staffFormData={staffFormData}
       />
+
+      {/* Auto-Complete Modal */}
+      {showAutoCompleteModal && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-gray-900/20 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Auto-Complete Due Appointments</h3>
+              <button
+                onClick={() => setShowAutoCompleteModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+                disabled={isAutoCompleting}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Service to Auto-Complete:
+                </label>
+                <select
+                  value={autoCompleteService}
+                  onChange={(e) => setAutoCompleteService(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isAutoCompleting}
+                >
+                  <option value="All">All Services ({getDueAppointments('All').length} appointments)</option>
+                  {uniqueServices.map(service => {
+                    const dueCount = getDueAppointments(service).length;
+                    return (
+                      <option key={service} value={service} disabled={dueCount === 0}>
+                        {service} ({dueCount} appointments)
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                <div className="flex items-start">
+                  <AlertTriangle className="h-4 w-4 text-yellow-500 mt-0.5 mr-2 flex-shrink-0" />
+                  <div className="text-sm text-yellow-700">
+                    <p className="font-medium">About to complete:</p>
+                    <p>{getDueAppointments(autoCompleteService).length} approved appointment{getDueAppointments(autoCompleteService).length !== 1 ? 's' : ''} 
+                    {autoCompleteService === 'All' ? ' from all services' : ` from ${autoCompleteService}`} 
+                    that are due today or overdue.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <Button
+                onClick={() => setShowAutoCompleteModal(false)}
+                variant="outline"
+                disabled={isAutoCompleting}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border-gray-300 hover:bg-gray-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAutoComplete}
+                disabled={isAutoCompleting || getDueAppointments(autoCompleteService).length === 0}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300"
+              >
+                {isAutoCompleting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    Auto-Complete
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mass Report Modal */}
+      {showMassReportModal && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-gray-900/20 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Generate Mass Intentions Report</h3>
+              <button
+                onClick={() => setShowMassReportModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+                disabled={isGeneratingReport}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Date:
+                </label>
+                <select
+                  value={reportDate}
+                  onChange={(e) => {
+                    setReportDate(e.target.value);
+                    setReportTime(""); // Reset time when date changes
+                  }}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 cursor-pointer"
+                  disabled={isGeneratingReport}
+                >
+                  <option value="">Select a date</option>
+                  {(() => {
+                    // Get unique dates from approved appointments for the active Mass service
+                    const activeService = appointments.find(apt => apt.ServiceName === activeServiceTab);
+                    if (!activeService) return null;
+                    
+                    const approvedDates = [...new Set(
+                      appointments
+                        .filter(apt => 
+                          apt.ServiceID === activeService.ServiceID && 
+                          apt.Status === 'Approved'
+                        )
+                        .map(apt => {
+                          const date = new Date(apt.AppointmentDate);
+                          return date.toISOString().split('T')[0];
+                        })
+                    )].sort((a, b) => new Date(a) - new Date(b));
+                    
+                    return approvedDates.map(date => (
+                      <option key={date} value={date}>
+                        {new Date(date).toLocaleDateString('en-US', { 
+                          weekday: 'long', 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}
+                      </option>
+                    ));
+                  })()}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Select a date to generate report for approved Mass appointments
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Time:
+                </label>
+                <select
+                  value={reportTime}
+                  onChange={(e) => setReportTime(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 cursor-pointer disabled:cursor-not-allowed"
+                  disabled={isGeneratingReport || !reportDate}
+                >
+                  <option value="">Select a time</option>
+                  {(() => {
+                    if (!reportDate) return null;
+                    
+                    // Get unique times from approved appointments for the selected date
+                    const activeService = appointments.find(apt => apt.ServiceName === activeServiceTab);
+                    if (!activeService) return null;
+                    
+                    const filteredAppointments = appointments.filter(apt => {
+                      const date = new Date(apt.AppointmentDate);
+                      const aptDate = date.toISOString().split('T')[0];
+                      return apt.ServiceID === activeService.ServiceID && 
+                             apt.Status === 'Approved' &&
+                             aptDate === reportDate;
+                    });
+                    
+                    console.log('Filtered appointments for time dropdown:', filteredAppointments);
+                    
+                    const approvedTimes = [...new Map(
+                      filteredAppointments
+                        .map(apt => {
+                          console.log('Appointment time data:', {
+                            id: apt.ScheduleTimeID,
+                            startTime: apt.StartTime,
+                            endTime: apt.EndTime
+                          });
+                          return [
+                            apt.ScheduleTimeID,
+                            {
+                              id: apt.ScheduleTimeID,
+                              startTime: apt.StartTime,
+                              endTime: apt.EndTime
+                            }
+                          ];
+                        })
+                    ).values()].sort((a, b) => {
+                      // Sort by start time
+                      const timeA = a.startTime || '00:00:00';
+                      const timeB = b.startTime || '00:00:00';
+                      return timeA.localeCompare(timeB);
+                    });
+                    
+                    console.log('Approved times:', approvedTimes);
+                    
+                    return approvedTimes.map(time => {
+                      const formatTime = (timeStr) => {
+                        if (!timeStr) return 'N/A';
+                        try {
+                          const [hours, minutes] = timeStr.split(':');
+                          const hour = parseInt(hours);
+                          const ampm = hour >= 12 ? 'PM' : 'AM';
+                          const displayHour = hour % 12 || 12;
+                          return `${displayHour}:${minutes} ${ampm}`;
+                        } catch {
+                          return timeStr;
+                        }
+                      };
+                      
+                      return (
+                        <option key={time.id} value={time.id}>
+                          {formatTime(time.startTime)} - {formatTime(time.endTime)}
+                        </option>
+                      );
+                    });
+                  })()}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Select a time slot for the report
+                </p>
+              </div>
+              
+              <div className="bg-purple-50 border border-purple-200 rounded-md p-3">
+                <div className="flex items-start">
+                  <FileText className="h-4 w-4 text-purple-500 mt-0.5 mr-2 flex-shrink-0" />
+                  <div className="text-sm text-purple-700">
+                    <p className="font-medium">Report will include:</p>
+                    <ul className="list-disc list-inside mt-1 text-xs">
+                      <li>All Mass intention form responses</li>
+                      <li>Row numbering for each entry</li>
+                    </ul>
+                    <p className="mt-2 text-xs">Only approved appointments for the selected date and time will be included.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <Button
+                onClick={() => setShowMassReportModal(false)}
+                variant="outline"
+                disabled={isGeneratingReport}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border-gray-300 hover:bg-gray-50"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleGenerateMassReport}
+                disabled={isGeneratingReport || !reportDate || !reportTime}
+                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300"
+              >
+                {isGeneratingReport ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Generate PDF
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

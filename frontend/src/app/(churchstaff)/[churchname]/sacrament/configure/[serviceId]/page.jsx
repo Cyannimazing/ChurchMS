@@ -322,7 +322,7 @@ const FormBuilderPage = () => {
             const reqs = configResponse.data.requirements?.map(req => ({
               id: Date.now() + Math.random(), // Generate unique ID
               description: req.description,
-              mandatory: req.is_mandatory
+              needed: req.is_needed
             })) || [];
             
             setFormElements(elements);
@@ -552,7 +552,7 @@ const FormBuilderPage = () => {
         })),
         requirements: requirements.map(req => ({
           description: req.description,
-          is_mandatory: req.mandatory
+          is_needed: req.needed
         }))
       };
       
@@ -599,7 +599,7 @@ const FormBuilderPage = () => {
     const newReq = {
       id: Date.now(),
       description: "New requirement",
-      mandatory: false
+      needed: true
     };
     setRequirements([...requirements, newReq]);
   };
@@ -1010,11 +1010,11 @@ const FormBuilderPage = () => {
                       <label className="flex items-center text-xs">
                         <input
                           type="checkbox"
-                          checked={req.mandatory}
-                          onChange={(e) => updateRequirement(req.id, 'mandatory', e.target.checked)}
+                          checked={req.needed}
+                          onChange={(e) => updateRequirement(req.id, 'needed', e.target.checked)}
                           className="mr-2"
                         />
-                        Mandatory
+                        Needed
                       </label>
                     </div>
                   ))}

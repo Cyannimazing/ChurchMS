@@ -186,11 +186,26 @@ Route::middleware('auth:sanctum')->group(function () {
     // Update appointment status
     Route::put('/appointments/{appointmentId}/status', [AppointmentController::class, 'updateStatus'])->where('appointmentId', '[0-9]+')->name('appointments.updateStatus');
     
+    // Update requirement submission status
+    Route::put('/appointments/{appointmentId}/requirement-submission', [AppointmentController::class, 'updateRequirementSubmission'])->where('appointmentId', '[0-9]+')->name('appointments.updateRequirementSubmission');
+    
+    // Update sub-service completion status
+    Route::put('/appointments/{appointmentId}/sub-service-completion', [AppointmentController::class, 'updateSubServiceCompletion'])->where('appointmentId', '[0-9]+')->name('appointments.updateSubServiceCompletion');
+    
+    // Update sub-service requirement submission status
+    Route::put('/appointments/{appointmentId}/sub-service-requirement-submission', [AppointmentController::class, 'updateSubServiceRequirementSubmission'])->where('appointmentId', '[0-9]+')->name('appointments.updateSubServiceRequirementSubmission');
+    
     // Save form data for appointment
     Route::post('/appointments/{appointmentId}/staff-form-data', [AppointmentController::class, 'saveFormData'])->where('appointmentId', '[0-9]+')->name('appointments.saveFormData');
     
     // Get appointment answers for certificate generation
     Route::get('/appointments/{appointmentId}/answers', [AppointmentController::class, 'getAppointmentAnswers'])->where('appointmentId', '[0-9]+')->name('appointments.answers');
+    
+    // Bulk update appointment statuses
+    Route::put('/appointments/bulk-status-update', [AppointmentController::class, 'bulkStatusUpdate'])->name('appointments.bulk-status-update');
+    
+    // Mass Intentions Report (PDF download)
+    Route::post('/appointments/mass-intentions-report', [AppointmentController::class, 'generateMassIntentionsReport'])->name('appointments.mass-intentions-report');
     
     // Payment success handling (for completing paid appointments)
     Route::post('/appointments/payment/success', [AppointmentController::class, 'handlePaymentSuccess'])->name('appointments.payment.success');

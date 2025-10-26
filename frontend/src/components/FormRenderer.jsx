@@ -1,10 +1,13 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import axios from '@/lib/axios'
 
-const FormRenderer = ({ formConfiguration, formData = {}, updateField, onFormDataChange, initialData = {}, readOnly = false }) => {
+const FormRenderer = ({ formConfiguration, formData = {}, updateField, onFormDataChange, initialData = {}, readOnly = false, appointmentId = null, onSubmissionStatusChange = null }) => {
   const [localFormData, setLocalFormData] = useState(formData || initialData)
   const [errors, setErrors] = useState({})
+  const [submissionStatuses, setSubmissionStatuses] = useState({})
+  const [isUpdatingSubmission, setIsUpdatingSubmission] = useState({})
 
   // Update parent component when form data changes
   useEffect(() => {
@@ -17,6 +20,132 @@ const FormRenderer = ({ formConfiguration, formData = {}, updateField, onFormDat
   useEffect(() => {
     setLocalFormData(formData)
   }, [formData])
+
+  // Initialize submission statuses from requirements and sub-services
+  useEffect(() => {
+    if (formConfiguration?.requirements || formConfiguration?.sub_services) {
+      const statuses = {}
+      
+      // Initialize requirement statuses
+      formConfiguration.requirements?.forEach(req => {
+        statuses[`req_${req.id}`] = req.isSubmitted || false
+      })
+      
+      // Initialize sub-service statuses
+      formConfiguration.sub_services?.forEach(subService => {
+        statuses[`sub_${subService.id}`] = subService.isCompleted || false
+        
+        // Initialize sub-service requirement statuses
+        subService.requirements?.forEach(req => {
+          statuses[`subreq_${req.id}`] = req.isSubmitted || false
+        })
+      })
+      
+      setSubmissionStatuses(statuses)
+    }
+  }, [formConfiguration?.requirements, formConfiguration?.sub_services])
+
+  // Handle requirement submission checkbox change
+  const handleRequirementSubmissionChange = async (requirementId, isSubmitted) => {
+    if (!appointmentId) {
+      console.error('No appointment ID provided')
+      return
+    }
+
+    const statusKey = `req_${requirementId}`
+    setIsUpdatingSubmission(prev => ({ ...prev, [statusKey]: true }))
+
+    try {
+      const response = await axios.put(`/api/appointments/${appointmentId}/requirement-submission`, {
+        requirement_id: requirementId,
+        is_submitted: isSubmitted
+      })
+
+      if (response.data) {
+        setSubmissionStatuses(prev => ({
+          ...prev,
+          [statusKey]: isSubmitted
+        }))
+        
+        // Notify parent of submission status change
+        if (onSubmissionStatusChange) {
+          onSubmissionStatusChange(requirementId, isSubmitted, 'requirement')
+        }
+        
+        console.log('Requirement submission updated:', response.data)
+      }
+    } catch (error) {
+      console.error('Failed to update requirement submission:', error)
+    } finally {
+      setIsUpdatingSubmission(prev => ({ ...prev, [statusKey]: false }))
+    }
+  }
+
+  // Handle sub-service completion checkbox change
+  const handleSubServiceCompletionChange = async (subServiceId, isCompleted) => {
+    if (!appointmentId) {
+      console.error('No appointment ID provided')
+      return
+    }
+
+    const statusKey = `sub_${subServiceId}`
+    setIsUpdatingSubmission(prev => ({ ...prev, [statusKey]: true }))
+
+    try {
+      const response = await axios.put(`/api/appointments/${appointmentId}/sub-service-completion`, {
+        sub_service_id: subServiceId,
+        is_completed: isCompleted
+      })
+
+      if (response.data) {
+        setSubmissionStatuses(prev => ({
+          ...prev,
+          [statusKey]: isCompleted
+        }))
+        console.log('Sub-service completion updated:', response.data)
+      }
+    } catch (error) {
+      console.error('Failed to update sub-service completion:', error)
+    } finally {
+      setIsUpdatingSubmission(prev => ({ ...prev, [statusKey]: false }))
+    }
+  }
+
+  // Handle sub-service requirement submission checkbox change
+  const handleSubServiceRequirementSubmissionChange = async (subServiceRequirementId, isSubmitted) => {
+    if (!appointmentId) {
+      console.error('No appointment ID provided')
+      return
+    }
+
+    const statusKey = `subreq_${subServiceRequirementId}`
+    setIsUpdatingSubmission(prev => ({ ...prev, [statusKey]: true }))
+
+    try {
+      const response = await axios.put(`/api/appointments/${appointmentId}/sub-service-requirement-submission`, {
+        sub_service_requirement_id: subServiceRequirementId,
+        is_submitted: isSubmitted
+      })
+
+      if (response.data) {
+        setSubmissionStatuses(prev => ({
+          ...prev,
+          [statusKey]: isSubmitted
+        }))
+        
+        // Notify parent of submission status change
+        if (onSubmissionStatusChange) {
+          onSubmissionStatusChange(subServiceRequirementId, isSubmitted, 'sub_service_requirement')
+        }
+        
+        console.log('Sub-service requirement submission updated:', response.data)
+      }
+    } catch (error) {
+      console.error('Failed to update sub-service requirement submission:', error)
+    } finally {
+      setIsUpdatingSubmission(prev => ({ ...prev, [statusKey]: false }))
+    }
+  }
 
   const handleInputChange = (fieldId, value) => {
     // Use updateField if provided (for external state management)
@@ -185,7 +314,7 @@ const FormRenderer = ({ formConfiguration, formData = {}, updateField, onFormDat
               <textarea
                 placeholder={element.placeholder}
                 required={element.required}
-                rows={element.rows || 3}
+                style={{ height: element.height ? `${element.height}px` : 'auto' }}
                 value={formData[fieldKey] || ''}
                 onChange={(e) => handleInputChange(fieldKey, e.target.value)}
                 {...commonInputProps}
@@ -362,20 +491,98 @@ const FormRenderer = ({ formConfiguration, formData = {}, updateField, onFormDat
       {formConfiguration.requirements && formConfiguration.requirements.length > 0 && (
         <div className="mt-6">
           <h4 className="text-lg font-semibold text-gray-900 mb-4">Requirements</h4>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {formConfiguration.requirements.map((req, index) => (
-              <div key={index} className="flex items-start space-x-2">
-                <span className={`inline-block w-2 h-2 rounded-full mt-2 ${req.mandatory ? 'bg-red-500' : 'bg-blue-500'}`}></span>
-                <div>
-                  <p className="text-sm text-gray-700">{req.description}</p>
-                  <span className={`text-xs ${req.mandatory ? 'text-red-600' : 'text-blue-600'}`}>
-                    {req.mandatory ? 'Mandatory' : 'Optional'}
+              <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg border">
+                <span className={`inline-block w-2 h-2 rounded-full mt-2 ${req.needed ? 'bg-red-500' : 'bg-blue-500'}`}></span>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-700 font-medium">{req.description}</p>
+                  <span className={`text-xs ${req.needed ? 'text-red-600' : 'text-blue-600'}`}>
+                    {req.needed ? 'Needed' : 'Optional'}
                   </span>
                 </div>
+                {req.needed && (
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={`requirement-${req.id}-${index}`}
+                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                      checked={submissionStatuses[`req_${req.id}`] || false}
+                      disabled={isUpdatingSubmission[`req_${req.id}`] || false}
+                      onChange={(e) => handleRequirementSubmissionChange(req.id, e.target.checked)}
+                    />
+                    <label htmlFor={`requirement-${req.id}-${index}`} className="text-sm text-gray-600">
+                      {isUpdatingSubmission[`req_${req.id}`] ? 'Updating...' : 'Submitted'}
+                    </label>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </div>
+      )}
+
+      {/* Sub-Services as Requirements */}
+      {formConfiguration.sub_services && formConfiguration.sub_services.length > 0 && (
+        <>
+          {formConfiguration.sub_services.map((subService, index) => (
+            <div key={index} className="flex items-start space-x-3 p-4 border border-gray-300 rounded-lg bg-white mt-3">
+              <span className="inline-block w-3 h-3 rounded-full bg-blue-500 mt-1.5"></span>
+              <div className="flex-1">
+                <p className="text-sm text-gray-900">{subService.name}</p>
+                {subService.description && (
+                  <p className="text-xs text-gray-600 mt-1">{subService.description}</p>
+                )}
+                <span className="text-xs text-blue-600">Required</span>
+                
+                {/* Sub-service Requirements */}
+                {subService.requirements && subService.requirements.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {subService.requirements.map((req, reqIndex) => (
+                      <div key={reqIndex} className="flex items-start space-x-3 p-2 bg-gray-50 rounded border ml-6">
+                        <span className={`inline-block w-2 h-2 rounded-full mt-1.5 ${req.needed ? 'bg-orange-500' : 'bg-blue-500'}`}></span>
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-700">{req.description}</p>
+                          <span className={`text-xs ${req.needed ? 'text-orange-600' : 'text-blue-600'}`}>
+                            {req.needed ? 'Needed' : 'Optional'}
+                          </span>
+                        </div>
+                        {req.needed && (
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={`subreq-${req.id}-${reqIndex}`}
+                              className="h-3 w-3 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                              checked={submissionStatuses[`subreq_${req.id}`] || false}
+                              disabled={isUpdatingSubmission[`subreq_${req.id}`] || false}
+                              onChange={(e) => handleSubServiceRequirementSubmissionChange(req.id, e.target.checked)}
+                            />
+                            <label htmlFor={`subreq-${req.id}-${reqIndex}`} className="text-xs text-gray-600">
+                              {isUpdatingSubmission[`subreq_${req.id}`] ? 'Updating...' : 'Submitted'}
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id={`subservice-${subService.id}-${index}`}
+                  className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                  checked={submissionStatuses[`sub_${subService.id}`] || false}
+                  disabled={isUpdatingSubmission[`sub_${subService.id}`] || false}
+                  onChange={(e) => handleSubServiceCompletionChange(subService.id, e.target.checked)}
+                />
+                <label htmlFor={`subservice-${subService.id}-${index}`} className="text-sm text-gray-600">
+                  {isUpdatingSubmission[`sub_${subService.id}`] ? 'Updating...' : 'Completed'}
+                </label>
+              </div>
+            </div>
+          ))}
+        </>
       )}
     </div>
   )

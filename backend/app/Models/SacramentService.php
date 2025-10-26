@@ -16,7 +16,7 @@ class SacramentService extends Model
         'ServiceName',
         'Description',
         'isStaffForm',
-        'isDownloadableContent',
+        'isMass',
         'advanceBookingNumber',
         'advanceBookingUnit',
         'member_discount_type',
@@ -27,7 +27,7 @@ class SacramentService extends Model
     protected $casts = [
         'ChurchID' => 'integer',
         'isStaffForm' => 'boolean',
-        'isDownloadableContent' => 'boolean',
+        'isMass' => 'boolean',
         'advanceBookingNumber' => 'integer',
         'member_discount_value' => 'decimal:2',
         'isCertificateGeneration' => 'boolean',
@@ -60,11 +60,11 @@ class SacramentService extends Model
     }
     
     /**
-     * Get only mandatory requirements for this service.
+     * Get only needed requirements for this service.
      */
-    public function mandatoryRequirements(): HasMany
+    public function neededRequirements(): HasMany
     {
-        return $this->requirements()->where('IsMandatory', true);
+        return $this->requirements()->where('isNeeded', true);
     }
     
     /**
@@ -72,7 +72,23 @@ class SacramentService extends Model
      */
     public function optionalRequirements(): HasMany
     {
-        return $this->requirements()->where('IsMandatory', false);
+        return $this->requirements()->where('isNeeded', false);
+    }
+    
+    /**
+     * Get only submitted requirements for this service.
+     */
+    public function submittedRequirements(): HasMany
+    {
+        return $this->requirements()->where('isSubmitted', true);
+    }
+    
+    /**
+     * Get only pending requirements for this service.
+     */
+    public function pendingRequirements(): HasMany
+    {
+        return $this->requirements()->where('isSubmitted', false);
     }
     
     /**

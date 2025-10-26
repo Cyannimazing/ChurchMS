@@ -906,7 +906,7 @@ class AppointmentController extends Controller
                                 's.ServiceName',
                                 's.ServiceID',
                                 's.Description as ServiceDescription',
-                                's.isDownloadableContent',
+                                's.isMass',
                                 's.isCertificateGeneration'
                             ])
                             ->first();
@@ -1021,12 +1021,77 @@ class AppointmentController extends Controller
                 ];
             }
 
-            // Format requirements
+            // Get requirement submissions for this appointment
+            $requirementSubmissions = DB::table('appointment_requirement_submissions')
+                ->where('AppointmentID', $appointmentId)
+                ->get()
+                ->keyBy('RequirementID');
+
+            // Format requirements with submission status
             $formRequirements = [];
             foreach ($requirements as $req) {
+                $submission = $requirementSubmissions->get($req->RequirementID);
                 $formRequirements[] = [
+                    'id' => $req->RequirementID,
                     'description' => $req->Description,
-                    'mandatory' => $req->IsMandatory
+                    'needed' => $req->isNeeded,
+                    'isSubmitted' => $submission ? $submission->isSubmitted : false,
+                    'submitted_at' => $submission ? $submission->submitted_at : null,
+                    'notes' => $submission ? $submission->notes : null
+                ];
+            }
+
+            // Get sub-services for this sacrament service
+            $subServices = DB::table('sub_service')
+                ->where('ServiceID', $appointment->ServiceID)
+                ->where('IsActive', true)
+                ->get();
+
+            // Get sub-service completion status for this appointment
+            $subServiceStatuses = DB::table('appointment_sub_service_status')
+                ->where('AppointmentID', $appointmentId)
+                ->get()
+                ->keyBy('SubServiceID');
+
+            // Get sub-service requirements and their submission status
+            $formSubServices = [];
+            foreach ($subServices as $subService) {
+                // Get requirements for this sub-service
+                $subServiceRequirements = DB::table('sub_service_requirements')
+                    ->where('SubServiceID', $subService->SubServiceID)
+                    ->orderBy('SortOrder')
+                    ->get();
+
+                // Get requirement submissions for this appointment's sub-service
+                $subServiceRequirementSubmissions = DB::table('appointment_sub_service_requirement_submissions')
+                    ->where('AppointmentID', $appointmentId)
+                    ->whereIn('SubServiceRequirementID', $subServiceRequirements->pluck('RequirementID'))
+                    ->get()
+                    ->keyBy('SubServiceRequirementID');
+
+                // Format sub-service requirements
+                $formattedSubServiceRequirements = [];
+                foreach ($subServiceRequirements as $req) {
+                    $submission = $subServiceRequirementSubmissions->get($req->RequirementID);
+                    $formattedSubServiceRequirements[] = [
+                        'id' => $req->RequirementID,
+                        'description' => $req->RequirementName,
+                        'needed' => $req->isNeeded,
+                        'isSubmitted' => $submission ? $submission->isSubmitted : false,
+                        'submitted_at' => $submission ? $submission->submitted_at : null,
+                        'notes' => $submission ? $submission->notes : null
+                    ];
+                }
+
+                // Get completion status for this sub-service
+                $status = $subServiceStatuses->get($subService->SubServiceID);
+                $formSubServices[] = [
+                    'id' => $subService->SubServiceID,
+                    'name' => $subService->SubServiceName,
+                    'description' => $subService->Description,
+                    'isCompleted' => $status ? $status->isCompleted : false,
+                    'completed_at' => $status ? $status->completed_at : null,
+                    'requirements' => $formattedSubServiceRequirements
                 ];
             }
 
@@ -1051,12 +1116,13 @@ class AppointmentController extends Controller
                     'ServiceID' => $appointment->ServiceID,
                     'ServiceName' => $appointment->ServiceName,
                     'Description' => $appointment->ServiceDescription,
-                    'isDownloadableContent' => $appointment->isDownloadableContent,
+                    'isMass' => $appointment->isMass,
                     'isCertificateGeneration' => $appointment->isCertificateGeneration
                 ],
                 'formConfiguration' => [
                     'form_elements' => $formElements,
-                    'requirements' => $formRequirements
+                    'requirements' => $formRequirements,
+                    'sub_services' => $formSubServices
                 ]
             ];
 
@@ -1099,13 +1165,16 @@ class AppointmentController extends Controller
                 ->select([
                     'a.AppointmentID',
                     'a.AppointmentDate',
+                    'a.ScheduleTimeID',
                     'a.Status',
                     'a.Notes',
                     'a.created_at',
                     'u.email as UserEmail',
                     DB::raw("p.first_name || ' ' || COALESCE(p.middle_name || '. ', '') || p.last_name as UserName"),
+                    's.ServiceID',
                     's.ServiceName',
                     's.Description as ServiceDescription',
+                    's.isMass',
                     'st.StartTime',
                     'st.EndTime'
                 ])
@@ -1192,6 +1261,211 @@ class AppointmentController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'An error occurred while updating appointment status.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update requirement submission status
+     */
+    public function updateRequirementSubmission(Request $request, int $appointmentId): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'requirement_id' => 'required|integer|exists:service_requirement,RequirementID',
+                'is_submitted' => 'required|boolean',
+                'notes' => 'nullable|string|max:500'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => 'Invalid data provided.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $user = $request->user();
+            if (!$user) {
+                return response()->json([
+                    'error' => 'Authentication required.'
+                ], 401);
+            }
+
+            // Verify appointment exists
+            $appointment = DB::table('Appointment')
+                ->where('AppointmentID', $appointmentId)
+                ->first();
+
+            if (!$appointment) {
+                return response()->json([
+                    'error' => 'Appointment not found.'
+                ], 404);
+            }
+
+            // Create or update requirement submission
+            $submissionData = [
+                'AppointmentID' => $appointmentId,
+                'RequirementID' => $request->requirement_id,
+                'isSubmitted' => $request->is_submitted,
+                'notes' => $request->notes,
+                'reviewed_by' => $user->id,
+                'submitted_at' => $request->is_submitted ? now() : null,
+                'updated_at' => now()
+            ];
+
+            DB::table('appointment_requirement_submissions')
+                ->updateOrInsert(
+                    [
+                        'AppointmentID' => $appointmentId,
+                        'RequirementID' => $request->requirement_id
+                    ],
+                    array_merge($submissionData, ['created_at' => now()])
+                );
+
+            return response()->json([
+                'message' => 'Requirement submission status updated successfully.',
+                'data' => [
+                    'appointment_id' => $appointmentId,
+                    'requirement_id' => $request->requirement_id,
+                    'is_submitted' => $request->is_submitted,
+                    'submitted_at' => $request->is_submitted ? now()->toISOString() : null
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while updating requirement submission.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update sub-service completion status
+     */
+    public function updateSubServiceCompletion(Request $request, int $appointmentId): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'sub_service_id' => 'required|integer|exists:sub_service,SubServiceID',
+                'is_completed' => 'required|boolean',
+                'notes' => 'nullable|string|max:500'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => 'Invalid data provided.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $user = $request->user();
+            if (!$user) {
+                return response()->json(['error' => 'Authentication required.'], 401);
+            }
+
+            // Verify appointment exists
+            $appointment = DB::table('Appointment')->where('AppointmentID', $appointmentId)->first();
+            if (!$appointment) {
+                return response()->json(['error' => 'Appointment not found.'], 404);
+            }
+
+            // Update sub-service completion status
+            $statusData = [
+                'AppointmentID' => $appointmentId,
+                'SubServiceID' => $request->sub_service_id,
+                'isCompleted' => $request->is_completed,
+                'notes' => $request->notes,
+                'reviewed_by' => $user->id,
+                'completed_at' => $request->is_completed ? now() : null,
+                'updated_at' => now()
+            ];
+
+            DB::table('appointment_sub_service_status')
+                ->updateOrInsert(
+                    ['AppointmentID' => $appointmentId, 'SubServiceID' => $request->sub_service_id],
+                    array_merge($statusData, ['created_at' => now()])
+                );
+
+            return response()->json([
+                'message' => 'Sub-service completion status updated successfully.',
+                'data' => [
+                    'appointment_id' => $appointmentId,
+                    'sub_service_id' => $request->sub_service_id,
+                    'is_completed' => $request->is_completed,
+                    'completed_at' => $request->is_completed ? now()->toISOString() : null
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while updating sub-service completion.',
+                'details' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update sub-service requirement submission status
+     */
+    public function updateSubServiceRequirementSubmission(Request $request, int $appointmentId): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'sub_service_requirement_id' => 'required|integer|exists:sub_service_requirements,RequirementID',
+                'is_submitted' => 'required|boolean',
+                'notes' => 'nullable|string|max:500'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => 'Invalid data provided.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $user = $request->user();
+            if (!$user) {
+                return response()->json(['error' => 'Authentication required.'], 401);
+            }
+
+            // Verify appointment exists
+            $appointment = DB::table('Appointment')->where('AppointmentID', $appointmentId)->first();
+            if (!$appointment) {
+                return response()->json(['error' => 'Appointment not found.'], 404);
+            }
+
+            // Update sub-service requirement submission
+            $submissionData = [
+                'AppointmentID' => $appointmentId,
+                'SubServiceRequirementID' => $request->sub_service_requirement_id,
+                'isSubmitted' => $request->is_submitted,
+                'notes' => $request->notes,
+                'reviewed_by' => $user->id,
+                'submitted_at' => $request->is_submitted ? now() : null,
+                'updated_at' => now()
+            ];
+
+            DB::table('appointment_sub_service_requirement_submissions')
+                ->updateOrInsert(
+                    ['AppointmentID' => $appointmentId, 'SubServiceRequirementID' => $request->sub_service_requirement_id],
+                    array_merge($submissionData, ['created_at' => now()])
+                );
+
+            return response()->json([
+                'message' => 'Sub-service requirement submission updated successfully.',
+                'data' => [
+                    'appointment_id' => $appointmentId,
+                    'sub_service_requirement_id' => $request->sub_service_requirement_id,
+                    'is_submitted' => $request->is_submitted,
+                    'submitted_at' => $request->is_submitted ? now()->toISOString() : null
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while updating sub-service requirement submission.',
                 'details' => $e->getMessage()
             ], 500);
         }
@@ -3117,6 +3391,183 @@ class AppointmentController extends Controller
 
             return response()->json([
                 'error' => 'Failed to fetch appointment answers'
+            ], 500);
+        }
+    }
+
+    /**
+     * Bulk update appointment statuses
+     */
+    public function bulkStatusUpdate(Request $request): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'appointment_ids' => 'required|array',
+                'appointment_ids.*' => 'integer|exists:Appointment,AppointmentID',
+                'status' => 'required|in:Pending,Approved,Completed,Cancelled'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => 'Validation failed.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $appointmentIds = $request->appointment_ids;
+            $status = $request->status;
+
+            // Update all appointments
+            $updated = DB::table('Appointment')
+                ->whereIn('AppointmentID', $appointmentIds)
+                ->update([
+                    'Status' => $status,
+                    'updated_at' => now()
+                ]);
+
+            Log::info('Bulk status update completed', [
+                'appointment_ids' => $appointmentIds,
+                'new_status' => $status,
+                'updated_count' => $updated
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully updated {$updated} appointment(s) to {$status}",
+                'updated_count' => $updated
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to bulk update appointment statuses', [
+                'error' => $e->getMessage(),
+                'appointment_ids' => $request->appointment_ids ?? [],
+                'status' => $request->status ?? ''
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to bulk update appointment statuses'
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate Mass Intentions Report as PDF
+     */
+    public function generateMassIntentionsReport(Request $request): mixed
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'service_id' => 'required|integer|exists:sacrament_service,ServiceID',
+                'date' => 'required|date',
+                'schedule_time_id' => 'required|integer|exists:schedule_times,ScheduleTimeID'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => 'Validation failed.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $serviceId = $request->service_id;
+            $date = $request->date;
+            $scheduleTimeId = $request->schedule_time_id;
+
+            // Verify this is a Mass service
+            $service = SacramentService::where('ServiceID', $serviceId)
+                ->where('isMass', true)
+                ->with('church')
+                ->first();
+
+            if (!$service) {
+                return response()->json([
+                    'error' => 'Service not found or is not a Mass service.'
+                ], 404);
+            }
+
+            // Get all approved appointments for this service on the specified date and time
+            $appointments = DB::table('Appointment')
+                ->join('users', 'Appointment.UserID', '=', 'users.id')
+                ->join('user_profiles as p', 'users.id', '=', 'p.user_id')
+                ->join('schedule_times as st', 'Appointment.ScheduleTimeID', '=', 'st.ScheduleTimeID')
+                ->where('Appointment.ServiceID', $serviceId)
+                ->where('Appointment.Status', 'Approved')
+                ->where('Appointment.ScheduleTimeID', $scheduleTimeId)
+                ->whereDate('Appointment.AppointmentDate', $date)
+                ->select(
+                    'Appointment.AppointmentID',
+                    'Appointment.AppointmentDate',
+                    'st.StartTime',
+                    'st.EndTime',
+                    DB::raw("p.first_name || ' ' || COALESCE(p.middle_name || '. ', '') || p.last_name as UserName"),
+                    'users.email as UserEmail'
+                )
+                ->orderBy('st.StartTime')
+                ->get();
+
+            // Get form configuration for this service
+            $formElements = DB::table('service_input_field')
+                ->where('ServiceID', $serviceId)
+                ->whereNotIn('InputType', ['heading', 'paragraph', 'container'])
+                ->orderBy('SortOrder')
+                ->get();
+
+            // Get answers for each appointment
+            $reportData = [];
+            foreach ($appointments as $appointment) {
+                $answers = DB::table('AppointmentInputAnswer')
+                    ->where('AppointmentID', $appointment->AppointmentID)
+                    ->pluck('AnswerText', 'InputFieldID');
+
+                $formData = [];
+                foreach ($formElements as $element) {
+                    $formData[] = [
+                        'label' => $element->Label,
+                        'answer' => $answers[$element->InputFieldID] ?? 'N/A'
+                    ];
+                }
+
+                $reportData[] = [
+                    'applicant_name' => $appointment->UserName,
+                    'applicant_email' => $appointment->UserEmail,
+                    'appointment_time' => $appointment->StartTime && $appointment->EndTime
+                        ? date('h:i A', strtotime($appointment->StartTime)) . ' - ' . date('h:i A', strtotime($appointment->EndTime))
+                        : 'N/A',
+                    'form_data' => $formData
+                ];
+            }
+
+            // Get the schedule time info for the PDF
+            $scheduleTime = DB::table('schedule_times')
+                ->where('ScheduleTimeID', $scheduleTimeId)
+                ->first();
+
+            // Generate PDF
+            $pdf = Pdf::loadView('pdf.mass-intentions-report', [
+                'service' => $service,
+                'church' => $service->church,
+                'date' => $date,
+                'scheduleTime' => $scheduleTime,
+                'reportData' => $reportData,
+                'formElements' => $formElements
+            ]);
+
+            $pdf->setPaper('a4', 'portrait');
+
+            $filename = 'Mass_Intentions_' . date('Y-m-d', strtotime($date)) . '_' . str_replace(' ', '_', $service->ServiceName) . '.pdf';
+
+            return $pdf->download($filename);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to generate Mass intentions report', [
+                'error' => $e->getMessage(),
+                'service_id' => $request->service_id ?? null,
+                'date' => $request->date ?? null
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to generate report',
+                'details' => $e->getMessage()
             ], 500);
         }
     }

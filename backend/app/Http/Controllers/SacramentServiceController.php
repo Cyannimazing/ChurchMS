@@ -100,7 +100,7 @@ class SacramentServiceController extends Controller
                 'ServiceName' => 'required|string|max:100',
                 'Description' => 'nullable|string',
                 'isStaffForm' => 'nullable|boolean',
-                'isDownloadableContent' => 'nullable|boolean',
+                'isMass' => 'nullable|boolean',
                 'advanceBookingNumber' => 'nullable|integer|min:1|max:12',
                 'advanceBookingUnit' => 'nullable|string|in:weeks,months',
                 'member_discount_type' => 'nullable|string|in:percentage,fixed',
@@ -148,7 +148,7 @@ class SacramentServiceController extends Controller
                     'ServiceName' => $request->ServiceName,
                     'Description' => $request->Description,
                     'isStaffForm' => $request->isStaffForm,
-                    'isDownloadableContent' => $request->isDownloadableContent,
+                    'isMass' => $request->isMass,
                     'advanceBookingNumber' => $request->advanceBookingNumber,
                     'advanceBookingUnit' => $request->advanceBookingUnit,
                     'member_discount_type' => $request->member_discount_type,
@@ -224,7 +224,7 @@ class SacramentServiceController extends Controller
                 'ServiceName' => 'required|string|max:100',
                 'Description' => 'nullable|string',
                 'isStaffForm' => 'nullable|boolean',
-                'isDownloadableContent' => 'nullable|boolean',
+                'isMass' => 'nullable|boolean',
                 'advanceBookingNumber' => 'nullable|integer|min:1|max:12',
                 'advanceBookingUnit' => 'nullable|string|in:weeks,months',
                 'member_discount_type' => 'nullable|string|in:percentage,fixed',
@@ -281,7 +281,7 @@ class SacramentServiceController extends Controller
                     'ServiceName' => $request->ServiceName,
                     'Description' => $request->Description,
                     'isStaffForm' => $request->isStaffForm,
-                    'isDownloadableContent' => $request->isDownloadableContent,
+                    'isMass' => $request->isMass,
                     'advanceBookingNumber' => $request->advanceBookingNumber,
                     'advanceBookingUnit' => $request->advanceBookingUnit,
                     'member_discount_type' => $request->member_discount_type,
@@ -492,7 +492,7 @@ class SacramentServiceController extends Controller
                         ServiceRequirement::create([
                             'ServiceID' => $serviceId,
                             'Description' => $requirement['description'],
-                            'IsMandatory' => $requirement['is_mandatory'] ?? false,
+                            'isNeeded' => $requirement['is_needed'] ?? true,
                             'RequirementType' => 'custom',
                             'RequirementData' => null,
                             'SortOrder' => $index,
@@ -546,7 +546,7 @@ class SacramentServiceController extends Controller
                                                     'ServiceName', 
                                                     'Description', 
                                                     'isStaffForm',
-                                                    'isDownloadableContent',
+                                                    'isMass',
                                                     'advanceBookingNumber',
                                                     'advanceBookingUnit',
                                                     'member_discount_type',
@@ -634,7 +634,7 @@ class SacramentServiceController extends Controller
                     'ServiceName' => $service->ServiceName,
                     'Description' => $service->Description,
                     'isStaffForm' => $service->isStaffForm,
-                    'isDownloadableContent' => $service->isDownloadableContent,
+                    'isMass' => $service->isMass,
                     'advanceBookingNumber' => $service->advanceBookingNumber,
                     'advanceBookingUnit' => $service->advanceBookingUnit,
                 ],
@@ -776,7 +776,7 @@ class SacramentServiceController extends Controller
                                              ->map(function ($requirement) {
                                                  return [
                                                      'description' => $requirement->Description,
-                                                     'is_mandatory' => $requirement->IsMandatory,
+                                                     'is_needed' => $requirement->isNeeded,
                                                  ];
                                              });
 

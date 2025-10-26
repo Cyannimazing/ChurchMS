@@ -153,7 +153,27 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
       console.log('Schedules API response:', response)
       console.log('Schedules data:', response.data)
       console.log('Schedules array:', response.data.schedules)
-      setSchedules(response.data.schedules || [])
+      const fetchedSchedules = response.data.schedules || []
+      setSchedules(fetchedSchedules)
+      
+      // Auto-navigate to OneTime event date
+      if (fetchedSchedules.length > 0) {
+        // Check if there's a OneTime event
+        const oneTimeSchedule = fetchedSchedules.find(schedule => {
+          if (schedule.recurrences && schedule.recurrences.length > 0) {
+            const recurrence = schedule.recurrences[0]
+            return recurrence.RecurrenceType === 'OneTime' && recurrence.SpecificDate
+          }
+          return false
+        })
+        
+        if (oneTimeSchedule && oneTimeSchedule.recurrences[0].SpecificDate) {
+          // Navigate calendar to the OneTime event's month
+          const specificDate = new Date(oneTimeSchedule.recurrences[0].SpecificDate)
+          setCurrentMonth(new Date(specificDate.getFullYear(), specificDate.getMonth(), 1))
+          console.log('Auto-navigated to OneTime event month:', specificDate.toLocaleDateString())
+        }
+      }
     } catch (err) {
       console.error('Error fetching schedules:', err)
       console.error('Error response:', err.response)
@@ -564,6 +584,25 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
     return date1.getDate() === date2.getDate() &&
            date1.getMonth() === date2.getMonth() &&
            date1.getFullYear() === date2.getFullYear()
+  }
+
+  // Calculate minimum advance notice date based on service settings
+  const getMinimumBookingDate = () => {
+    if (!selectedService || !selectedService.advanceBookingNumber || !selectedService.advanceBookingUnit) {
+      return new Date() // Default to today if no advance booking required
+    }
+
+    const today = new Date()
+    const advanceNumber = parseInt(selectedService.advanceBookingNumber)
+    const advanceUnit = selectedService.advanceBookingUnit
+
+    if (advanceUnit === 'weeks') {
+      today.setDate(today.getDate() + (advanceNumber * 7))
+    } else if (advanceUnit === 'months') {
+      today.setMonth(today.getMonth() + advanceNumber)
+    }
+
+    return today
   }
 
   const getSchedulesForDate = (date) => {
@@ -1303,7 +1342,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -1352,7 +1391,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                   <p className="text-red-600 mb-4">{servicesError}</p>
                   <button
                     onClick={fetchServices}
-                    className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors cursor-pointer"
                   >
                     Retry
                   </button>
@@ -1399,7 +1438,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                 </div>
                 <button
                   onClick={() => setCurrentStep(1)}
-                  className="flex items-center text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                  className="flex items-center text-sm text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   Change Service
@@ -1416,7 +1455,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                   <p className="text-red-600 mb-4">{schedulesError}</p>
                   <button
                     onClick={() => fetchSchedules(selectedService.ServiceID)}
-                    className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors cursor-pointer"
                   >
                     Retry
                   </button>
@@ -1427,11 +1466,22 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                 </div>
               ) : (
                 <div>
+                  {/* Advance Notice Info */}
+                  {selectedService && selectedService.advanceBookingNumber && selectedService.advanceBookingUnit && (
+                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800">
+                        <span className="font-medium">⏰ Minimum Advance Notice:</span> {selectedService.advanceBookingNumber} {selectedService.advanceBookingUnit}
+                        <br />
+                        <span className="text-xs">You must book appointments at least {selectedService.advanceBookingNumber} {selectedService.advanceBookingUnit} before the appointment date.</span>
+                      </p>
+                    </div>
+                  )}
+                  
                   {/* Calendar Header */}
                   <div className="flex items-center justify-between mb-4 p-3 bg-gray-50 rounded-lg">
                     <button
                       onClick={() => navigateMonth(-1)}
-                      className="p-2 hover:bg-gray-200 rounded-md transition-colors"
+                      className="p-2 hover:bg-gray-200 rounded-md transition-colors cursor-pointer"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
@@ -1440,7 +1490,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                     </h4>
                     <button
                       onClick={() => navigateMonth(1)}
-                      className="p-2 hover:bg-gray-200 rounded-md transition-colors"
+                      className="p-2 hover:bg-gray-200 rounded-md transition-colors cursor-pointer"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
@@ -1469,34 +1519,51 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                         const day = index + 1
                         const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day)
                         const today = new Date()
+                        today.setHours(0, 0, 0, 0) // Normalize to start of day
+                        date.setHours(0, 0, 0, 0) // Normalize to start of day
+                        
+                        const minimumDate = getMinimumBookingDate()
+                        minimumDate.setHours(0, 0, 0, 0) // Normalize to start of day
+                        
                         const isToday = isSameDay(date, today)
                         const isPast = date < today && !isToday
+                        const isTooEarly = date < minimumDate // Check against minimum advance notice
                         const hasSchedules = hasSchedulesOnDate(date)
                         const isSelected = selectedDate && isSameDay(date, selectedDate)
+                        const isDisabled = isPast || isTooEarly || !hasSchedules
                         
                         return (
                           <button
                             key={day}
                             onClick={() => selectDate(date)}
-                            disabled={isPast || !hasSchedules}
+                            disabled={isDisabled}
                             className={`
-                              p-2 h-10 text-sm rounded-md transition-all relative
-                              ${isPast 
-                                ? 'text-gray-300 cursor-not-allowed' 
-                                : hasSchedules 
-                                  ? isSelected
-                                    ? 'bg-blue-600 text-white'
-                                    : 'text-gray-900 hover:bg-blue-50 cursor-pointer'
-                                  : 'text-gray-400 cursor-not-allowed'
+                              relative p-2 h-12 text-sm font-medium rounded-lg transition-all
+                              ${isSelected
+                                ? 'bg-blue-600 text-white shadow-md scale-105 z-10 cursor-pointer'
+                                : hasSchedules && !isDisabled
+                                  ? 'bg-green-50 text-green-900 border-2 border-green-300 hover:bg-green-100 hover:border-green-400 hover:shadow-sm cursor-pointer'
+                                  : 'text-gray-300 cursor-not-allowed'
                               }
-                              ${isToday && !isSelected ? 'ring-2 ring-blue-200' : ''}
+                              ${isToday && !isSelected ? 'ring-2 ring-blue-400 ring-offset-1' : ''}
                             `}
+                            title={
+                              hasSchedules && !isDisabled
+                                ? 'Available - Click to view schedules'
+                                : isTooEarly
+                                  ? `Requires ${selectedService?.advanceBookingNumber} ${selectedService?.advanceBookingUnit} advance notice`
+                                  : isPast
+                                    ? 'Past date'
+                                    : 'No schedules available'
+                            }
                           >
-                            {day}
-                            {hasSchedules && (
-                              <div className={`absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full ${
-                                isSelected ? 'bg-white' : 'bg-blue-600'
-                              }`}></div>
+                            <span className="relative z-10">{day}</span>
+                            {hasSchedules && !isDisabled && (
+                              <div className="absolute inset-0 flex items-center justify-center opacity-10">
+                                <svg className="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                              </div>
                             )}
                           </button>
                         )
@@ -1520,7 +1587,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                             </h5>
                             <button
                               onClick={() => setSelectedSchedule(null)}
-                              className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                              className="text-sm text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
                             >
                               ← Back to schedules
                             </button>
@@ -1687,9 +1754,33 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                   )}
 
                   {!selectedDate && (
-                    <div className="text-center py-6 text-gray-500 text-sm">
-                      <Calendar className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                      Select a date with available schedules (marked with blue dots)
+                    <div className="mt-6">
+                      <div className="text-center py-4 text-gray-500 text-sm mb-4">
+                        <Calendar className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                        Select a date with available schedules
+                      </div>
+                      
+                      {/* Legend */}
+                      <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-green-50 border-2 border-green-300 flex items-center justify-center">
+                            <span className="text-green-900 font-medium">15</span>
+                          </div>
+                          <span className="text-gray-600">Available</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+                            <span className="text-white font-medium">15</span>
+                          </div>
+                          <span className="text-gray-600">Selected</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+                            <span className="text-gray-300 font-medium">15</span>
+                          </div>
+                          <span className="text-gray-600">Unavailable</span>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1709,7 +1800,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                 </div>
                 <button
                   onClick={() => setCurrentStep(2)}
-                  className="flex items-center text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                  className="flex items-center text-sm text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   Change Schedule
@@ -1726,7 +1817,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                   <p className="text-red-600 mb-4">{formError}</p>
                   <button
                     onClick={() => fetchFormConfig(selectedService.ServiceID)}
-                    className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors cursor-pointer"
                   >
                     Retry
                   </button>
@@ -1739,9 +1830,9 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                       <h4 className="font-medium text-yellow-800 mb-3">Requirements for this Sacrament</h4>
                       <ul className="list-disc list-inside space-y-2">
                         {formConfig.requirements.map((req, index) => (
-                          <li key={index} className={`text-sm ${req.is_mandatory ? 'text-yellow-800' : 'text-yellow-700'}`}>
+                          <li key={index} className={`text-sm ${req.is_needed ? 'text-yellow-800' : 'text-yellow-700'}`}>
                             {req.description}
-                            {req.is_mandatory && <span className="font-medium"> (Required)</span>}
+                            {req.is_needed && <span className="font-medium"> (Required)</span>}
                           </li>
                         ))}
                       </ul>
@@ -1803,7 +1894,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                     <button
                       onClick={selectedService && !selectedService.isStaffForm && formConfig.form_elements && formConfig.form_elements.length > 0 ? handleFormSubmit : handleApplicationSubmit}
                       disabled={isSubmitting}
-                      className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
+                      className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center cursor-pointer"
                     >
                       {isSubmitting ? (
                         <>

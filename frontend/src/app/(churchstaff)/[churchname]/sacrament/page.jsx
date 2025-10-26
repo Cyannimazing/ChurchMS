@@ -71,7 +71,7 @@ const SacramentPage = () => {
     ServiceName: "", 
     Description: "",
     isStaffForm: true,
-    isDownloadableContent: false,
+    isMass: false,
     isCertificateGeneration: false,
     advanceBookingNumber: 3,
     advanceBookingUnit: "weeks",
@@ -91,6 +91,11 @@ const SacramentPage = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoadingEdit, setIsLoadingEdit] = useState(false);
   const itemsPerPage = 5;
+  
+  // Check if there's already a Mass service
+  const existingMassService = sacraments.find(s => s.isMass === true && s.ServiceID !== editSacramentId);
+  const isMassRestricted = existingMassService && !editSacramentId;
+  const canEditMass = !existingMassService || (editSacramentId && sacraments.find(s => s.ServiceID === editSacramentId)?.isMass);
 
   useEffect(() => {
     const loadChurchAndSacraments = async () => {
@@ -156,7 +161,7 @@ const SacramentPage = () => {
       ServiceName: "", 
       Description: "",
       isStaffForm: true,
-      isDownloadableContent: false,
+      isMass: false,
       isCertificateGeneration: false,
       advanceBookingNumber: 3,
       advanceBookingUnit: "weeks",
@@ -185,7 +190,7 @@ const SacramentPage = () => {
         ServiceName: localSacrament.ServiceName || "",
         Description: localSacrament.Description || "",
         isStaffForm: localSacrament.isStaffForm !== undefined ? localSacrament.isStaffForm : true,
-        isDownloadableContent: localSacrament.isDownloadableContent !== undefined ? localSacrament.isDownloadableContent : false,
+        isMass: localSacrament.isMass !== undefined ? localSacrament.isMass : false,
         isCertificateGeneration: localSacrament.isCertificateGeneration !== undefined ? localSacrament.isCertificateGeneration : false,
         advanceBookingNumber: localSacrament.advanceBookingNumber || 3,
         advanceBookingUnit: localSacrament.advanceBookingUnit || "weeks",
@@ -207,7 +212,7 @@ const SacramentPage = () => {
         ServiceName: sacrament.ServiceName || "",
         Description: sacrament.Description || "",
         isStaffForm: sacrament.isStaffForm !== undefined ? sacrament.isStaffForm : true,
-        isDownloadableContent: sacrament.isDownloadableContent !== undefined ? sacrament.isDownloadableContent : false,
+        isMass: sacrament.isMass !== undefined ? sacrament.isMass : false,
         isCertificateGeneration: sacrament.isCertificateGeneration !== undefined ? sacrament.isCertificateGeneration : false,
         advanceBookingNumber: sacrament.advanceBookingNumber || 3,
         advanceBookingUnit: sacrament.advanceBookingUnit || "weeks",
@@ -278,7 +283,7 @@ const SacramentPage = () => {
         ServiceName: form.ServiceName,
         Description: form.Description || "",
         isStaffForm: form.isStaffForm,
-        isDownloadableContent: form.isDownloadableContent,
+        isMass: form.isMass,
         isCertificateGeneration: form.isCertificateGeneration,
         advanceBookingNumber: form.advanceBookingNumber,
         advanceBookingUnit: form.advanceBookingUnit,
@@ -565,7 +570,7 @@ const SacramentPage = () => {
       {open && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
           <div
-            className="bg-white rounded-lg shadow-2xl w-full max-w-3xl mx-4 p-6 relative max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-lg shadow-2xl w-full max-w-7xl mx-4 p-6 relative max-h-[90vh] overflow-y-auto"
             role="dialog"
             aria-labelledby="modal-title"
           >
@@ -583,501 +588,549 @@ const SacramentPage = () => {
             >
               {editSacramentId ? "Edit Sacrament" : "Create Sacrament"}
             </h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <Label
-                  htmlFor="serviceName"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Service Name
-                </Label>
-                <Input
-                  id="serviceName"
-                  type="text"
-                  value={form.ServiceName}
-                  onChange={(e) => setForm({ ...form, ServiceName: e.target.value })}
-                  required
-                  className="block mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
-                  placeholder="Enter service name"
-                  autoFocus
-                />
-                <InputError
-                  messages={errors.ServiceName}
-                  className="mt-2 text-xs text-red-600"
-                />
-              </div>
-              
-              <div>
-                <Label
-                  htmlFor="description"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Description
-                </Label>
-                <textarea
-                  id="description"
-                  value={form.Description}
-                  onChange={(e) => setForm({ ...form, Description: e.target.value })}
-                  className="block mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
-                  placeholder="Enter service description (optional)"
-                  rows={3}
-                />
-                <InputError
-                  messages={errors.Description}
-                  className="mt-2 text-xs text-red-600"
-                />
-              </div>
-              
-              <div>
-                <div className="flex items-center">
-                  <input
-                    id="isStaffForm"
-                    type="checkbox"
-                    checked={form.isStaffForm}
-                    onChange={(e) => setForm({ ...form, isStaffForm: e.target.checked })}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
-                  <Label
-                    htmlFor="isStaffForm"
-                    className="ml-2 text-sm font-medium text-gray-700"
-                  >
-                    Staff Only Form
-                  </Label>
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  If checked, only staff can fill this form. If unchecked, users from the frontend can also fill this form.
-                </p>
-              </div>
-              
-              <div>
-                <div className="flex items-center">
-                  <input
-                    id="isDownloadableContent"
-                    type="checkbox"
-                    checked={form.isDownloadableContent}
-                    onChange={(e) => setForm({ ...form, isDownloadableContent: e.target.checked })}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
-                  <Label
-                    htmlFor="isDownloadableContent"
-                    className="ml-2 text-sm font-medium text-gray-700"
-                  >
-                    Downloadable Content
-                  </Label>
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  Check this box if this sacrament should have downloadable content available for users.
-                </p>
-              </div>
-              
-              <div>
-                <div className="flex items-center">
-                  <input
-                    id="isCertificateGeneration"
-                    type="checkbox"
-                    checked={form.isCertificateGeneration}
-                    onChange={(e) => setForm({ ...form, isCertificateGeneration: e.target.checked })}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
-                  <Label
-                    htmlFor="isCertificateGeneration"
-                    className="ml-2 text-sm font-medium text-gray-700"
-                  >
-                    Enable Certificate Generation
-                  </Label>
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  Check this box if this sacrament should allow certificate generation for completed appointments.
-                </p>
-              </div>
-              
-              <div>
-                <Label className="block text-sm font-medium text-gray-700 mb-2">
-                  Minimum Advance Notice
-                </Label>
-                <div className="flex space-x-2">
-                  <div className="flex-1">
-                    <select
-                      value={form.advanceBookingNumber}
-                      onChange={(e) => setForm({ ...form, advanceBookingNumber: parseInt(e.target.value) })}
-                      className="w-full bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      {[...Array(12)].map((_, i) => (
-                        <option key={i + 1} value={i + 1}>
-                          {i + 1}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex-1">
-                    <select
-                      value={form.advanceBookingUnit}
-                      onChange={(e) => setForm({ ...form, advanceBookingUnit: e.target.value })}
-                      className="w-full bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="weeks">Weeks</option>
-                      <option value="months">Months</option>
-                    </select>
-                  </div>
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  Users must book appointments at least {form.advanceBookingNumber} {form.advanceBookingUnit} before the appointment date for preparation and requirements gathering.
-                </p>
-              </div>
-              
-              <div>
-                <Label className="block text-sm font-medium text-gray-700 mb-2">
-                  Member Discount (Optional)
-                </Label>
-                <div className="space-y-3">
+            <form onSubmit={handleSubmit} className="">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left Column - Main Fields */}
+                <div className="space-y-6">
                   <div>
-                    <select
-                      value={form.member_discount_type}
-                      onChange={(e) => setForm({ ...form, member_discount_type: e.target.value })}
-                      className="w-full bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500"
+                    <Label
+                      htmlFor="serviceName"
+                      className="text-sm font-medium text-gray-700"
                     >
-                      <option value="">No discount</option>
-                      <option value="percentage">Percentage (%)</option>
-                      <option value="fixed">Fixed Amount (PHP)</option>
-                    </select>
-                  </div>
-                  {form.member_discount_type && (
-                    <div>
-                      <Input
-                        type="number"
-                        value={form.member_discount_value}
-                        onChange={(e) => setForm({ ...form, member_discount_value: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
-                        placeholder={form.member_discount_type === 'percentage' ? 'Enter percentage (e.g., 5 for 5%)' : 'Enter amount (e.g., 1000 for PHP1000)'}
-                        min="0"
-                        step={form.member_discount_type === 'percentage' ? '0.01' : '0.01'}
-                        max={form.member_discount_type === 'percentage' ? '100' : undefined}
-                      />
-                    </div>
-                  )}
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  {form.member_discount_type === 'percentage' 
-                    ? 'Enter the percentage discount for members (e.g., 5 for 5% off)' 
-                    : form.member_discount_type === 'fixed'
-                    ? 'Enter the fixed discount amount in PHP (e.g., 1000 for PHP1000 off)'
-                    : 'Set up a discount that will be applied for church members.'}
-                </p>
-              </div>
-              
-              {/* Sub-Services Section */}
-              <div className="border-t pt-6">
-                <div className="flex justify-between items-center mb-3">
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">
-                      Sub-Services (Optional)
+                      Service Name
                     </Label>
+                    <Input
+                      id="serviceName"
+                      type="text"
+                      value={form.ServiceName}
+                      onChange={(e) => setForm({ ...form, ServiceName: e.target.value })}
+                      required
+                      className="block mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                      placeholder="Enter service name"
+                      autoFocus
+                    />
+                    <InputError
+                      messages={errors.ServiceName}
+                      className="mt-2 text-xs text-red-600"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label
+                      htmlFor="description"
+                      className="text-sm font-medium text-gray-700"
+                    >
+                      Description
+                    </Label>
+                    <textarea
+                      id="description"
+                      value={form.Description}
+                      onChange={(e) => setForm({ ...form, Description: e.target.value })}
+                      className="block mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                      placeholder="Enter service description (optional)"
+                      rows={3}
+                    />
+                    <InputError
+                      messages={errors.Description}
+                      className="mt-2 text-xs text-red-600"
+                    />
+                  </div>
+                  
+                  <div>
+                    <div className="flex items-center">
+                      <input
+                        id="isStaffForm"
+                        type="checkbox"
+                        checked={form.isStaffForm}
+                        onChange={(e) => setForm({ ...form, isStaffForm: e.target.checked })}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      />
+                      <Label
+                        htmlFor="isStaffForm"
+                        className="ml-2 text-sm font-medium text-gray-700"
+                      >
+                        Staff Only Form
+                      </Label>
+                    </div>
                     <p className="mt-1 text-xs text-gray-500">
-                      Add optional sub-services like interviews with specific schedules.
+                      If checked, only staff can fill this form. If unchecked, users from the frontend can also fill this form.
                     </p>
                   </div>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setForm({
-                        ...form,
-                        sub_services: [
-                          ...form.sub_services,
-                          {
-                            SubServiceName: "",
-                            Description: "",
-                            IsActive: true,
-                            schedules: [],
-                            requirements: []
-                          }
-                        ]
-                      });
-                    }}
-                    variant="outline"
-                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 min-h-0 h-auto"
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Add Sub-Service
-                  </Button>
-                </div>
-
-                {form.sub_services.length === 0 ? (
-                  <p className="text-sm text-gray-500 italic py-2">No sub-services added yet.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {form.sub_services.map((subService, subIndex) => (
-                      <div key={subIndex} className="p-4 border border-gray-200 rounded-md bg-gray-50">
-                        <div className="flex justify-between items-start mb-3">
-                          <h4 className="text-sm font-medium text-gray-700">Sub-Service {subIndex + 1}</h4>
-                          <Button
-                            type="button"
-                            onClick={() => {
-                              const newSubServices = form.sub_services.filter((_, i) => i !== subIndex);
-                              setForm({ ...form, sub_services: newSubServices });
-                            }}
-                            variant="outline"
-                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto"
-                          >
-                            <Trash2 className="h-3 w-3 mr-1" />
-                            Remove
-                          </Button>
-                        </div>
-
-                        <div className="space-y-3">
-                          <div>
-                            <Label className="text-xs font-medium text-gray-700">Name</Label>
-                            <Input
-                              type="text"
-                              value={subService.SubServiceName}
-                              onChange={(e) => {
-                                const newSubServices = [...form.sub_services];
-                                newSubServices[subIndex].SubServiceName = e.target.value;
-                                setForm({ ...form, sub_services: newSubServices });
-                              }}
-                              className="mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
-                              placeholder="e.g., Interview"
-                            />
-                          </div>
-
-                          <div>
-                            <Label className="text-xs font-medium text-gray-700">Description</Label>
-                            <textarea
-                              value={subService.Description || ""}
-                              onChange={(e) => {
-                                const newSubServices = [...form.sub_services];
-                                newSubServices[subIndex].Description = e.target.value;
-                                setForm({ ...form, sub_services: newSubServices });
-                              }}
-                              className="mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
-                              placeholder="Description (optional)"
-                              rows={2}
-                            />
-                          </div>
-
-                          <div className="flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={subService.IsActive}
-                              onChange={(e) => {
-                                const newSubServices = [...form.sub_services];
-                                newSubServices[subIndex].IsActive = e.target.checked;
-                                setForm({ ...form, sub_services: newSubServices });
-                              }}
-                              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                            />
-                            <Label className="ml-2 text-xs font-medium text-gray-700">Active</Label>
-                          </div>
-
-                          {/* Schedules for this sub-service */}
-                          <div className="mt-3 pl-3 border-l-2 border-gray-300">
-                            <div className="flex justify-between items-center mb-2">
-                              <Label className="text-xs font-medium text-gray-700">Schedules</Label>
-                              <Button
-                                type="button"
-                                onClick={() => {
-                                  const newSubServices = [...form.sub_services];
-                                  newSubServices[subIndex].schedules.push({
-                                    DayOfWeek: "Thursday",
-                                    StartTime: "14:00",
-                                    EndTime: "16:00",
-                                    OccurrenceType: "weekly",
-                                    OccurrenceValue: null
-                                  });
-                                  setForm({ ...form, sub_services: newSubServices });
-                                }}
-                                variant="outline"
-                                className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border-green-200 min-h-0 h-auto"
-                              >
-                                <Plus className="h-3 w-3 mr-1" />
-                                Add Schedule
-                              </Button>
-                            </div>
-
-                            {subService.schedules.length === 0 ? (
-                              <p className="text-xs text-gray-500 italic">No schedules added.</p>
-                            ) : (
-                              <div className="space-y-2">
-                                {subService.schedules.map((schedule, scheduleIndex) => (
-                                  <div key={scheduleIndex} className="p-3 bg-white border border-gray-200 rounded">
-                                    <div className="flex justify-between items-start mb-2">
-                                      <span className="text-xs font-medium text-gray-600">Schedule {scheduleIndex + 1}</span>
-                                      <Button
-                                        type="button"
-                                        onClick={() => {
-                                          const newSubServices = [...form.sub_services];
-                                          newSubServices[subIndex].schedules = newSubServices[subIndex].schedules.filter((_, i) => i !== scheduleIndex);
-                                          setForm({ ...form, sub_services: newSubServices });
-                                        }}
-                                        variant="outline"
-                                        className="inline-flex items-center px-1 py-0.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto"
-                                      >
-                                        <X className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-
-                                    <div className="space-y-3">
-                                      <div>
-                                        <Label className="text-sm font-medium text-gray-700">Day of Week *</Label>
-                                        <select
-                                          value={schedule.DayOfWeek}
-                                          onChange={(e) => {
-                                            const newSubServices = [...form.sub_services];
-                                            newSubServices[subIndex].schedules[scheduleIndex].DayOfWeek = e.target.value;
-                                            setForm({ ...form, sub_services: newSubServices });
-                                          }}
-                                          className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white text-sm text-gray-900"
-                                        >
-                                          <option value="Monday">Monday</option>
-                                          <option value="Tuesday">Tuesday</option>
-                                          <option value="Wednesday">Wednesday</option>
-                                          <option value="Thursday">Thursday</option>
-                                          <option value="Friday">Friday</option>
-                                          <option value="Saturday">Saturday</option>
-                                          <option value="Sunday">Sunday</option>
-                                        </select>
-                                      </div>
-
-                                      <div>
-                                        <Label className="text-sm font-medium text-gray-700">Occurrence Type *</Label>
-                                        <select
-                                          value={schedule.OccurrenceType}
-                                          onChange={(e) => {
-                                            const newSubServices = [...form.sub_services];
-                                            newSubServices[subIndex].schedules[scheduleIndex].OccurrenceType = e.target.value;
-                                            if (e.target.value === "weekly") {
-                                              newSubServices[subIndex].schedules[scheduleIndex].OccurrenceValue = null;
-                                            }
-                                            setForm({ ...form, sub_services: newSubServices });
-                                          }}
-                                          className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white text-sm text-gray-900"
-                                        >
-                                          <option value="weekly">Weekly</option>
-                                          <option value="nth_day_of_month">Monthly (Nth weekday)</option>
-                                        </select>
-                                      </div>
-
-                                      {schedule.OccurrenceType === "nth_day_of_month" && (
-                                        <div>
-                                          <Label className="text-sm font-medium text-gray-700">Week of Month *</Label>
-                                          <select
-                                            value={schedule.OccurrenceValue || ""}
-                                            onChange={(e) => {
-                                              const newSubServices = [...form.sub_services];
-                                              newSubServices[subIndex].schedules[scheduleIndex].OccurrenceValue = parseInt(e.target.value);
-                                              setForm({ ...form, sub_services: newSubServices });
-                                            }}
-                                            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white text-sm text-gray-900"
-                                          >
-                                            <option value="">Select...</option>
-                                            <option value="1">First</option>
-                                            <option value="2">Second</option>
-                                            <option value="3">Third</option>
-                                            <option value="4">Fourth</option>
-                                          </select>
-                                        </div>
-                                      )}
-
-                                      <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                          <Label className="text-sm font-medium text-gray-700">Start Time *</Label>
-                                          <input
-                                            type="time"
-                                            value={schedule.StartTime}
-                                            onChange={(e) => {
-                                              const newSubServices = [...form.sub_services];
-                                              newSubServices[subIndex].schedules[scheduleIndex].StartTime = e.target.value;
-                                              setForm({ ...form, sub_services: newSubServices });
-                                            }}
-                                            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
-                                          />
-                                        </div>
-
-                                        <div>
-                                          <Label className="text-sm font-medium text-gray-700">End Time *</Label>
-                                          <input
-                                            type="time"
-                                            value={schedule.EndTime}
-                                            onChange={(e) => {
-                                              const newSubServices = [...form.sub_services];
-                                              newSubServices[subIndex].schedules[scheduleIndex].EndTime = e.target.value;
-                                              setForm({ ...form, sub_services: newSubServices });
-                                            }}
-                                            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
-                                          />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Requirements for this sub-service */}
-                          <div className="mt-3 pl-3 border-l-2 border-gray-300">
-                            <div className="flex justify-between items-center mb-2">
-                              <Label className="text-xs font-medium text-gray-700">Requirements (Optional)</Label>
-                              <Button
-                                type="button"
-                                onClick={() => {
-                                  const newSubServices = [...form.sub_services];
-                                  newSubServices[subIndex].requirements.push({
-                                    RequirementName: ""
-                                  });
-                                  setForm({ ...form, sub_services: newSubServices });
-                                }}
-                                variant="outline"
-                                className="inline-flex items-center px-2 py-1 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200 min-h-0 h-auto"
-                              >
-                                <Plus className="h-3 w-3 mr-1" />
-                                Add Requirement
-                              </Button>
-                            </div>
-
-                            {subService.requirements.length === 0 ? (
-                              <p className="text-xs text-gray-500 italic">No requirements added. All requirements are mandatory if added.</p>
-                            ) : (
-                              <div className="space-y-2">
-                                {subService.requirements.map((requirement, reqIndex) => (
-                                  <div key={reqIndex} className="p-3 bg-white border border-gray-200 rounded">
-                                    <div className="flex items-start space-x-2">
-                                      <Input
-                                        type="text"
-                                        value={requirement.RequirementName}
-                                        onChange={(e) => {
-                                          const newSubServices = [...form.sub_services];
-                                          newSubServices[subIndex].requirements[reqIndex].RequirementName = e.target.value;
-                                          setForm({ ...form, sub_services: newSubServices });
-                                        }}
-                                        className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
-                                        placeholder="e.g., Birth Certificate"
-                                      />
-                                      <Button
-                                        type="button"
-                                        onClick={() => {
-                                          const newSubServices = [...form.sub_services];
-                                          newSubServices[subIndex].requirements = newSubServices[subIndex].requirements.filter((_, i) => i !== reqIndex);
-                                          setForm({ ...form, sub_services: newSubServices });
-                                        }}
-                                        variant="outline"
-                                        className="inline-flex items-center px-2 py-2 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto"
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                  
+                  <div>
+                    <div className="flex items-center">
+                      <input
+                        id="isMass"
+                        type="checkbox"
+                        checked={form.isMass}
+                        onChange={(e) => setForm({ ...form, isMass: e.target.checked })}
+                        disabled={!canEditMass}
+                        className={`h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded ${
+                          !canEditMass ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                      />
+                      <Label
+                        htmlFor="isMass"
+                        className={`ml-2 text-sm font-medium ${
+                          !canEditMass ? 'text-gray-400' : 'text-gray-700'
+                        }`}
+                      >
+                        Mass
+                      </Label>
+                    </div>
+                    {existingMassService && !editSacramentId ? (
+                      <div className="mt-1 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                        <p className="text-xs text-yellow-800 font-medium">
+                          ⚠️ Mass Service Already Exists
+                        </p>
+                        <p className="text-xs text-yellow-700 mt-1">
+                          Only one service can be marked as Mass. The service "{existingMassService.ServiceName}" is already set as the Mass service.
+                        </p>
                       </div>
-                    ))}
+                    ) : existingMassService && editSacramentId && !sacraments.find(s => s.ServiceID === editSacramentId)?.isMass ? (
+                      <div className="mt-1 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                        <p className="text-xs text-yellow-800 font-medium">
+                          ⚠️ Mass Service Already Exists
+                        </p>
+                        <p className="text-xs text-yellow-700 mt-1">
+                          Only one service can be marked as Mass. The service "{existingMassService.ServiceName}" is already set as the Mass service.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Check this box if this sacrament is related to Mass services. Only one service can be marked as Mass at a time.
+                      </p>
+                    )}
                   </div>
-                )}
+                  
+                  <div>
+                    <div className="flex items-center">
+                      <input
+                        id="isCertificateGeneration"
+                        type="checkbox"
+                        checked={form.isCertificateGeneration}
+                        onChange={(e) => setForm({ ...form, isCertificateGeneration: e.target.checked })}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      />
+                      <Label
+                        htmlFor="isCertificateGeneration"
+                        className="ml-2 text-sm font-medium text-gray-700"
+                      >
+                        Enable Certificate Generation
+                      </Label>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Check this box if this sacrament should allow certificate generation for completed appointments.
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <Label className="block text-sm font-medium text-gray-700 mb-2">
+                      Minimum Advance Notice
+                    </Label>
+                    <div className="flex space-x-2">
+                      <div className="flex-1">
+                        <select
+                          value={form.advanceBookingNumber}
+                          onChange={(e) => setForm({ ...form, advanceBookingNumber: parseInt(e.target.value) })}
+                          className="w-full bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          {[...Array(12)].map((_, i) => (
+                            <option key={i + 1} value={i + 1}>
+                              {i + 1}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex-1">
+                        <select
+                          value={form.advanceBookingUnit}
+                          onChange={(e) => setForm({ ...form, advanceBookingUnit: e.target.value })}
+                          className="w-full bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="weeks">Weeks</option>
+                          <option value="months">Months</option>
+                        </select>
+                      </div>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Users must book appointments at least {form.advanceBookingNumber} {form.advanceBookingUnit} before the appointment date for preparation and requirements gathering.
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <Label className="block text-sm font-medium text-gray-700 mb-2">
+                      Member Discount (Optional)
+                    </Label>
+                    <div className="space-y-3">
+                      <div>
+                        <select
+                          value={form.member_discount_type}
+                          onChange={(e) => setForm({ ...form, member_discount_type: e.target.value })}
+                          className="w-full bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">No discount</option>
+                          <option value="percentage">Percentage (%)</option>
+                          <option value="fixed">Fixed Amount (PHP)</option>
+                        </select>
+                      </div>
+                      {form.member_discount_type && (
+                        <div>
+                          <Input
+                            type="number"
+                            value={form.member_discount_value}
+                            onChange={(e) => setForm({ ...form, member_discount_value: e.target.value })}
+                            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                            placeholder={form.member_discount_type === 'percentage' ? 'Enter percentage (e.g., 5 for 5%)' : 'Enter amount (e.g., 1000 for PHP1000)'}
+                            min="0"
+                            step={form.member_discount_type === 'percentage' ? '0.01' : '0.01'}
+                            max={form.member_discount_type === 'percentage' ? '100' : undefined}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {form.member_discount_type === 'percentage' 
+                        ? 'Enter the percentage discount for members (e.g., 5 for 5% off)' 
+                        : form.member_discount_type === 'fixed'
+                        ? 'Enter the fixed discount amount in PHP (e.g., 1000 for PHP1000 off)'
+                        : 'Set up a discount that will be applied for church members.'}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Right Column - Sub-Services */}
+                <div className="space-y-6 w-full h-full">
+                  <div className="border-2 border-gray-200 rounded-lg p-6 bg-gray-50 w-full h-full flex flex-col">
+                    <div className="flex justify-between items-center mb-3">
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700">
+                          Sub-Services (Optional)
+                        </Label>
+                        <p className="mt-1 text-xs text-gray-500">
+                          Add optional sub-services like interviews with specific schedules.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setForm({
+                            ...form,
+                            sub_services: [
+                              ...form.sub_services,
+                              {
+                                SubServiceName: "",
+                                Description: "",
+                                IsActive: true,
+                                schedules: [],
+                                requirements: []
+                              }
+                            ]
+                          });
+                        }}
+                        variant="outline"
+                        className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 min-h-0 h-auto"
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add Sub-Service
+                      </Button>
+                    </div>
+
+                    {form.sub_services.length === 0 ? (
+                      <p className="text-sm text-gray-500 italic py-2">No sub-services added yet.</p>
+                    ) : (
+                      <div className="space-y-4 flex-1 overflow-y-auto">
+                        {form.sub_services.map((subService, subIndex) => (
+                          <div key={subIndex} className="p-4 border border-gray-200 rounded-md bg-white">
+                            <div className="flex justify-between items-start mb-3">
+                              <h4 className="text-sm font-medium text-gray-700">Sub-Service {subIndex + 1}</h4>
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  const newSubServices = form.sub_services.filter((_, i) => i !== subIndex);
+                                  setForm({ ...form, sub_services: newSubServices });
+                                }}
+                                variant="outline"
+                                className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto"
+                              >
+                                <Trash2 className="h-3 w-3 mr-1" />
+                                Remove
+                              </Button>
+                            </div>
+
+                            <div className="space-y-3">
+                              <div>
+                                <Label className="text-xs font-medium text-gray-700">Name</Label>
+                                <Input
+                                  type="text"
+                                  value={subService.SubServiceName}
+                                  onChange={(e) => {
+                                    const newSubServices = [...form.sub_services];
+                                    newSubServices[subIndex].SubServiceName = e.target.value;
+                                    setForm({ ...form, sub_services: newSubServices });
+                                  }}
+                                  className="mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                                  placeholder="e.g., Interview"
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-xs font-medium text-gray-700">Description</Label>
+                                <textarea
+                                  value={subService.Description || ""}
+                                  onChange={(e) => {
+                                    const newSubServices = [...form.sub_services];
+                                    newSubServices[subIndex].Description = e.target.value;
+                                    setForm({ ...form, sub_services: newSubServices });
+                                  }}
+                                  className="mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                                  placeholder="Description (optional)"
+                                  rows={2}
+                                />
+                              </div>
+
+                              <div className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  checked={subService.IsActive}
+                                  onChange={(e) => {
+                                    const newSubServices = [...form.sub_services];
+                                    newSubServices[subIndex].IsActive = e.target.checked;
+                                    setForm({ ...form, sub_services: newSubServices });
+                                  }}
+                                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                />
+                                <Label className="ml-2 text-xs font-medium text-gray-700">Active</Label>
+                              </div>
+
+                              {/* Schedules for this sub-service */}
+                              <div className="mt-3 pl-3 border-l-2 border-gray-300">
+                                <div className="flex justify-between items-center mb-2">
+                                  <Label className="text-xs font-medium text-gray-700">Schedules</Label>
+                                  <Button
+                                    type="button"
+                                    onClick={() => {
+                                      const newSubServices = [...form.sub_services];
+                                      newSubServices[subIndex].schedules.push({
+                                        DayOfWeek: "Thursday",
+                                        StartTime: "14:00",
+                                        EndTime: "16:00",
+                                        OccurrenceType: "weekly",
+                                        OccurrenceValue: null
+                                      });
+                                      setForm({ ...form, sub_services: newSubServices });
+                                    }}
+                                    variant="outline"
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border-green-200 min-h-0 h-auto"
+                                  >
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Add Schedule
+                                  </Button>
+                                </div>
+
+                                {subService.schedules.length === 0 ? (
+                                  <p className="text-xs text-gray-500 italic">No schedules added.</p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {subService.schedules.map((schedule, scheduleIndex) => (
+                                      <div key={scheduleIndex} className="p-3 bg-gray-50 border border-gray-200 rounded">
+                                        <div className="flex justify-between items-start mb-2">
+                                          <span className="text-xs font-medium text-gray-600">Schedule {scheduleIndex + 1}</span>
+                                          <Button
+                                            type="button"
+                                            onClick={() => {
+                                              const newSubServices = [...form.sub_services];
+                                              newSubServices[subIndex].schedules = newSubServices[subIndex].schedules.filter((_, i) => i !== scheduleIndex);
+                                              setForm({ ...form, sub_services: newSubServices });
+                                            }}
+                                            variant="outline"
+                                            className="inline-flex items-center px-1 py-0.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto"
+                                          >
+                                            <X className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                          <div>
+                                            <Label className="text-xs font-medium text-gray-700">Day of Week *</Label>
+                                            <select
+                                              value={schedule.DayOfWeek}
+                                              onChange={(e) => {
+                                                const newSubServices = [...form.sub_services];
+                                                newSubServices[subIndex].schedules[scheduleIndex].DayOfWeek = e.target.value;
+                                                setForm({ ...form, sub_services: newSubServices });
+                                              }}
+                                              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white text-xs text-gray-900"
+                                            >
+                                              <option value="Monday">Monday</option>
+                                              <option value="Tuesday">Tuesday</option>
+                                              <option value="Wednesday">Wednesday</option>
+                                              <option value="Thursday">Thursday</option>
+                                              <option value="Friday">Friday</option>
+                                              <option value="Saturday">Saturday</option>
+                                              <option value="Sunday">Sunday</option>
+                                            </select>
+                                          </div>
+
+                                          <div>
+                                            <Label className="text-xs font-medium text-gray-700">Occurrence Type *</Label>
+                                            <select
+                                              value={schedule.OccurrenceType}
+                                              onChange={(e) => {
+                                                const newSubServices = [...form.sub_services];
+                                                newSubServices[subIndex].schedules[scheduleIndex].OccurrenceType = e.target.value;
+                                                if (e.target.value === "weekly") {
+                                                  newSubServices[subIndex].schedules[scheduleIndex].OccurrenceValue = null;
+                                                }
+                                                setForm({ ...form, sub_services: newSubServices });
+                                              }}
+                                              className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white text-xs text-gray-900"
+                                            >
+                                              <option value="weekly">Weekly</option>
+                                              <option value="nth_day_of_month">Monthly (Nth weekday)</option>
+                                            </select>
+                                          </div>
+
+                                          {schedule.OccurrenceType === "nth_day_of_month" && (
+                                            <div>
+                                              <Label className="text-xs font-medium text-gray-700">Week of Month *</Label>
+                                              <select
+                                                value={schedule.OccurrenceValue || ""}
+                                                onChange={(e) => {
+                                                  const newSubServices = [...form.sub_services];
+                                                  newSubServices[subIndex].schedules[scheduleIndex].OccurrenceValue = parseInt(e.target.value);
+                                                  setForm({ ...form, sub_services: newSubServices });
+                                                }}
+                                                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white text-xs text-gray-900"
+                                              >
+                                                <option value="">Select...</option>
+                                                <option value="1">First</option>
+                                                <option value="2">Second</option>
+                                                <option value="3">Third</option>
+                                                <option value="4">Fourth</option>
+                                              </select>
+                                            </div>
+                                          )}
+
+                                          <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                              <Label className="text-xs font-medium text-gray-700">Start Time *</Label>
+                                              <input
+                                                type="time"
+                                                value={schedule.StartTime}
+                                                onChange={(e) => {
+                                                  const newSubServices = [...form.sub_services];
+                                                  newSubServices[subIndex].schedules[scheduleIndex].StartTime = e.target.value;
+                                                  setForm({ ...form, sub_services: newSubServices });
+                                                }}
+                                                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-xs text-gray-900"
+                                              />
+                                            </div>
+
+                                            <div>
+                                              <Label className="text-xs font-medium text-gray-700">End Time *</Label>
+                                              <input
+                                                type="time"
+                                                value={schedule.EndTime}
+                                                onChange={(e) => {
+                                                  const newSubServices = [...form.sub_services];
+                                                  newSubServices[subIndex].schedules[scheduleIndex].EndTime = e.target.value;
+                                                  setForm({ ...form, sub_services: newSubServices });
+                                                }}
+                                                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-xs text-gray-900"
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Requirements for this sub-service */}
+                              <div className="mt-3 pl-3 border-l-2 border-gray-300">
+                                <div className="flex justify-between items-center mb-2">
+                                  <Label className="text-xs font-medium text-gray-700">Requirements (Optional)</Label>
+                                  <Button
+                                    type="button"
+                                    onClick={() => {
+                                      const newSubServices = [...form.sub_services];
+                                      newSubServices[subIndex].requirements.push({
+                                        RequirementName: "",
+                                        isNeeded: true
+                                      });
+                                      setForm({ ...form, sub_services: newSubServices });
+                                    }}
+                                    variant="outline"
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200 min-h-0 h-auto"
+                                  >
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Add Requirement
+                                  </Button>
+                                </div>
+
+                                {subService.requirements.length === 0 ? (
+                                  <p className="text-xs text-gray-500 italic">No requirements added.</p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {subService.requirements.map((requirement, reqIndex) => (
+                                      <div key={reqIndex} className="p-3 bg-gray-50 border border-gray-200 rounded">
+                                        <div className="space-y-2">
+                                          <div className="flex items-start space-x-2">
+                                            <Input
+                                              type="text"
+                                              value={requirement.RequirementName}
+                                              onChange={(e) => {
+                                                const newSubServices = [...form.sub_services];
+                                                newSubServices[subIndex].requirements[reqIndex].RequirementName = e.target.value;
+                                                setForm({ ...form, sub_services: newSubServices });
+                                              }}
+                                              className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-xs text-gray-900"
+                                              placeholder="e.g., Birth Certificate"
+                                            />
+                                            <Button
+                                              type="button"
+                                              onClick={() => {
+                                                const newSubServices = [...form.sub_services];
+                                                newSubServices[subIndex].requirements = newSubServices[subIndex].requirements.filter((_, i) => i !== reqIndex);
+                                                setForm({ ...form, sub_services: newSubServices });
+                                              }}
+                                              variant="outline"
+                                              className="inline-flex items-center px-2 py-2 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto"
+                                            >
+                                              <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                          </div>
+                                          <div className="flex items-center">
+                                            <input
+                                              type="checkbox"
+                                              checked={requirement.isNeeded !== false}
+                                              onChange={(e) => {
+                                                const newSubServices = [...form.sub_services];
+                                                newSubServices[subIndex].requirements[reqIndex].isNeeded = e.target.checked;
+                                                setForm({ ...form, sub_services: newSubServices });
+                                              }}
+                                              className="h-3 w-3 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                            />
+                                            <Label className="ml-2 text-xs font-medium text-gray-700">Needed</Label>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               
-              <div className="flex justify-end items-center space-x-3">
+              <div className="flex justify-end items-center space-x-3 mt-6">
                 <Button
                   type="button"
                   onClick={handleClose}

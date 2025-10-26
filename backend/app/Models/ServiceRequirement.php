@@ -13,7 +13,7 @@ class ServiceRequirement extends Model
     protected $fillable = [
         'ServiceID',
         'Description',
-        'IsMandatory',
+        'isNeeded',
         'RequirementType',
         'RequirementData',
         'SortOrder',
@@ -21,7 +21,7 @@ class ServiceRequirement extends Model
     
     protected $casts = [
         'ServiceID' => 'integer',
-        'IsMandatory' => 'boolean',
+        'isNeeded' => 'boolean',
         'RequirementData' => 'array',
         'SortOrder' => 'integer',
     ];
@@ -47,11 +47,11 @@ class ServiceRequirement extends Model
     }
     
     /**
-     * Scope for mandatory requirements only.
+     * Scope for needed requirements only.
      */
-    public function scopeMandatory($query)
+    public function scopeNeeded($query)
     {
-        return $query->where('IsMandatory', true);
+        return $query->where('isNeeded', true);
     }
     
     /**
@@ -59,8 +59,9 @@ class ServiceRequirement extends Model
      */
     public function scopeOptional($query)
     {
-        return $query->where('IsMandatory', false);
+        return $query->where('isNeeded', false);
     }
+    
     
     /**
      * Scope to order by sort order.

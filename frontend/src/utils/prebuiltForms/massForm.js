@@ -55,51 +55,28 @@ export const createMassForm = () => {
       zIndex: 1
     },
 
-    // Three intention text lines (1,2,3)
+    // Large intention textarea
     {
       id: baseId + 4,
-      type: 'text',
+      type: 'textarea',
       x: 10,
       y: 200,
       width: 740,
-      height: 40,
-      label: '1.',
-      placeholder: 'Enter intention / name',
+      height: 150,
+      rows: 6,
+      label: 'Intention',
+      placeholder: 'Enter your intention(s)',
       containerId: mainContainer.id,
-      elementId: 'intention_1',
-      zIndex: 1
-    },
-    {
-      id: baseId + 5,
-      type: 'text',
-      x: 10,
-      y: 260,
-      width: 740,
-      height: 40,
-      label: '2.',
-      placeholder: 'Enter intention / name',
-      containerId: mainContainer.id,
-      zIndex: 1
-    },
-    {
-      id: baseId + 6,
-      type: 'text',
-      x: 10,
-      y: 320,
-      width: 740,
-      height: 40,
-      label: '3.',
-      placeholder: 'Enter intention / name',
-      containerId: mainContainer.id,
+      elementId: 'intention',
       zIndex: 1
     },
 
     // Offered By
     {
-      id: baseId + 7,
+      id: baseId + 5,
       type: 'text',
       x: 10,
-      y: 380,
+      y: 370,
       width: 740,
       height: 40,
       label: 'OFFERED BY',
@@ -112,10 +89,10 @@ export const createMassForm = () => {
 
     // Donation
     {
-      id: baseId + 8,
+      id: baseId + 6,
       type: 'number',
       x: 10,
-      y: 440,
+      y: 430,
       width: 740,
       height: 40,
       label: 'DONATION',
