@@ -914,7 +914,7 @@ const EmployeePage = () => {
             </div>
 
             {/* Form Content */}
-            <div className="px-8 py-6 max-h-[calc(95vh-140px)] overflow-y-auto">
+            <div className="px-6 py-6 max-h-[calc(95vh-140px)] overflow-y-auto">
               {modalAlertMessage && (
                 <div className="mb-4">
                   <Alert
@@ -929,24 +929,21 @@ const EmployeePage = () => {
                   <>
                     {/* Account Information Section */}
                     <div className="space-y-4">
-                      <div className="flex items-center space-x-2 mb-4">
-                        <div className="h-1 w-8 bg-blue-500 rounded-full"></div>
-                        <h3 className="text-lg font-semibold text-gray-900">Account Information</h3>
-                      </div>
+                      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">Account Information</h3>
                       
-                      <div className="bg-gray-50 rounded-xl p-6 space-y-4">
+                      <div className="space-y-4">
                         <div>
-                          <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                          <Label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                             Email Address <span className="text-red-500">*</span>
-                          </label>
-                          <input
+                          </Label>
+                          <Input
                             id="email"
                             name="email"
                             type="email"
                             value={form.email}
                             onChange={handleChange}
-                            className={`w-full px-4 py-3 border-2 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white ${
-                              errors.email ? "border-red-500" : "border-gray-200 hover:border-gray-300"
+                            className={`w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 ${
+                              errors.email ? "border-red-500" : ""
                             }`}
                             disabled={editStaffId !== null}
                             required
@@ -954,8 +951,8 @@ const EmployeePage = () => {
                             placeholder="Enter email address"
                           />
                           {errors.email && (
-                            <p className="mt-2 text-sm text-red-600 flex items-center">
-                              <span className="mr-1">⚠</span> {errors.email}
+                            <p className="mt-1 text-xs text-red-600">
+                              {errors.email}
                             </p>
                           )}
                         </div>
@@ -963,46 +960,46 @@ const EmployeePage = () => {
                         {!editStaffId && (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                              <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
+                              <Label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                                 Password <span className="text-red-500">*</span>
-                              </label>
-                              <input
+                              </Label>
+                              <Input
                                 id="password"
                                 name="password"
                                 type="password"
                                 value={form.password}
                                 onChange={handleChange}
-                                className={`w-full px-4 py-3 border-2 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white ${
-                                  errors.password ? "border-red-500" : "border-gray-200 hover:border-gray-300"
+                                className={`w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 ${
+                                  errors.password ? "border-red-500" : ""
                                 }`}
                                 required
                                 placeholder="Create password"
                               />
                               {errors.password && (
-                                <p className="mt-2 text-sm text-red-600 flex items-center">
-                                  <span className="mr-1">⚠</span> {errors.password}
+                                <p className="mt-1 text-xs text-red-600">
+                                  {errors.password}
                                 </p>
                               )}
                             </div>
                             <div>
-                              <label htmlFor="password_confirmation" className="block text-sm font-semibold text-gray-700 mb-2">
+                              <Label htmlFor="password_confirmation" className="block text-sm font-medium text-gray-700 mb-1">
                                 Confirm Password <span className="text-red-500">*</span>
-                              </label>
-                              <input
+                              </Label>
+                              <Input
                                 id="password_confirmation"
                                 name="password_confirmation"
                                 type="password"
                                 value={form.password_confirmation}
                                 onChange={handleChange}
-                                className={`w-full px-4 py-3 border-2 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white ${
-                                  errors.password_confirmation ? "border-red-500" : "border-gray-200 hover:border-gray-300"
+                                className={`w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 ${
+                                  errors.password_confirmation ? "border-red-500" : ""
                                 }`}
                                 required
                                 placeholder="Confirm password"
                               />
                               {errors.password_confirmation && (
-                                <p className="mt-2 text-sm text-red-600 flex items-center">
-                                  <span className="mr-1">⚠</span> {errors.password_confirmation}
+                                <p className="mt-1 text-xs text-red-600">
+                                  {errors.password_confirmation}
                                 </p>
                               )}
                             </div>
@@ -1017,78 +1014,75 @@ const EmployeePage = () => {
                   <>
                     {/* Personal Information Section */}
                     <div className="space-y-4">
-                      <div className="flex items-center space-x-2 mb-4">
-                        <div className="h-1 w-8 bg-green-500 rounded-full"></div>
-                        <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
-                      </div>
+                      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 border-t pt-6">Personal Information</h3>
                       
-                      <div className="bg-gray-50 rounded-xl p-6 space-y-4">
+                      <div className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
                           <div className="md:col-span-5">
-                            <label htmlFor="first_name" className="block text-sm font-semibold text-gray-700 mb-2">
+                            <Label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-1">
                               First Name <span className="text-red-500">*</span>
-                            </label>
-                            <input
+                            </Label>
+                            <Input
                               id="first_name"
                               name="first_name"
                               type="text"
                               value={form.first_name}
                               onChange={handleChange}
-                              className={`w-full px-4 py-3 border-2 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white ${
-                                errors.first_name ? "border-red-500" : "border-gray-200 hover:border-gray-300"
+                              className={`w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 ${
+                                errors.first_name ? "border-red-500" : ""
                               }`}
                               required
                               placeholder="Enter first name"
                             />
                             {errors.first_name && (
-                              <p className="mt-2 text-sm text-red-600 flex items-center">
-                                <span className="mr-1">⚠</span> {errors.first_name}
+                              <p className="mt-1 text-xs text-red-600">
+                                {errors.first_name}
                               </p>
                             )}
                           </div>
                           <div className="md:col-span-2">
-                            <label htmlFor="middle_name" className="block text-sm font-semibold text-gray-700 mb-2">
+                            <Label htmlFor="middle_name" className="block text-sm font-medium text-gray-700 mb-1">
                               M.I. <span className="text-gray-400 text-xs">(Optional)</span>
-                            </label>
-                            <input
+                            </Label>
+                            <Input
                               id="middle_name"
                               name="middle_name"
                               type="text"
                               value={form.middle_name}
                               onChange={handleChange}
                               maxLength={1}
-                              className={`w-full px-4 py-3 border-2 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white text-center ${
-                                errors.middle_name ? "border-red-500" : "border-gray-200 hover:border-gray-300"
+                              className={`w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 text-center ${
+                                errors.middle_name ? "border-red-500" : ""
                               }`}
                               placeholder="M"
                             />
                             {errors.middle_name && (
-                              <p className="mt-2 text-sm text-red-600 flex items-center">
-                                <span className="mr-1">⚠</span> {errors.middle_name}
+                              <p className="mt-1 text-xs text-red-600">
+                                {errors.middle_name}
                               </p>
                             )}
                           </div>
                         </div>
                         
                         <div>
-                          <label htmlFor="last_name" className="block text-sm font-semibold text-gray-700 mb-2">
+                          <Label htmlFor="last_name" className="block text-sm font-medium text-gray-700 mb-1">
                             Last Name <span className="text-red-500">*</span>
-                          </label>
-                          <input
+                          </Label>
+                          <Input
                             id="last_name"
                             name="last_name"
                             type="text"
                             value={form.last_name}
                             onChange={handleChange}
-                            className={`w-full px-4 py-3 border-2 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white ${
-                              errors.last_name ? "border-red-500" : "border-gray-200 hover:border-gray-300"
+                            className={`w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 ${
+                              errors.last_name ? "border-red-500" : ""
                             }`}
                             required
                             placeholder="Enter last name"
                           />
                           {errors.last_name && (
-                            <p className="mt-2 text-sm text-red-600 flex items-center">
-                              <span className="mr-1">⚠</span> {errors.last_name}
+                            <p className="mt-1 text-xs text-red-600">
+                              {errors.last_name}
                             </p>
                           )}
                         </div>
@@ -1101,102 +1095,99 @@ const EmployeePage = () => {
                   <>
                     {/* Clergy Personal Information Section */}
                     <div className="space-y-4">
-                      <div className="flex items-center space-x-2 mb-4">
-                        <div className="h-1 w-8 bg-purple-500 rounded-full"></div>
-                        <h3 className="text-lg font-semibold text-gray-900">Clergy Information</h3>
-                      </div>
+                      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">Clergy Information</h3>
                       
-                      <div className="bg-gray-50 rounded-xl p-6 space-y-4">
+                      <div className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
                           <div className="md:col-span-5">
-                            <label htmlFor="clergy_first_name" className="block text-sm font-semibold text-gray-700 mb-2">
+                            <Label htmlFor="clergy_first_name" className="block text-sm font-medium text-gray-700 mb-1">
                               First Name <span className="text-red-500">*</span>
-                            </label>
-                            <input
+                            </Label>
+                            <Input
                               id="clergy_first_name"
                               name="first_name"
                               type="text"
                               value={clergyForm.first_name}
                               onChange={handleClergyChange}
-                              className={`w-full px-4 py-3 border-2 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 bg-white ${
-                                errors.first_name ? "border-red-500" : "border-gray-200 hover:border-gray-300"
+                              className={`w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 ${
+                                errors.first_name ? "border-red-500" : ""
                               }`}
                               required
                               autoFocus
                               placeholder="Enter first name"
                             />
                             {errors.first_name && (
-                              <p className="mt-2 text-sm text-red-600 flex items-center">
-                                <span className="mr-1">⚠</span> {errors.first_name}
+                              <p className="mt-1 text-xs text-red-600">
+                                {errors.first_name}
                               </p>
                             )}
                           </div>
                           <div className="md:col-span-2">
-                            <label htmlFor="clergy_middle_name" className="block text-sm font-semibold text-gray-700 mb-2">
+                            <Label htmlFor="clergy_middle_name" className="block text-sm font-medium text-gray-700 mb-1">
                               M.I. <span className="text-gray-400 text-xs">(Optional)</span>
-                            </label>
-                            <input
+                            </Label>
+                            <Input
                               id="clergy_middle_name"
                               name="middle_name"
                               type="text"
                               value={clergyForm.middle_name}
                               onChange={handleClergyChange}
                               maxLength={1}
-                              className={`w-full px-4 py-3 border-2 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 bg-white text-center ${
-                                errors.middle_name ? "border-red-500" : "border-gray-200 hover:border-gray-300"
+                              className={`w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 text-center ${
+                                errors.middle_name ? "border-red-500" : ""
                               }`}
                               placeholder="M"
                             />
                             {errors.middle_name && (
-                              <p className="mt-2 text-sm text-red-600 flex items-center">
-                                <span className="mr-1">⚠</span> {errors.middle_name}
+                              <p className="mt-1 text-xs text-red-600">
+                                {errors.middle_name}
                               </p>
                             )}
                           </div>
                         </div>
                         
                         <div>
-                          <label htmlFor="clergy_last_name" className="block text-sm font-semibold text-gray-700 mb-2">
+                          <Label htmlFor="clergy_last_name" className="block text-sm font-medium text-gray-700 mb-1">
                             Last Name <span className="text-red-500">*</span>
-                          </label>
-                          <input
+                          </Label>
+                          <Input
                             id="clergy_last_name"
                             name="last_name"
                             type="text"
                             value={clergyForm.last_name}
                             onChange={handleClergyChange}
-                            className={`w-full px-4 py-3 border-2 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 bg-white ${
-                              errors.last_name ? "border-red-500" : "border-gray-200 hover:border-gray-300"
+                            className={`w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 ${
+                              errors.last_name ? "border-red-500" : ""
                             }`}
                             required
                             placeholder="Enter last name"
                           />
                           {errors.last_name && (
-                            <p className="mt-2 text-sm text-red-600 flex items-center">
-                              <span className="mr-1">⚠</span> {errors.last_name}
+                            <p className="mt-1 text-xs text-red-600">
+                              {errors.last_name}
                             </p>
                           )}
                         </div>
 
                         <div>
-                          <label htmlFor="clergy_position" className="block text-sm font-semibold text-gray-700 mb-2">
+                          <Label htmlFor="clergy_position" className="block text-sm font-medium text-gray-700 mb-1">
                             Position <span className="text-red-500">*</span>
-                          </label>
-                          <input
+                          </Label>
+                          <Input
                             id="clergy_position"
                             name="position"
                             type="text"
                             value={clergyForm.position}
                             onChange={handleClergyChange}
-                            className={`w-full px-4 py-3 border-2 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 bg-white ${
-                              errors.position ? "border-red-500" : "border-gray-200 hover:border-gray-300"
+                            className={`w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 ${
+                              errors.position ? "border-red-500" : ""
                             }`}
                             required
                             placeholder="e.g., Parish Priest, Deacon, Bishop"
                           />
                           {errors.position && (
-                            <p className="mt-2 text-sm text-red-600 flex items-center">
-                              <span className="mr-1">⚠</span> {errors.position}
+                            <p className="mt-1 text-xs text-red-600">
+                              {errors.position}
                             </p>
                           )}
                         </div>
@@ -1209,52 +1200,49 @@ const EmployeePage = () => {
                   <>
                     {/* Contact Information Section */}
                     <div className="space-y-4">
-                      <div className="flex items-center space-x-2 mb-4">
-                        <div className="h-1 w-8 bg-purple-500 rounded-full"></div>
-                        <h3 className="text-lg font-semibold text-gray-900">Contact Information</h3>
-                      </div>
+                      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 border-t pt-6">Contact Information</h3>
                       
-                      <div className="bg-gray-50 rounded-xl p-6 space-y-4">
+                      <div className="space-y-4">
                         <div>
-                          <label htmlFor="contact_number" className="block text-sm font-semibold text-gray-700 mb-2">
+                          <Label htmlFor="contact_number" className="block text-sm font-medium text-gray-700 mb-1">
                             Contact Number <span className="text-gray-400 text-xs">(Optional)</span>
-                          </label>
-                          <input
+                          </Label>
+                          <Input
                             id="contact_number"
                             name="contact_number"
                             type="text"
                             value={form.contact_number}
                             onChange={handleChange}
-                            className={`w-full px-4 py-3 border-2 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white ${
-                              errors.contact_number ? "border-red-500" : "border-gray-200 hover:border-gray-300"
+                            className={`w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 ${
+                              errors.contact_number ? "border-red-500" : ""
                             }`}
                             placeholder="Enter contact number (optional)"
                           />
                           {errors.contact_number && (
-                            <p className="mt-2 text-sm text-red-600 flex items-center">
-                              <span className="mr-1">⚠</span> {errors.contact_number}
+                            <p className="mt-1 text-xs text-red-600">
+                              {errors.contact_number}
                             </p>
                           )}
                         </div>
                         
                         <div>
-                          <label htmlFor="address" className="block text-sm font-semibold text-gray-700 mb-2">
+                          <Label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
                             Address <span className="text-gray-400 text-xs">(Optional)</span>
-                          </label>
-                          <input
+                          </Label>
+                          <Input
                             id="address"
                             name="address"
                             type="text"
                             value={form.address}
                             onChange={handleChange}
-                            className={`w-full px-4 py-3 border-2 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white ${
-                              errors.address ? "border-red-500" : "border-gray-200 hover:border-gray-300"
+                            className={`w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 ${
+                              errors.address ? "border-red-500" : ""
                             }`}
                             placeholder="Enter address (optional)"
                           />
                           {errors.address && (
-                            <p className="mt-2 text-sm text-red-600 flex items-center">
-                              <span className="mr-1">⚠</span> {errors.address}
+                            <p className="mt-1 text-xs text-red-600">
+                              {errors.address}
                             </p>
                           )}
                         </div>
@@ -1263,20 +1251,17 @@ const EmployeePage = () => {
 
                     {/* Role Assignment Section */}
                     <div className="space-y-4">
-                      <div className="flex items-center space-x-2 mb-4">
-                        <div className="h-1 w-8 bg-orange-500 rounded-full"></div>
-                        <h3 className="text-lg font-semibold text-gray-900">Role Assignment</h3>
-                      </div>
+                      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 border-t pt-6">Role Assignment</h3>
                       
-                      <div className="bg-gray-50 rounded-xl p-6">
+                      <div className="space-y-4">
                         <div>
-                          <label htmlFor="role_id" className="block text-sm font-semibold text-gray-700 mb-2">
+                          <Label htmlFor="role_id" className="block text-sm font-medium text-gray-700 mb-1">
                             Church Role {!editStaffId && <span className="text-red-500">*</span>}
-                          </label>
+                          </Label>
                           {roles.length === 0 ? (
                             <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                              <p className="text-red-700 text-sm flex items-center">
-                                <span className="mr-2">⚠</span> No roles available. Please create roles first.
+                              <p className="text-red-700 text-sm">
+                                No roles available. Please create roles first.
                               </p>
                             </div>
                           ) : (
@@ -1285,8 +1270,8 @@ const EmployeePage = () => {
                               name="role_id"
                               value={form.role_id}
                               onChange={handleChange}
-                              className={`w-full px-4 py-3 border-2 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white ${
-                                errors.role_id ? "border-red-500" : "border-gray-200 hover:border-gray-300"
+                              className={`w-full bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500 ${
+                                errors.role_id ? "border-red-500" : ""
                               }`}
                             >
                               <option value="">Select a role for this staff member</option>
@@ -1298,8 +1283,8 @@ const EmployeePage = () => {
                             </select>
                           )}
                           {errors.role_id && (
-                            <p className="mt-2 text-sm text-red-600 flex items-center">
-                              <span className="mr-1">⚠</span> {errors.role_id}
+                            <p className="mt-1 text-xs text-red-600">
+                              {errors.role_id}
                             </p>
                           )}
                         </div>

@@ -70,7 +70,7 @@ const BecomeMemberPage = () => {
   if (submitted) {
     return (
       <div className="lg:p-6 w-full h-screen pt-20">
-        <div className="max-w-7xl mx-auto h-full">
+        <div className="w-full mx-auto h-full">
           <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full">
             <div className="p-6 bg-white border-b border-gray-200">
               <h1 className="text-2xl font-semibold text-gray-900">
@@ -139,7 +139,7 @@ const BecomeMemberPage = () => {
   if (churchLoading) {
     return (
       <div className="lg:p-6 w-full h-screen pt-20">
-        <div className="max-w-7xl mx-auto h-full">
+        <div className="w-full mx-auto h-full">
           <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full">
             <div className="p-6 flex items-center justify-center h-full">
               <div className="text-center">
@@ -155,7 +155,7 @@ const BecomeMemberPage = () => {
 
   return (
     <div className="lg:p-6 w-full min-h-screen pt-20">
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full mx-auto">
         
         <div className="bg-white overflow-hidden shadow-sm rounded-lg">
           <div className="p-6 bg-white border-b border-gray-200">

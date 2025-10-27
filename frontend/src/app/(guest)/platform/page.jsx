@@ -8,15 +8,17 @@ const page = () => {
   return (
     <div>
       <Navigation />
-      <section>
-        <FeaturesSection id="feature" />
-      </section>
-      <section>
-        <HowItWorksSection id="how_it_work" />
-      </section>
-      <section>
-        <ForChurchesSection id="for_churches" />
-      </section>
+      <div className="pt-20">
+        <section>
+          <FeaturesSection id="feature" />
+        </section>
+        <section>
+          <HowItWorksSection id="how_it_work" />
+        </section>
+        <section>
+          <ForChurchesSection id="for_churches" />
+        </section>
+      </div>
     </div>
   );
 };

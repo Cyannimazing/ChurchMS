@@ -9,18 +9,20 @@ const page = () => {
   return (
     <div>
       <Navigation />
-      <section id="about">
-        <AboutSection />
-      </section>
-      <section>
-        <FaqSection id="faq" />
-      </section>
-      <section>
-        <TestimonialsSection id="testimonials" />
-      </section>
-      <section>
-        <ContactSection id="contact" />
-      </section>
+      <div className="pt-20">
+        <section id="about">
+          <AboutSection />
+        </section>
+        <section>
+          <FaqSection id="faq" />
+        </section>
+        <section>
+          <TestimonialsSection id="testimonials" />
+        </section>
+        <section>
+          <ContactSection id="contact" />
+        </section>
+      </div>
     </div>
   );
 };

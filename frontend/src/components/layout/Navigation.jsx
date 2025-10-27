@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import LoginLinks from "@/components/LoginLinks";
+import ApplicationLogo from "@/components/ApplicationLogo";
 
 const Navigation = () => {
   // State for dropdowns and mobile menu
@@ -49,34 +49,28 @@ const Navigation = () => {
   }, []);
 
   return (
-    <nav className="bg-white fixed top-0 w-full z-50 shadow-md">
-      <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+    <nav className="bg-white/95 backdrop-blur-sm fixed top-0 w-full z-50 border-b border-gray-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <Link
             href="/"
-            className="flex items-center space-x-1 rtl:space-x-reverse"
+            className="flex items-end"
             onClick={handleLinkClick}
           >
-            <Image
-              src="/images/Churchlogo.png"
-              alt="FaithSeeker logo"
-              width={32}
-              height={32}
-              className="h-8 w-auto"
-            />
-            <span className="self-center text-2xl font-semibold whitespace-nowrap text-black">
-              FaithSeeker
+            <ApplicationLogo className="h-8 w-8 text-indigo-600 mb-0.5" />
+            <span className="text-2xl font-semibold tracking-tight leading-none">
+              <span className="text-gray-900">Faith</span><span className="text-indigo-600">Seeker</span>
             </span>
           </Link>
 
           {/* Desktop Menu */}
-          <div className="hidden lg:flex lg:items-center lg:justify-center flex-1">
-            <ul className="flex flex-row space-x-2 font-medium">
+          <div className="hidden lg:flex lg:items-center lg:space-x-8 flex-1 justify-end">
+            <ul className="flex flex-row space-x-1 font-medium">
               <li>
                 <Link
                   href="/"
-                  className="block py-2 px-3 text-black rounded-sm hover:bg-gray-200 lg:hover:bg-transparent lg:border-0"
+                  className="block py-2 px-4 text-gray-700 rounded-lg hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                   aria-current="page"
                   onClick={handleLinkClick}
                 >
@@ -86,7 +80,7 @@ const Navigation = () => {
               <li className="relative">
                 <button
                   onClick={() => toggleDropdown("platform")}
-                  className="flex items-center justify-between py-2 px-3 text-black hover:bg-gray-200 lg:hover:bg-transparent lg:border-0"
+                  className="flex items-center justify-between py-2 px-4 text-gray-700 rounded-lg hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                 >
                   Platform
                   <svg
@@ -146,7 +140,7 @@ const Navigation = () => {
               <li className="relative">
                 <button
                   onClick={() => toggleDropdown("company")}
-                  className="flex items-center justify-between py-2 px-3 text-black hover:bg-gray-200 lg:hover:bg-transparent lg:border-0"
+                  className="flex items-center justify-between py-2 px-4 text-gray-700 rounded-lg hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                 >
                   Company
                   <svg
@@ -215,7 +209,7 @@ const Navigation = () => {
               <li>
                 <Link
                   href="/pricing"
-                  className="block py-2 px-3 text-black rounded-sm hover:bg-gray-200 lg:hover:bg-transparent lg:border-0"
+                  className="block py-2 px-4 text-gray-700 rounded-lg hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                   onClick={handleLinkClick}
                 >
                   Pricing

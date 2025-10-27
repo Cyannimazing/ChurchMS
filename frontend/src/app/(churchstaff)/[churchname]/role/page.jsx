@@ -518,7 +518,7 @@ const RolePermissionPage = () => {
                   value={form.RoleName}
                   onChange={(e) => setForm({ ...form, RoleName: e.target.value })}
                   required
-                  className="block mt-1 w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                  className="block mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
                   placeholder="Enter role name"
                   autoFocus
                 />
@@ -528,9 +528,9 @@ const RolePermissionPage = () => {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">
+                <Label className="block text-sm font-medium text-gray-700 mb-2">
                   Permissions
-                </label>
+                </Label>
                 {loadingPermissions ? (
                   <div className="mt-2">
                     <DataLoading message="Loading permissions..." />
@@ -540,14 +540,14 @@ const RolePermissionPage = () => {
                     No permissions available. Check API or login status.
                   </p>
                 ) : (
-                  <div className="mt-2 max-h-60 overflow-y-auto space-y-2 border border-gray-200 rounded-md p-3">
+                  <div className="max-h-60 overflow-y-auto space-y-2 border border-gray-200 rounded-md p-3 bg-gray-50">
                     {permissions.map((permission) => (
-                      <label key={permission} className="flex items-center">
+                      <label key={permission} className="flex items-center cursor-pointer hover:bg-white rounded px-2 py-1 transition-colors">
                         <input
                           type="checkbox"
                           checked={form.permissions.includes(permission)}
                           onChange={() => handlePermissionChange(permission)}
-                          className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                         />
                         <span className="ml-2 text-sm text-gray-700">
                           {permission.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase())}
@@ -556,6 +556,9 @@ const RolePermissionPage = () => {
                     ))}
                   </div>
                 )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Select the permissions that should be granted to users with this role.
+                </p>
               </div>
               <div className="flex justify-end items-center space-x-3">
                 <Button

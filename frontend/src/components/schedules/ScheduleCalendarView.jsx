@@ -104,7 +104,7 @@ const ScheduleCalendarView = ({
   const formatFees = (fees) => {
     if (!fees || fees.length === 0) return "Free";
     return fees.map(fee => 
-      `${fee.FeeType}: $${parseFloat(fee.Fee).toFixed(2)}`
+      `${fee.FeeType}: ₱${parseFloat(fee.Fee).toFixed(2)}`
     ).join(", ");
   };
 

@@ -6,17 +6,23 @@ import { useAuth } from "@/hooks/auth";
 const LoginLinks = ({ mobile = false, handleLinkClick }) => {
   const { user } = useAuth({ middleware: "guest" });
 
-  console.log("user", user);
+  // Modern link classes matching navigation style
+  const loginLinkClasses = mobile
+    ? "block py-2 px-4 text-gray-700 rounded-lg hover:text-indigo-600 hover:bg-indigo-50 transition-colors font-medium"
+    : "py-2 px-4 text-gray-700 rounded-lg hover:text-indigo-600 hover:bg-indigo-50 transition-colors font-medium";
 
-  // Base classes for links with button design and font styling
-  const linkClasses = mobile
-    ? "block py-2 px-4 text-black bg-white border border-gray-300 rounded-md hover:bg-gray-100 font-medium text-base transition-colors"
-    : "py-2 px-4 text-black bg-white border border-gray-300 rounded-md hover:bg-gray-100 font-medium text-base transition-colors";
+  const registerLinkClasses = mobile
+    ? "block py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm"
+    : "py-2.5 px-5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm hover:shadow-md";
 
-  // Container classes (unchanged functionality)
+  const dashboardLinkClasses = mobile
+    ? "block py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm"
+    : "py-2.5 px-5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm hover:shadow-md";
+
+  // Container classes
   const containerClasses = mobile
-    ? "w-full"
-    : "fixed  top-0 right-0 px-6 py-5 hidden lg:block z-[70]";
+    ? "w-full space-y-2 mt-4"
+    : "flex items-center space-x-3";
 
   return (
     <div className={containerClasses}>
@@ -25,7 +31,7 @@ const LoginLinks = ({ mobile = false, handleLinkClick }) => {
           {user.profile.system_role.role_name === "Admin" && (
             <Link
               href="/admin"
-              className={mobile ? linkClasses : `${linkClasses} ml-4`}
+              className={dashboardLinkClasses}
               onClick={mobile ? handleLinkClick : undefined}
             >
               Dashboard
@@ -34,7 +40,7 @@ const LoginLinks = ({ mobile = false, handleLinkClick }) => {
           {user.profile.system_role.role_name === "ChurchOwner" && (
             <Link
               href="/church"
-              className={mobile ? linkClasses : `${linkClasses} ml-4`}
+              className={dashboardLinkClasses}
               onClick={mobile ? handleLinkClick : undefined}
             >
               Dashboard
@@ -43,7 +49,7 @@ const LoginLinks = ({ mobile = false, handleLinkClick }) => {
           {user.profile.system_role.role_name === "Regular" && (
             <Link
               href="/dashboard"
-              className={mobile ? linkClasses : `${linkClasses} ml-4`}
+              className={dashboardLinkClasses}
               onClick={mobile ? handleLinkClick : undefined}
             >
               Dashboard
@@ -55,7 +61,7 @@ const LoginLinks = ({ mobile = false, handleLinkClick }) => {
                 /\s+/g,
                 "-"
               ).toLowerCase()}/dashboard`}
-              className={mobile ? linkClasses : `${linkClasses} ml-4`}
+              className={dashboardLinkClasses}
               onClick={mobile ? handleLinkClick : undefined}
             >
               Dashboard
@@ -66,14 +72,14 @@ const LoginLinks = ({ mobile = false, handleLinkClick }) => {
         <>
           <Link
             href="/login"
-            className={linkClasses}
+            className={loginLinkClasses}
             onClick={mobile ? handleLinkClick : undefined}
           >
             Login
           </Link>
           <Link
             href="/register"
-            className={mobile ? `${linkClasses} mt-2` : `${linkClasses} ml-4`}
+            className={registerLinkClasses}
             onClick={mobile ? handleLinkClick : undefined}
           >
             Register

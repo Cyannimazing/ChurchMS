@@ -5,7 +5,7 @@ import { Button } from "@/components/Button.jsx";
 import Input from "@/components/Input.jsx";
 import InputError from "@/components/InputError.jsx";
 import Label from "@/components/Label.jsx";
-import InlineCalendar from "@/components/ui/InlineCalendar.jsx";
+import CustomDatePicker from "@/components/schedules/CustomDatePicker.jsx";
 import axios from "@/lib/axios";
 
 const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
@@ -455,7 +455,7 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
                         </div>
                         <div>
                           <Label className="text-xs font-medium text-gray-600">
-                            Amount ($)
+                            Amount (₱)
                           </Label>
                           <input
                             type="number"
@@ -483,22 +483,37 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
                 </div>
 
                 {/* Main Content - Calendar */}
-                <div className="flex-1 flex items-center justify-center p-8">
-                  <div className="text-center max-w-md">
-                    <div className="mb-6">
-                      <Calendar className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-                      <h3 className="text-2xl font-bold text-gray-900 mb-2">Select Your Date</h3>
-                      <p className="text-gray-600">Choose when this special event will take place</p>
+                <div className="flex-1 flex items-center justify-center p-6 bg-gradient-to-br from-gray-50 to-blue-50">
+                  <div className="w-full max-w-xl">
+                    <div className="text-center mb-6">
+                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-600 mb-3">
+                        <Calendar className="h-6 w-6 text-white" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-gray-900 mb-2">Select Event Date</h3>
+                      <p className="text-sm text-gray-600">Choose when this special event will take place</p>
+                      {formData.recurrences[0]?.specificDate && (
+                        <div className="mt-3 inline-flex items-center px-3 py-1.5 bg-blue-100 rounded-full">
+                          <span className="text-xs font-medium text-blue-900">
+                            Selected: {new Date(formData.recurrences[0].specificDate).toLocaleDateString('en-US', { 
+                              weekday: 'long', 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric' 
+                            })}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     
-                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 shadow-sm border border-blue-100">
-                      <InlineCalendar
+                    <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
+                      <CustomDatePicker
                         value={formData.recurrences[0]?.specificDate}
                         onChange={(dateString) => updateRecurrence(0, 'specificDate', dateString)}
-                        className="border-none bg-transparent shadow-none"
                       />
                       {errors[`recurrence_0_date`] && (
-                        <p className="text-sm text-red-600 mt-3">{errors[`recurrence_0_date`]}</p>
+                        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <p className="text-sm text-red-700 font-medium text-center">{errors[`recurrence_0_date`]}</p>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -687,7 +702,7 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
 
                       <div>
                         <Label className="text-sm font-medium text-gray-700">
-                          Amount ($) *
+                          Amount (₱) *
                         </Label>
                         <input
                           type="number"

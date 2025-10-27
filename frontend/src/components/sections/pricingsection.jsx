@@ -40,34 +40,40 @@ const PricingSection = ({ onPlanSelect }) => {
 
   return (
     <>
-      <section className="py-18 sm:py-20 md:py-22 lg:py-24 bg-gray-100">
-        <div className="max-w-screen-xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <h1 className="mb-3 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold leading-none tracking-tight text-gray-900">
-            Unlock Full Features
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+          <h1 className="mb-4 text-4xl font-bold leading-tight tracking-tight md:text-5xl lg:text-6xl text-gray-900">
+            Simple, Transparent <span className="text-indigo-600">Pricing</span>
           </h1>
-          <p className="text-sm sm:text-base md:text-lg text-gray-700 px-4 sm:px-8 md:px-12 lg:px-16">
-            Select your plan and empower your church with seamless service
-            management.
+          <p className="text-lg text-gray-600 lg:text-xl max-w-3xl mx-auto">
+            Select your plan and empower your church with seamless service management.
           </p>
         </div>
       </section>
 
-      <div className="flex flex-row flex-wrap justify-center items-start gap-4 sm:gap-6 lg:gap-8 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
         {isLoadingPlans ? (
-          <DataLoading message="Loading plans..." />
+          <div className="flex justify-center py-12">
+            <DataLoading message="Loading plans..." />
+          </div>
         ) : errors.plans.length > 0 ? (
-          <p className="text-center text-red-500 text-sm sm:text-base md:text-lg">
-            {errors.plans[0]}
-          </p>
+          <div className="flex justify-center py-12">
+            <p className="text-center text-red-500 text-lg">
+              {errors.plans[0]}
+            </p>
+          </div>
         ) : plans.length === 0 ? (
-          <p className="text-center text-gray-500 text-lg">
-            No plans available.
-          </p>
+          <div className="flex justify-center py-12">
+            <p className="text-center text-gray-500 text-lg">
+              No plans available.
+            </p>
+          </div>
         ) : (
-          plans.map((plan) => (
+          <div className="flex flex-wrap justify-center gap-8">
+            {plans.map((plan) => (
             <div
               key={plan.PlanID}
-              className="w-full sm:w-72 md:w-80 lg:w-96 p-4 sm:p-5 md:p-6 bg-gradient-to-br from-white to-gray-50 border border-black rounded-2xl shadow-md hover:shadow-lg transition-all duration-300"
+              className="bg-white p-8 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 border-2 border-gray-200 hover:border-indigo-500 w-full max-w-sm"
             >
               <div className="flex items-baseline justify-center text-gray-900 mb-3 sm:mb-4">
                 <span className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight">
@@ -138,7 +144,8 @@ const PricingSection = ({ onPlanSelect }) => {
                 Get Started
               </Button>
             </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
     </>

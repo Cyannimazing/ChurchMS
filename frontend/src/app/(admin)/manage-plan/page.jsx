@@ -216,7 +216,7 @@ const SubscriptionPlans = () => {
 
   return (
     <div className="lg:p-6 w-full h-screen pt-20">
-      <div className="max-w-7xl mx-auto h-full">
+      <div className="w-full mx-auto h-full">
         <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
           <div className="p-6 bg-white border-b border-gray-200 flex-1 overflow-auto">
             <h1 className="text-2xl font-semibold text-gray-900 mb-6">
@@ -409,7 +409,7 @@ const SubscriptionPlans = () => {
                   }
                   placeholder="Enter plan name (e.g., Basic Plan)"
                   required
-                  className="block mt-1 w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                  className="block mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
                 <InputError
                   messages={errors.PlanName}
@@ -431,7 +431,7 @@ const SubscriptionPlans = () => {
                   onChange={(e) => setForm({ ...form, Price: e.target.value })}
                   placeholder="Enter price (e.g., 29.99)"
                   required
-                  className="block mt-1 w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                  className="block mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
                 <InputError
                   messages={errors.Price}
@@ -454,7 +454,7 @@ const SubscriptionPlans = () => {
                   }
                   placeholder="Enter duration in months (e.g., 12)"
                   required
-                  className="block mt-1 w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                  className="block mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
                 <InputError
                   messages={errors.DurationInMonths}
@@ -477,7 +477,7 @@ const SubscriptionPlans = () => {
                   }
                   placeholder="Enter max churches (e.g., 5)"
                   required
-                  className="block mt-1 w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm"
+                  className="block mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
                 <InputError
                   messages={errors.MaxChurchesAllowed}
@@ -498,7 +498,7 @@ const SubscriptionPlans = () => {
                     setForm({ ...form, Description: e.target.value })
                   }
                   placeholder="Enter plan description (e.g., Perfect for small churches with basic features)"
-                  className="block mt-1 w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 text-sm"
+                  className="block mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   rows="3"
                 />
                 <InputError

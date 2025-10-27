@@ -350,7 +350,7 @@ const CertificateConfig = () => {
                             <select
                               value={selectedServiceId}
                               onChange={(e) => setSelectedServiceId(e.target.value)}
-                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:border-gray-300"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                               disabled={!selectedCert?.config.enabled || isLoadingServices}
                             >
                               <option value="">Select a sacrament service</option>
@@ -379,7 +379,7 @@ const CertificateConfig = () => {
                                     updatedFields[key] = { ...field, field: e.target.value };
                                     selectedCert.setConfig({ ...selectedCert.config, fields: updatedFields });
                                   }}
-                                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:border-gray-300"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                                   disabled={!selectedCert?.config.enabled || isLoadingFields}
                                 >
                                   <option value="">Select a field</option>
@@ -419,7 +419,7 @@ const CertificateConfig = () => {
                             <select
                               value={selectedServiceId}
                               onChange={(e) => setSelectedServiceId(e.target.value)}
-                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:border-gray-300"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                               disabled={!selectedCert?.config.enabled || isLoadingServices}
                             >
                               <option value="">Select a sacrament service</option>
@@ -448,7 +448,7 @@ const CertificateConfig = () => {
                                     updatedFields[key] = { ...field, field: e.target.value };
                                     selectedCert.setConfig({ ...selectedCert.config, fields: updatedFields });
                                   }}
-                                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:border-gray-300"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                                   disabled={!selectedCert?.config.enabled || isLoadingFields}
                                 >
                                   <option value="">Select a field</option>
@@ -488,7 +488,7 @@ const CertificateConfig = () => {
                             <select
                               value={selectedServiceId}
                               onChange={(e) => setSelectedServiceId(e.target.value)}
-                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:border-gray-300"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                               disabled={!selectedCert?.config.enabled || isLoadingServices}
                             >
                               <option value="">Select a sacrament service</option>
@@ -517,7 +517,7 @@ const CertificateConfig = () => {
                                     updatedFields[key] = { ...field, field: e.target.value };
                                     selectedCert.setConfig({ ...selectedCert.config, fields: updatedFields });
                                   }}
-                                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:border-gray-300"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                                   disabled={!selectedCert?.config.enabled || isLoadingFields}
                                 >
                                   <option value="">Select a field</option>
@@ -557,7 +557,7 @@ const CertificateConfig = () => {
                             <select
                               value={selectedServiceId}
                               onChange={(e) => setSelectedServiceId(e.target.value)}
-                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:border-gray-300"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                               disabled={!selectedCert?.config.enabled || isLoadingServices}
                             >
                               <option value="">Select a sacrament service</option>
@@ -586,7 +586,7 @@ const CertificateConfig = () => {
                                     updatedFields[key] = { ...field, field: e.target.value };
                                     selectedCert.setConfig({ ...selectedCert.config, fields: updatedFields });
                                   }}
-                                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:border-gray-300"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                                   disabled={!selectedCert?.config.enabled || isLoadingFields}
                                 >
                                   <option value="">Select a field</option>
@@ -626,7 +626,7 @@ const CertificateConfig = () => {
                             type="text"
                             value={selectedCert?.config.templateName}
                             onChange={(e) => selectedCert?.setConfig({ ...selectedCert.config, templateName: e.target.value })}
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:border-gray-300"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                             placeholder="Enter template name"
                             disabled={!selectedCert?.config.enabled}
                           />
@@ -640,7 +640,7 @@ const CertificateConfig = () => {
                             type="text"
                             value={selectedCert?.config.headerText}
                             onChange={(e) => selectedCert?.setConfig({ ...selectedCert.config, headerText: e.target.value })}
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:border-gray-300"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                             placeholder="Enter header text"
                             disabled={!selectedCert?.config.enabled}
                           />
@@ -654,7 +654,7 @@ const CertificateConfig = () => {
                             value={selectedCert?.config.footerText}
                             onChange={(e) => selectedCert?.setConfig({ ...selectedCert.config, footerText: e.target.value })}
                             rows={3}
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-sm transition-colors duration-200 focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-white hover:border-gray-300 resize-none"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white resize-none"
                             placeholder="Enter footer text"
                             disabled={!selectedCert?.config.enabled}
                           />

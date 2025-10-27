@@ -1,12 +1,13 @@
 import Navigation from "@/components/layout/Navigation";
+import Footer from "@/components/layout/Footer";
 import HomeSection from "@/components/sections/homesection";
 
 const Home = () => {
   return (
     <div>
+      <Navigation />
       <main>
-        <div className="pt-16">
-          <Navigation />
+        <div className="pt-20">
           <section id="home">
             <HomeSection />
           </section>

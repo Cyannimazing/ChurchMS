@@ -513,8 +513,14 @@ class ChurchSubscriptionController extends Controller
             $userId = $paymentSession->user_id;
             $plan = $paymentSession->plan;
             
-            // Update payment session status
-            $paymentSession->update(['status' => 'paid']);
+            // Get actual payment method from PayMongo session
+            $actualPaymentMethod = $this->getActualPaymentMethod($paymentSession->paymongo_session_id);
+            
+            // Update payment session status and actual payment method
+            $paymentSession->update([
+                'status' => 'paid',
+                'payment_method' => $actualPaymentMethod
+            ]);
             
             // Check for existing active subscription
             $activeSubscription = ChurchSubscription::where('UserID', $userId)
@@ -545,12 +551,12 @@ class ChurchSubscriptionController extends Controller
                 'user_id' => $userId,
                 'OldPlanID' => $activeSubscription?->PlanID,
                 'NewPlanID' => $plan->PlanID,
-                'PaymentMethod' => $paymentSession->payment_method,
+                'PaymentMethod' => $actualPaymentMethod,
                 'AmountPaid' => $plan->Price,
                 'TransactionDate' => now(),
                 'Notes' => $hasActiveSubscription 
-                    ? $paymentSession->payment_method . ' payment via PayMongo - Pending start on ' . $startDate->toDateString() . ' - Session ID: ' . $paymentSession->paymongo_session_id
-                    : $paymentSession->payment_method . ' payment via PayMongo - Session ID: ' . $paymentSession->paymongo_session_id,
+                    ? $actualPaymentMethod . ' payment via PayMongo - Pending start on ' . $startDate->toDateString() . ' - Session ID: ' . $paymentSession->paymongo_session_id
+                    : $actualPaymentMethod . ' payment via PayMongo - Session ID: ' . $paymentSession->paymongo_session_id,
             ]);
             
             // Don't deactivate old subscription if new one is pending
@@ -580,6 +586,49 @@ class ChurchSubscriptionController extends Controller
             
             throw $e;
         }
+    }
+    
+    /**
+     * Get actual payment method from PayMongo session
+     */
+    private function getActualPaymentMethod($sessionId)
+    {
+        try {
+            $paymongoService = new PayMongoService();
+            $result = $paymongoService->getCheckoutSession($sessionId);
+            
+            if ($result['success']) {
+                $sessionData = $result['data'];
+                $paymentIntent = $sessionData['attributes']['payment_intent'] ?? null;
+                
+                if ($paymentIntent) {
+                    $payments = $paymentIntent['attributes']['payments'] ?? [];
+                    
+                    if (!empty($payments)) {
+                        $payment = $payments[0];
+                        $paymentType = $payment['attributes']['source']['type'] ?? null;
+                        
+                        // Map PayMongo payment types to our system
+                        $paymentMethodMap = [
+                            'gcash' => 'GCash',
+                            'card' => 'Card',
+                            'grab_pay' => 'GrabPay',
+                            'paymaya' => 'PayMaya',
+                        ];
+                        
+                        return $paymentMethodMap[$paymentType] ?? ucfirst($paymentType);
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Could not retrieve actual payment method', [
+                'session_id' => $sessionId,
+                'error' => $e->getMessage()
+            ]);
+        }
+        
+        // Fallback to default
+        return 'Online Payment';
     }
 
     /**

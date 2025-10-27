@@ -526,7 +526,7 @@ const ChurchRegistrationPage = () => {
   if (submitSuccess) {
     return (
       <div className="lg:p-6 w-full h-screen pt-20">
-        <div className="max-w-7xl mx-auto h-full">
+        <div className="w-full mx-auto h-full">
           <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
             <div className="p-6 bg-white border-b border-gray-200 flex-shrink-0">
               <h1 className="text-2xl font-semibold text-gray-900 text-center">
@@ -553,7 +553,7 @@ const ChurchRegistrationPage = () => {
 
   return (
     <div className="lg:p-6 w-full h-screen pt-20">
-      <div className="max-w-7xl mx-auto h-full">
+      <div className="w-full mx-auto h-full">
         <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
           <div className="p-6 bg-white border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center justify-between">
@@ -579,12 +579,12 @@ const ChurchRegistrationPage = () => {
                   <div key={s.id} className="flex items-center">
                     <div className="flex flex-col items-center">
                       <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 shadow-lg ${
+                        className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
                           step > s.id 
-                            ? "border-green-500 bg-green-500 text-white shadow-green-200" 
+                            ? "border-green-500 bg-green-500 text-white" 
                             : step === s.id 
-                            ? "border-indigo-500 bg-indigo-500 text-white shadow-indigo-200" 
-                            : "border-gray-300 bg-white text-gray-400 shadow-gray-100"
+                            ? "border-blue-500 bg-blue-500 text-white" 
+                            : "border-gray-300 bg-white text-gray-400"
                         }`}
                       >
                         {step > s.id ? (
@@ -603,7 +603,7 @@ const ChurchRegistrationPage = () => {
                     </div>
                     {i < steps.length - 1 && (
                       <div className={`w-16 h-0.5 mx-4 ${
-                        step > s.id ? "bg-green-400" : "bg-gray-300"
+                        step > s.id ? "bg-green-500" : "bg-gray-300"
                       }`} />
                     )}
                   </div>
@@ -641,7 +641,7 @@ const ChurchRegistrationPage = () => {
                         <Label htmlFor="ChurchName">
                           Church Name <span className="text-red-500">*</span>
                         </Label>
-                        <div className="mt-1 relative rounded-md shadow-sm">
+                        <div className="mt-1 relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <Church className="h-5 w-5 text-gray-400" />
                           </div>
@@ -651,7 +651,7 @@ const ChurchRegistrationPage = () => {
                             name="ChurchName"
                             value={formData.ChurchName}
                             onChange={handleChange}
-                            className="block w-full pl-10 pr-3 py-3 text-sm border-2 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            className="block w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                             placeholder="St. Mary's Catholic Church"
                           />
                         </div>
@@ -665,14 +665,14 @@ const ChurchRegistrationPage = () => {
                         <Label htmlFor="Description">
                           Description <span className="text-red-500">*</span>
                         </Label>
-                        <div className="mt-1 relative rounded-md shadow-sm">
+                        <div className="mt-1">
                           <textarea
                             id="Description"
                             name="Description"
                             rows={4}
                             value={formData.Description}
                             onChange={handleChange}
-                            className="block w-full px-3 py-3 text-sm border-2 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                             placeholder="Provide a description of your church, including its mission, history, and community..."
                           />
                         </div>
@@ -686,14 +686,14 @@ const ChurchRegistrationPage = () => {
                         <Label htmlFor="ParishDetails">
                           Parish Details <span className="text-red-500">*</span>
                         </Label>
-                        <div className="mt-1 relative rounded-md shadow-sm">
+                        <div className="mt-1">
                           <textarea
                             id="ParishDetails"
                             name="ParishDetails"
                             rows={4}
                             value={formData.ParishDetails}
                             onChange={handleChange}
-                            className="block w-full px-3 py-3 text-sm border-2 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                             placeholder="Provide details about the parish, service schedules, priests, and other relevant information..."
                           />
                         </div>
@@ -715,7 +715,7 @@ const ChurchRegistrationPage = () => {
                             value={formData.Diocese}
                             onChange={handleChange}
                             required
-                            className="block w-full px-3 py-3 text-sm border-2 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                             placeholder="Diocese of Davao"
                           />
                         </div>
@@ -732,7 +732,7 @@ const ChurchRegistrationPage = () => {
                               name="ContactNumber"
                               value={formData.ContactNumber}
                               onChange={handleChange}
-                              className="block w-full px-3 py-3 text-sm border-2 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
+                              className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                               placeholder="+63 912 345 6789"
                             />
                           </div>
@@ -747,7 +747,7 @@ const ChurchRegistrationPage = () => {
                               name="Email"
                               value={formData.Email}
                               onChange={handleChange}
-                              className="block w-full px-3 py-3 text-sm border-2 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
+                              className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                               placeholder="church@example.com"
                             />
                           </div>
@@ -786,7 +786,7 @@ const ChurchRegistrationPage = () => {
                         <Label htmlFor="Street">
                           Street/Address <span className="text-red-500">*</span>
                         </Label>
-                        <div className="mt-1 relative rounded-md shadow-sm">
+                        <div className="mt-1 relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <MapPin className="h-5 w-5 text-gray-400" />
                           </div>
@@ -796,7 +796,7 @@ const ChurchRegistrationPage = () => {
                             name="Street"
                             value={formData.Street}
                             onChange={handleChange}
-                            className="block w-full pl-10 pr-3 py-3 text-sm border-2 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            className="block w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                             placeholder="123 Main Street, Barangay Name"
                           />
                         </div>
@@ -811,7 +811,7 @@ const ChurchRegistrationPage = () => {
                           <Label htmlFor="Province">
                             Province <span className="text-red-500">*</span>
                           </Label>
-                          <div className="mt-1 relative rounded-md shadow-sm">
+                          <div className="mt-1 relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                               <MapPin className="h-5 w-5 text-gray-400" />
                             </div>
@@ -820,7 +820,7 @@ const ChurchRegistrationPage = () => {
                               name="Province"
                               value={formData.Province}
                               onChange={handleChange}
-                              className="block w-full pl-10 pr-3 py-3 text-sm border-2 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
+                              className="block w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                             >
                               <option value="">Select Province</option>
                               {provinces.map((province) => (
@@ -839,7 +839,7 @@ const ChurchRegistrationPage = () => {
                           <Label htmlFor="City">
                             City/Municipality <span className="text-red-500">*</span>
                           </Label>
-                          <div className="mt-1 relative rounded-md shadow-sm">
+                          <div className="mt-1 relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                               <MapPin className="h-5 w-5 text-gray-400" />
                             </div>
@@ -849,7 +849,7 @@ const ChurchRegistrationPage = () => {
                               value={formData.City}
                               onChange={handleChange}
                               disabled={!formData.Province}
-                              className="block w-full pl-10 pr-3 py-3 text-sm border-2 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                              className="block w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                             >
                               <option value="">{formData.Province ? "Select City/Municipality" : "Select Province First"}</option>
                               {cities.map((city) => (
@@ -906,7 +906,7 @@ const ChurchRegistrationPage = () => {
                             name="Latitude"
                             value={formData.Latitude}
                             readOnly
-                            className="mt-1 block w-full px-3 py-2 text-sm border-2 border-gray-300 bg-gray-50 rounded-md"
+                            className="mt-1 block w-full px-3 py-2 text-sm border border-gray-300 bg-gray-50 rounded-md"
                           />
                         </div>
                         <div>
@@ -917,7 +917,7 @@ const ChurchRegistrationPage = () => {
                             name="Longitude"
                             value={formData.Longitude}
                             readOnly
-                            className="mt-1 block w-full px-3 py-2 text-sm border-2 border-gray-300 bg-gray-50 rounded-md"
+                            className="mt-1 block w-full px-3 py-2 text-sm border border-gray-300 bg-gray-50 rounded-md"
                           />
                         </div>
                       </div>

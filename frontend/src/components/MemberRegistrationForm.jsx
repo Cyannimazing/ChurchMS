@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Plus, Minus, User, Home, Heart, Users, MessageSquare } from "lucide-react";
+import Label from "@/components/Label.jsx";
+import Input from "@/components/Input.jsx";
 
 const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) => {
   const [formData, setFormData] = useState({
@@ -238,10 +240,11 @@ const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) =>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="first_name" className="mb-1">
                 First Name <span className="text-red-500">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
+                id="first_name"
                 type="text"
                 name="first_name"
                 value={formData.first_name}
@@ -252,10 +255,11 @@ const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) =>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="middle_initial" className="mb-1">
                 Middle Initial
-              </label>
-              <input
+              </Label>
+              <Input
+                id="middle_initial"
                 type="text"
                 name="middle_initial"
                 value={formData.middle_initial}
@@ -267,10 +271,11 @@ const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) =>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="last_name" className="mb-1">
                 Last Name <span className="text-red-500">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
+                id="last_name"
                 type="text"
                 name="last_name"
                 value={formData.last_name}
@@ -293,10 +298,11 @@ const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) =>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="email" className="mb-1">
                 Email Address <span className="text-red-500">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
+                id="email"
                 type="email"
                 name="email"
                 value={formData.email}
@@ -307,10 +313,11 @@ const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) =>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="contact_number" className="mb-1">
                 Contact Number <span className="text-red-500">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
+                id="contact_number"
                 type="tel"
                 name="contact_number"
                 value={formData.contact_number}
@@ -333,44 +340,50 @@ const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) =>
           </h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="street_address" className="mb-1">
                 Street Address <span className="text-red-500">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
+                id="street_address"
                 type="text"
                 name="street_address"
                 value={formData.street_address}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                placeholder="e.g., 123 Rizal Street"
                 required
               />
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Label htmlFor="city" className="mb-1">
                   City/Municipality <span className="text-red-500">*</span>
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="city"
                   type="text"
                   name="city"
                   value={formData.city}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="e.g., Manila"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Label htmlFor="province" className="mb-1">
                   Province <span className="text-red-500">*</span>
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="province"
                   type="text"
                   name="province"
                   value={formData.province}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="e.g., Metro Manila"
                   required
                 />
               </div>
@@ -378,24 +391,28 @@ const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) =>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
-                <input
+                <Label htmlFor="postal_code" className="mb-1">Postal Code</Label>
+                <Input
+                  id="postal_code"
                   type="text"
                   name="postal_code"
                   value={formData.postal_code}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="e.g., 1000"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Barangay</label>
-                <input
+                <Label htmlFor="barangay" className="mb-1">Barangay</Label>
+                <Input
+                  id="barangay"
                   type="text"
                   name="barangay"
                   value={formData.barangay}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="e.g., Barangay 1"
                 />
               </div>
             </div>
@@ -411,14 +428,15 @@ const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) =>
             Financial Support
           </h3>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <Label htmlFor="financial_support" className="mb-1">
               Supporting the Parish Financially <span className="text-red-500">*</span>
-            </label>
+            </Label>
             <select
+              id="financial_support"
               name="financial_support"
               value={formData.financial_support}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               required
             >
               <option value="">Select Option</option>
@@ -452,83 +470,92 @@ const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) =>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <Label htmlFor="head_first_name" className="mb-1">
               First Name <span className="text-red-500">*</span>
-            </label>
-            <input
+            </Label>
+            <Input
+              id="head_first_name"
               type="text"
               name="head_first_name"
               value={formData.head_first_name}
               onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              placeholder="Juan"
               required
             />
           </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Middle Initial</label>
-              <input
+              <Label htmlFor="head_middle_initial" className="mb-1">Middle Initial</Label>
+              <Input
+                id="head_middle_initial"
                 type="text"
                 name="head_middle_initial"
                 value={formData.head_middle_initial}
                 onChange={handleInputChange}
                 maxLength="1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 placeholder="M"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="head_last_name" className="mb-1">
                 Last Name <span className="text-red-500">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
+                id="head_last_name"
                 type="text"
                 name="head_last_name"
                 value={formData.head_last_name}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                placeholder="Dela Cruz"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="head_date_of_birth" className="mb-1">
                 Date of Birth <span className="text-red-500">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
+                id="head_date_of_birth"
                 type="date"
                 name="head_date_of_birth"
                 value={formData.head_date_of_birth}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="head_religion" className="mb-1">
                 Religion <span className="text-red-500">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
+                id="head_religion"
                 type="text"
                 name="head_religion"
                 value={formData.head_religion}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                placeholder="Roman Catholic"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="head_marital_status" className="mb-1">
                 Marital Status <span className="text-red-500">*</span>
-              </label>
+              </Label>
               <select
+                id="head_marital_status"
                 name="head_marital_status"
                 value={formData.head_marital_status}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 required
               >
                 <option value="">Select Status</option>
@@ -552,29 +579,33 @@ const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) =>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="head_phone_number" className="mb-1">
                 Phone Number <span className="text-red-500">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
+                id="head_phone_number"
                 type="tel"
                 name="head_phone_number"
                 value={formData.head_phone_number}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                placeholder="+639123456789"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="head_email_address" className="mb-1">
                 Email Address <span className="text-red-500">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
+                id="head_email_address"
                 type="email"
                 name="head_email_address"
                 value={formData.head_email_address}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                placeholder="juan.delacruz@email.com"
                 required
               />
             </div>
@@ -685,69 +716,78 @@ const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) =>
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                <input
+                <Label htmlFor="spouse_first_name" className="mb-1">First Name</Label>
+                <Input
+                  id="spouse_first_name"
                   type="text"
                   name="spouse_first_name"
                   value={formData.spouse_first_name}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="Maria"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Middle Initial</label>
-                <input
+                <Label htmlFor="spouse_middle_initial" className="mb-1">Middle Initial</Label>
+                <Input
+                  id="spouse_middle_initial"
                   type="text"
                   name="spouse_middle_initial"
                   value={formData.spouse_middle_initial}
                   onChange={handleInputChange}
                   maxLength="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   placeholder="M"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                <input
+                <Label htmlFor="spouse_last_name" className="mb-1">Last Name</Label>
+                <Input
+                  id="spouse_last_name"
                   type="text"
                   name="spouse_last_name"
                   value={formData.spouse_last_name}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="Dela Cruz"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-                <input
+                <Label htmlFor="spouse_date_of_birth" className="mb-1">Date of Birth</Label>
+                <Input
+                  id="spouse_date_of_birth"
                   type="date"
                   name="spouse_date_of_birth"
                   value={formData.spouse_date_of_birth}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Religion</label>
-                <input
+                <Label htmlFor="spouse_religion" className="mb-1">Religion</Label>
+                <Input
+                  id="spouse_religion"
                   type="text"
                   name="spouse_religion"
                   value={formData.spouse_religion}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="Roman Catholic"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Marital Status</label>
+                <Label htmlFor="spouse_marital_status" className="mb-1">Marital Status</Label>
                 <select
+                  id="spouse_marital_status"
                   name="spouse_marital_status"
                   value={formData.spouse_marital_status}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
                   <option value="">Select Status</option>
                   <option value="Single">Single</option>
@@ -770,24 +810,28 @@ const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) =>
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                <input
+                <Label htmlFor="spouse_phone_number" className="mb-1">Phone Number</Label>
+                <Input
+                  id="spouse_phone_number"
                   type="tel"
                   name="spouse_phone_number"
                   value={formData.spouse_phone_number}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="+639987654321"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                <input
+                <Label htmlFor="spouse_email_address" className="mb-1">Email Address</Label>
+                <Input
+                  id="spouse_email_address"
                   type="email"
                   name="spouse_email_address"
                   value={formData.spouse_email_address}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="maria.delacruz@email.com"
                 />
               </div>
             </div>
@@ -907,41 +951,47 @@ const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) =>
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                  <input
+                  <Label htmlFor={`child_${index}_first_name`} className="mb-1">First Name</Label>
+                  <Input
+                    id={`child_${index}_first_name`}
                     type="text"
                     value={child.first_name}
                     onChange={(e) => handleChildChange(index, "first_name", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder="Miguel"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                  <input
+                  <Label htmlFor={`child_${index}_last_name`} className="mb-1">Last Name</Label>
+                  <Input
+                    id={`child_${index}_last_name`}
                     type="text"
                     value={child.last_name}
                     onChange={(e) => handleChildChange(index, "last_name", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder="Dela Cruz"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-                  <input
+                  <Label htmlFor={`child_${index}_date_of_birth`} className="mb-1">Date of Birth</Label>
+                  <Input
+                    id={`child_${index}_date_of_birth`}
                     type="date"
                     value={child.date_of_birth}
                     onChange={(e) => handleChildChange(index, "date_of_birth", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Sex</label>
+                  <Label htmlFor={`child_${index}_sex`} className="mb-1">Sex</Label>
                   <select
+                    id={`child_${index}_sex`}
                     value={child.sex}
                     onChange={(e) => handleChildChange(index, "sex", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   >
                     <option value="">Select</option>
                     <option value="M">Male</option>
@@ -950,12 +1000,14 @@ const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) =>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Religion</label>
-                  <input
+                  <Label htmlFor={`child_${index}_religion`} className="mb-1">Religion</Label>
+                  <Input
+                    id={`child_${index}_religion`}
                     type="text"
                     value={child.religion}
                     onChange={(e) => handleChildChange(index, "religion", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder="Roman Catholic"
                   />
                 </div>
               </div>
@@ -968,22 +1020,25 @@ const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) =>
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">School</label>
-                  <input
+                  <Label htmlFor={`child_${index}_school`} className="mb-1">School</Label>
+                  <Input
+                    id={`child_${index}_school`}
                     type="text"
                     value={child.school}
                     onChange={(e) => handleChildChange(index, "school", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    placeholder="Manila Elementary School"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Grade</label>
-                  <input
+                  <Label htmlFor={`child_${index}_grade`} className="mb-1">Grade</Label>
+                  <Input
+                    id={`child_${index}_grade`}
                     type="text"
                     value={child.grade}
                     onChange={(e) => handleChildChange(index, "grade", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                     placeholder="e.g., Grade 6"
                   />
                 </div>
@@ -1049,41 +1104,47 @@ const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) =>
           </h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="talent_to_share" className="mb-1">
                 Is there a talent you can share with the Parish?
-              </label>
+              </Label>
               <textarea
+                id="talent_to_share"
                 name="talent_to_share"
                 value={formData.talent_to_share}
                 onChange={handleInputChange}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                placeholder="e.g., I can play the guitar and help with music ministry"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="interested_ministry" className="mb-1">
                 Are you interested in a particular Ministry?
-              </label>
+              </Label>
               <textarea
+                id="interested_ministry"
                 name="interested_ministry"
                 value={formData.interested_ministry}
                 onChange={handleInputChange}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                placeholder="e.g., Music Ministry and Youth Group"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="parish_help_needed" className="mb-1">
                 Is there any way the parish can help you right now?
-              </label>
+              </Label>
               <textarea
+                id="parish_help_needed"
                 name="parish_help_needed"
                 value={formData.parish_help_needed}
                 onChange={handleInputChange}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                placeholder="e.g., Prayer support for my family"
               />
             </div>
 
@@ -1112,29 +1173,31 @@ const MemberRegistrationForm = ({ onSubmit, loading, churchId, currentUser }) =>
           </h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="other_languages" className="mb-1">
                 What other languages are spoken in your home?
-              </label>
-              <input
+              </Label>
+              <Input
+                id="other_languages"
                 type="text"
                 name="other_languages"
                 value={formData.other_languages}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 placeholder="e.g., Tagalog, Cebuano"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Label htmlFor="ethnicity" className="mb-1">
                 Ethnicity (e.g. Tagalog, Cebuano, Ilocano, Bicolano, Chinese-Filipino, etc.)
-              </label>
-              <input
+              </Label>
+              <Input
+                id="ethnicity"
                 type="text"
                 name="ethnicity"
                 value={formData.ethnicity}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 placeholder="e.g., Filipino"
               />
             </div>

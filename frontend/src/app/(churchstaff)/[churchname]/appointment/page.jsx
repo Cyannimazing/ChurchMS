@@ -106,6 +106,14 @@ const AppointmentPage = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   
+  // Cancellation modal state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelAppointmentId, setCancelAppointmentId] = useState(null);
+  const [cancellationData, setCancellationData] = useState({
+    category: 'no_fee', // 'no_fee' (green) or 'with_fee' (red)
+    note: ''
+  });
+  
   // Certificate generation state
   const [showCertificateTypeModal, setShowCertificateTypeModal] = useState(false);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
@@ -541,6 +549,58 @@ const AppointmentPage = () => {
   const showStatusConfirmDialog = (appointmentId, status) => {
     setConfirmAction({ appointmentId, status });
     setShowConfirmDialog(true);
+  };
+  
+  // Handle appointment cancellation with custom category and note
+  const handleCancelAppointment = async () => {
+    if (!cancelAppointmentId || !cancellationData.note.trim()) {
+      setAlertMessage('Please provide a cancellation note');
+      setAlertType('error');
+      return;
+    }
+    
+    setIsUpdatingStatus(true);
+    
+    try {
+      await axios.put(`/api/appointments/${cancelAppointmentId}/status`, {
+        status: 'Cancelled',
+        cancellation_category: cancellationData.category,
+        cancellation_note: cancellationData.note
+      });
+      
+      setAlertMessage('Appointment cancelled successfully');
+      setAlertType('success');
+      
+      // Update local state
+      const updatedAppointments = appointments.map(apt =>
+        apt.AppointmentID === cancelAppointmentId 
+          ? { ...apt, Status: 'Cancelled', cancellation_category: cancellationData.category, cancellation_note: cancellationData.note }
+          : apt
+      );
+      setAppointments(updatedAppointments);
+      setFilteredAppointments(updatedAppointments);
+      
+      // Update selected appointment in modal
+      if (selectedAppointment?.AppointmentID === cancelAppointmentId) {
+        setSelectedAppointment({ ...selectedAppointment, Status: 'Cancelled' });
+      }
+      
+      // Close modals
+      setShowCancelModal(false);
+      setTimeout(() => {
+        handleCloseReviewModal();
+      }, 1000);
+      
+    } catch (err) {
+      console.error('Error cancelling appointment:', err);
+      setAlertMessage('Failed to cancel appointment');
+      setAlertType('error');
+    } finally {
+      setIsUpdatingStatus(false);
+      // Reset cancellation data
+      setCancellationData({ category: 'no_fee', note: '' });
+      setCancelAppointmentId(null);
+    }
   };
 
   // Certificate generation functions
@@ -1416,7 +1476,10 @@ const AppointmentPage = () => {
                   {selectedAppointment?.Status === 'Pending' && (
                     <>
                       <Button
-                        onClick={() => showStatusConfirmDialog(selectedAppointment.AppointmentID, 'Cancelled')}
+                        onClick={() => {
+                          setCancelAppointmentId(selectedAppointment.AppointmentID);
+                          setShowCancelModal(true);
+                        }}
                         variant="outline"
                         className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200"
                         disabled={isUpdatingStatus}
@@ -1443,7 +1506,10 @@ const AppointmentPage = () => {
                   {selectedAppointment?.Status === 'Approved' && (
                     <>
                       <Button
-                        onClick={() => showStatusConfirmDialog(selectedAppointment.AppointmentID, 'Cancelled')}
+                        onClick={() => {
+                          setCancelAppointmentId(selectedAppointment.AppointmentID);
+                          setShowCancelModal(true);
+                        }}
                         variant="outline"
                         className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200"
                         disabled={isUpdatingStatus}
@@ -1478,6 +1544,136 @@ const AppointmentPage = () => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Cancellation Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-gray-900/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl mx-auto relative w-full max-w-md">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Cancel Appointment</h3>
+                <button
+                  onClick={() => {
+                    setShowCancelModal(false);
+                    setCancellationData({ category: 'no_fee', note: '' });
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                  disabled={isUpdatingStatus}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-4 space-y-4">
+              {/* Cancellation Category */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Refund Category <span className="text-red-500">*</span>
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${
+                    cancellationData.category === 'no_fee' ? 'border-green-500 bg-green-50' : 'border-gray-300'
+                  }">
+                    <input
+                      type="radio"
+                      name="category"
+                      value="no_fee"
+                      checked={cancellationData.category === 'no_fee'}
+                      onChange={(e) => setCancellationData({ ...cancellationData, category: e.target.value })}
+                      className="mr-3"
+                      disabled={isUpdatingStatus}
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 mr-2">
+                          Green
+                        </span>
+                        <span className="font-medium text-gray-900">No Convenience Fee</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Full refund</p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${
+                    cancellationData.category === 'with_fee' ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                  }">
+                    <input
+                      type="radio"
+                      name="category"
+                      value="with_fee"
+                      checked={cancellationData.category === 'with_fee'}
+                      onChange={(e) => setCancellationData({ ...cancellationData, category: e.target.value })}
+                      className="mr-3"
+                      disabled={isUpdatingStatus}
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 mr-2">
+                          Red
+                        </span>
+                        <span className="font-medium text-gray-900">With Convenience Fee</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Partial refund</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Cancellation Note */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cancellation Reason/Note <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={cancellationData.note}
+                  onChange={(e) => setCancellationData({ ...cancellationData, note: e.target.value })}
+                  placeholder="Provide a reason for cancellation..."
+                  rows="4"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={isUpdatingStatus}
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">This note will be visible in refund processing</p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+              <Button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancellationData({ category: 'no_fee', note: '' });
+                }}
+                variant="outline"
+                disabled={isUpdatingStatus}
+                className="px-4 py-2 text-sm font-medium"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCancelAppointment}
+                disabled={isUpdatingStatus || !cancellationData.note.trim()}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+              >
+                {isUpdatingStatus ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 inline-block"></div>
+                    Cancelling...
+                  </>
+                ) : (
+                  <>
+                    <X className="h-4 w-4 mr-2 inline-block" />
+                    Confirm Cancellation
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       )}

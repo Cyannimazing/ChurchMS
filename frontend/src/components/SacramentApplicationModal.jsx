@@ -369,14 +369,38 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
     setSubmitError(null)
     
     try {
+      // Check if this is a Mass service and extract donation amount
+      let donationAmount = null
+      if (selectedService?.isMass) {
+        // Find the donation field in form data (field name should be 'donation_amount' based on massForm.js)
+        const donationField = formConfig.form_elements?.find(field => 
+          field.elementId === 'donation_amount' || 
+          field.label?.toUpperCase() === 'DONATION'
+        )
+        
+        if (donationField) {
+          const fieldKey = `field_${donationField.InputFieldID}`
+          const donationValue = formData[fieldKey]
+          if (donationValue) {
+            donationAmount = parseFloat(donationValue)
+            if (isNaN(donationAmount) || donationAmount < 50) {
+              setSubmitError('Minimum donation amount is ₱50.00')
+              setIsSubmitting(false)
+              return
+            }
+          }
+        }
+      }
+      
       // Check if service is free (any amount = 0) and require membership
+      // Skip membership check for Mass services as they accept donations
       const hasFreeSchedules = selectedSchedule.fees && selectedSchedule.fees.some(fee => {
         const amount = parseFloat(fee.Amount || fee.Fee || fee.amount || fee.fee || 0)
         return amount === 0
       })
       
-      if (hasFreeSchedules) {
-        // Free service - check membership requirement
+      if (hasFreeSchedules && !selectedService?.isMass) {
+        // Free service (non-Mass) - check membership requirement
         try {
           const membershipResponse = await axios.get(`/api/user/membership/${church.ChurchID}`)
           
@@ -425,6 +449,12 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
       // Add form field answers - make sure formData has the right structure
       console.log('Form data being sent:', formData)
       formDataToSubmit.append('form_data', JSON.stringify(formData))
+      
+      // Add donation amount if this is a Mass service
+      if (donationAmount !== null) {
+        formDataToSubmit.append('donation_amount', donationAmount)
+        console.log('Mass donation amount:', donationAmount)
+      }
       
       // Add uploaded documents
       Object.entries(uploadedDocuments).forEach(([requirementIndex, file]) => {
@@ -490,6 +520,14 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
     // Format fees with discount information if applicable
     const formatFeesWithDiscount = () => {
       if (fees.length === 0) return 'No fees'
+      
+      // Calculate total fees
+      const totalFees = fees.reduce((sum, fee) => {
+        return sum + parseFloat(fee.Fee || fee.Amount || 0)
+      }, 0)
+      
+      // Return empty string if total is 0
+      if (totalFees === 0) return ''
       
       return fees.map(fee => {
         const originalAmount = parseFloat(fee.Fee || fee.Amount || 0)
@@ -1612,7 +1650,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                                         <Clock className="w-4 h-4 mr-2" />
                                         <span className="font-medium">{timeDisplay.time}</span>
                                       </div>
-                                      <div className="flex items-center text-sm mb-1">
+                                      <div className="flex items-center text-sm">
                                         <Users className="w-4 h-4 mr-2" />
                                         <span className={isAvailable ? 'text-gray-600' : 'text-red-600'}>
                                           {isAvailable
@@ -1621,15 +1659,27 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                                           }
                                         </span>
                                       </div>
-                                      {selectedSchedule.fees && selectedSchedule.fees.length > 0 && (
-                                        <div className="text-xs text-gray-500">
-                                          {formatScheduleDisplay(selectedSchedule).fees}
-                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {selectedSchedule.fees && selectedSchedule.fees.length > 0 && (() => {
+                                        const totalFees = selectedSchedule.fees.reduce((sum, fee) => {
+                                          const amount = parseFloat(fee.Amount || fee.Fee || fee.amount || fee.fee || 0)
+                                          return sum + amount
+                                        }, 0)
+                                        // Only show if total fees > 0
+                                        if (totalFees > 0) {
+                                          return (
+                                            <div className="text-xs text-gray-500 text-right">
+                                              {formatScheduleDisplay(selectedSchedule).fees}
+                                            </div>
+                                          )
+                                        }
+                                        return null
+                                      })()}
+                                      {isAvailable && (
+                                        <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
                                       )}
                                     </div>
-                                    {isAvailable && (
-                                      <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
-                                    )}
                                   </div>
                                 </div>
                               )
@@ -1718,7 +1768,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                                         <span className={hasAvailableSlots ? 'text-gray-600' : 'text-red-600'}>
                                           {getSlotAvailabilityText(schedule, selectedDate)}
                                         </span>
-                                        {displayInfo.fees !== 'No fees' && (
+                                        {displayInfo.fees && displayInfo.fees !== 'No fees' && displayInfo.fees !== '' && (
                                           <span className="ml-4">
                                             {displayInfo.fees}
                                           </span>
@@ -1877,15 +1927,22 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                         title="Membership Required"
                         message={membershipError}
                         onClose={() => setMembershipError(null)}
-                        autoClose={false}
+                        autoClose={true}
+                        autoCloseDelay={5000}
                       />
                     </div>
                   )}
 
                   {/* Error Message */}
                   {submitError && (
-                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-6">
-                      <p className="text-red-800 text-sm">{submitError}</p>
+                    <div className="mb-6">
+                      <Alert 
+                        type="error"
+                        message={submitError}
+                        onClose={() => setSubmitError(null)}
+                        autoClose={true}
+                        autoCloseDelay={5000}
+                      />
                     </div>
                   )}
 

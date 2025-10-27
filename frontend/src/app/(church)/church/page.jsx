@@ -56,9 +56,11 @@ const Dashboard = () => {
   const [isLoadingChurches, setIsLoadingChurches] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, churchId: null, action: null });
   const [isConfirming, setIsConfirming] = useState(false);
+  const [subscription, setSubscription] = useState(null);
 
   useEffect(() => {
     fetchChurches();
+    fetchSubscription();
   }, []);
 
   const fetchChurches = async () => {
@@ -78,6 +80,15 @@ const Dashboard = () => {
       }
     } finally {
       setIsLoadingChurches(false);
+    }
+  };
+
+  const fetchSubscription = async () => {
+    try {
+      const response = await axios.get("/api/church-subscriptions");
+      setSubscription(response.data);
+    } catch (err) {
+      console.error("Failed to fetch subscription:", err);
     }
   };
 
@@ -245,10 +256,10 @@ const Dashboard = () => {
   return (
     <>
     <div className="lg:p-6 w-full h-screen pt-20">
-      <div className="max-w-7xl mx-auto h-full">
+      <div className="w-full mx-auto h-full">
         <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
           <div className="p-6 bg-white border-b border-gray-200">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center w-full">
             <h1 className="text-2xl font-semibold text-gray-900">
               My Churches
             </h1>
@@ -266,7 +277,7 @@ const Dashboard = () => {
             )}
               <div className="flex items-center space-x-4">
                 <div className="text-sm text-gray-500">
-                  Total: <span className="font-medium text-gray-900">{churches.length}</span>
+                  {churches.length}/{subscription?.active?.plan?.MaxChurchesAllowed ?? 0}
                 </div>
                 <Button>
                   <Link href="/registerchurch" className="flex items-center">
@@ -279,53 +290,6 @@ const Dashboard = () => {
           </div>
           <div className="p-6 flex-1">
             <div className="h-full overflow-y-auto">
-
-            {/* Dashboard Stats Cards */}
-            {!error && churches.length > 0 && (
-              <div className="mb-8">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-lg bg-slate-100">
-                        <Church className="h-6 w-6 text-slate-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Total Churches</p>
-                        <p className="text-2xl font-bold text-gray-900">{churches.length}</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-lg bg-green-50">
-                        <CheckCircle className="h-6 w-6 text-green-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Active Churches</p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {churches.filter(church => church.ChurchStatus === 'Active').length}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-lg bg-amber-50">
-                        <Clock className="h-6 w-6 text-amber-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Pending Approval</p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {churches.filter(church => church.ChurchStatus === 'Pending').length}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Enhanced Error Display with Transition */}
             <Transition
@@ -384,12 +348,12 @@ const Dashboard = () => {
                   </div>
                 </div>
               ) : (
-                <div>
+                <div className="w-full">
                   <div className="mb-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-2">Your Churches</h2>
                     <p className="text-sm text-gray-600">Manage and monitor all your registered churches</p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 w-full">
                     {churches.map((church) => (
                       <div
                         key={church.ChurchID}

@@ -15,7 +15,9 @@ const PricingPage = () => {
   return (
     <div>
       <Navigation />
-      <PricingSection onPlanSelect={handlePlanSelect} />
+      <div className="pt-20">
+        <PricingSection onPlanSelect={handlePlanSelect} />
+      </div>
     </div>
   );
 };

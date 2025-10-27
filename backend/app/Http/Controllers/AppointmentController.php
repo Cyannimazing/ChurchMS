@@ -510,7 +510,7 @@ class AppointmentController extends Controller
                     'error' => 'Invalid form data provided.'
                 ], 422);
             }
-
+            
             // Check slot availability before creating appointment
             $appointmentDate = $request->selected_date;
             $slotCapacity = $schedule->SlotCapacity;
@@ -533,6 +533,20 @@ class AppointmentController extends Controller
             $fees = ScheduleFee::where('ScheduleID', $request->schedule_id)->get();
             $payableFees = $fees->filter(function ($fee) { return ($fee->Fee ?? 0) > 0; });
             $originalTotalAmount = $payableFees->sum('Fee');
+            
+            // For Mass services (isMass = true), check if donation amount was provided
+            if ($service->isMass && $request->has('donation_amount')) {
+                $donationAmount = floatval($request->donation_amount);
+                if ($donationAmount > 0) {
+                    // Add donation amount to the total
+                    $originalTotalAmount += $donationAmount;
+                    Log::info('Mass service donation amount added', [
+                        'service_id' => $service->ServiceID,
+                        'donation_amount' => $donationAmount,
+                        'new_total' => $originalTotalAmount
+                    ]);
+                }
+            }
             
             // Apply member discount if user is an approved member
             $totalAmount = $this->applyMemberDiscount($originalTotalAmount, $service, $user, $request->church_id);
@@ -621,6 +635,8 @@ class AppointmentController extends Controller
                     'schedule_time_id' => $request->schedule_time_id,
                     'appointment_date' => $appointmentDateTime,
                     'form_data' => $request->form_data ?? null, // Include form data for custom forms
+                    'donation_amount' => $request->donation_amount ?? null, // Include donation amount for Mass services
+                    'is_mass' => $service->isMass ?? false, // Flag for Mass services
                     'type' => 'appointment_payment'
                 ];
                 
@@ -633,10 +649,9 @@ class AppointmentController extends Controller
                     $scheduleTime->StartTime
                 );
                 
-                // Create success and cancel URLs (redirect back to dashboard)
-                $baseUrl = config('app.frontend_url', 'http://localhost:3000');
-                $successUrl = $baseUrl . '/dashboard?church_id=' . urlencode((string)$request->church_id) . '#success';
-                $cancelUrl = $baseUrl . '/dashboard#payment_cancelled';
+                // Create success and cancel URLs (same as simple appointments)
+                $successUrl = url('/appointment-payment/success?session_id={CHECKOUT_SESSION_ID}&church_id=' . $request->church_id);
+                $cancelUrl = url('/appointment-payment/cancel?session_id={CHECKOUT_SESSION_ID}');
                 
                 // Create PayMongo checkout session with GCash and Card only
                 $checkoutResult = $paymongoService->createCheckoutSession(
@@ -664,34 +679,48 @@ class AppointmentController extends Controller
                 
                 $checkoutData = $checkoutResult['data'];
                 
-// Persisting payment session removed
-                /*
+                // Get expiration time from checkout data
+                $expiresAtRaw = $checkoutData['attributes']['expires_at'] ?? null;
+                
+                // Create AppointmentPaymentSession to track this payment
                 try {
-                    PaymentSession::create([
+                    AppointmentPaymentSession::create([
                         'user_id' => $user->id,
+                        'church_id' => $request->church_id,
+                        'service_id' => $request->service_id,
+                        'schedule_id' => $request->schedule_id,
+                        'schedule_time_id' => $request->schedule_time_id,
+                        'appointment_date' => $appointmentDateTime,
                         'paymongo_session_id' => $checkoutData['id'],
-                        'payment_method' => null,
+                        'payment_method' => 'multi', // Multi-payment (GCash/Card) - will be updated after payment
                         'amount' => $totalAmount,
                         'currency' => 'PHP',
                         'status' => 'pending',
                         'checkout_url' => $checkoutData['attributes']['checkout_url'] ?? null,
+                        'form_data' => $request->form_data,
+                        'donation_amount' => $request->donation_amount ?? null,
                         'metadata' => [
-                            'type' => 'appointment_payment',
-                            'church_id' => $request->church_id,
-                            'service_id' => $request->service_id,
-                            'schedule_id' => $request->schedule_id,
-                            'schedule_time_id' => $request->schedule_time_id,
-                            'appointment_date' => $appointmentDateTime,
-                            'form_data' => $request->form_data ?? null,
+                            'church_name' => $church->ChurchName,
+                            'service_name' => $service->ServiceName,
+                            'is_mass' => $service->isMass ?? false
                         ],
-                        'expires_at' => isset($checkoutData['attributes']['expires_at']) ? \Carbon\Carbon::createFromTimestamp($checkoutData['attributes']['expires_at']) : null,
-        ]);
-                } catch (\\Exception $e) {
-                    Log::warning('Failed to persist payment session (form)', [
-                        'error' => $e->getMessage()
+                        'expires_at' => $expiresAtRaw ? \Carbon\Carbon::createFromTimestamp($expiresAtRaw) : now()->addMinutes(30),
+                        'created_at' => now(),
+                        'updated_at' => now()
                     ]);
+                    
+                    Log::info('AppointmentPaymentSession created', [
+                        'session_id' => $checkoutData['id'],
+                        'user_id' => $user->id,
+                        'church_id' => $request->church_id
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to create AppointmentPaymentSession', [
+                        'error' => $e->getMessage(),
+                        'session_id' => $checkoutData['id']
+                    ]);
+                    // Don't fail the whole request, continue with payment
                 }
-                */
                 
                 Log::info('PayMongo checkout session created for appointment with form data', [
                     'checkout_session_id' => $checkoutData['id'],
@@ -1168,6 +1197,9 @@ class AppointmentController extends Controller
                     'a.ScheduleTimeID',
                     'a.Status',
                     'a.Notes',
+                    'a.cancellation_category',
+                    'a.cancellation_note',
+                    'a.cancelled_at',
                     'a.created_at',
                     'u.email as UserEmail',
                     DB::raw("p.first_name || ' ' || COALESCE(p.middle_name || '. ', '') || p.last_name as UserName"),
@@ -1201,7 +1233,9 @@ class AppointmentController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'status' => 'required|string|in:Pending,Approved,Rejected,Cancelled,Completed'
+                'status' => 'required|string|in:Pending,Approved,Rejected,Cancelled,Completed',
+                'cancellation_category' => 'nullable|string|in:no_fee,with_fee',
+                'cancellation_note' => 'nullable|string|max:1000'
             ]);
 
             if ($validator->fails()) {
@@ -1229,13 +1263,40 @@ class AppointmentController extends Controller
             DB::beginTransaction();
 
             try {
+                // Prepare update data
+                $updateData = [
+                    'Status' => $newStatus,
+                    'updated_at' => now()
+                ];
+                
+                // If changing to Cancelled, handle cancellation category and note
+                if ($newStatus === 'Cancelled') {
+                    $updateData['cancelled_at'] = now();
+                    
+                    // Use custom category and note if provided, otherwise auto-determine
+                    if ($request->has('cancellation_category') && $request->has('cancellation_note')) {
+                        // Staff manually selected category and provided note
+                        $updateData['cancellation_category'] = $request->cancellation_category;
+                        $updateData['cancellation_note'] = $request->cancellation_note;
+                    } else {
+                        // Auto-determine based on previous status (fallback)
+                        if ($oldStatus === 'Pending') {
+                            $updateData['cancellation_category'] = 'no_fee';
+                            $updateData['cancellation_note'] = 'Cancelled before approval - No preparation done. Full refund applicable (no convenience fee).';
+                        } else if ($oldStatus === 'Approved' || $oldStatus === 'Completed') {
+                            $updateData['cancellation_category'] = 'with_fee';
+                            $updateData['cancellation_note'] = 'Cancelled after approval - Preparation already started. Convenience fee applies to refund.';
+                        } else {
+                            $updateData['cancellation_category'] = 'no_fee';
+                            $updateData['cancellation_note'] = 'Cancelled from ' . $oldStatus . ' status. Full refund applicable (no convenience fee).';
+                        }
+                    }
+                }
+                
                 // Update appointment status
                 $updated = DB::table('Appointment')
                     ->where('AppointmentID', $appointmentId)
-                    ->update([
-                        'Status' => $newStatus,
-                        'updated_at' => now()
-                    ]);
+                    ->update($updateData);
 
                 if (!$updated) {
                     throw new \Exception('Failed to update appointment status.');
@@ -2524,6 +2585,7 @@ class AppointmentController extends Controller
                     'service_name' => $service->ServiceName,
                     'appointment_date' => $appointmentDate,
                     'schedule_time' => $scheduleTimeId,
+                    'is_mass' => $service->isMass ?? false,
                     'original_session_data' => $metadata
                 ]
             ]);
@@ -2754,6 +2816,13 @@ class AppointmentController extends Controller
                 ], 404);
             }
 
+            $isMass = false;
+            if ($transaction->appointment && $transaction->appointment->service) {
+                $isMass = $transaction->appointment->service->isMass ?? false;
+            } else if (isset($transaction->metadata['is_mass'])) {
+                $isMass = $transaction->metadata['is_mass'];
+            }
+            
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -2764,6 +2833,7 @@ class AppointmentController extends Controller
                     'church_name' => $transaction->church->ChurchName,
                     'service_name' => $transaction->appointment ? $transaction->appointment->service->ServiceName : 'N/A',
                     'payment_method_display' => $transaction->payment_method === 'card' ? 'Card' : ucfirst($transaction->payment_method),
+                    'is_mass' => $isMass,
                 ]
             ]);
         } catch (\Exception $e) {
@@ -2796,6 +2866,13 @@ class AppointmentController extends Controller
         if (!$transaction) {
             return response()->json(['success' => false, 'message' => 'Transaction not found'], 404);
         }
+        $isMass = false;
+        if ($transaction->appointment && $transaction->appointment->service) {
+            $isMass = $transaction->appointment->service->isMass ?? false;
+        } else if (isset($transaction->metadata['is_mass'])) {
+            $isMass = $transaction->metadata['is_mass'];
+        }
+        
         return response()->json([
             'success' => true,
             'data' => [
@@ -2806,6 +2883,7 @@ class AppointmentController extends Controller
                 'church_name' => optional($transaction->church)->ChurchName,
                 'service_name' => optional($transaction->appointment)->service ? $transaction->appointment->service->ServiceName : 'N/A',
                 'payment_method_display' => $transaction->payment_method === 'card' ? 'Card' : ucfirst($transaction->payment_method),
+                'is_mass' => $isMass,
             ]
         ]);
     }

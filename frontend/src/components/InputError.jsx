@@ -1,11 +1,13 @@
 "use client";
 
 export const InputError = ({ messages = [], className = "" }) => {
+  const messageArray = Array.isArray(messages) ? messages : [];
+  
   return (
     <>
-      {messages.length > 0 && (
+      {messageArray.length > 0 && (
         <div className={`text-sm text-red-600 ${className}`}>
-          {messages.map((message, index) => (
+          {messageArray.map((message, index) => (
             <p key={index}>{message}</p>
           ))}
         </div>

@@ -22,10 +22,14 @@ class Appointment extends Model
         'AppointmentDate',
         'Status',
         'Notes',
+        'cancellation_category',
+        'cancellation_note',
+        'cancelled_at',
     ];
     
     protected $casts = [
         'AppointmentDate' => 'datetime',
+        'cancelled_at' => 'datetime',
     ];
     
     public function user(): BelongsTo

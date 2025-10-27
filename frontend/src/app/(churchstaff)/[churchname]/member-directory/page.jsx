@@ -335,10 +335,7 @@ const MemberDirectoryPage = () => {
             <div className="bg-gray-50 rounded-xl p-4 space-y-4">
                 {/* Parish Registration - View Mode */}
                 <div className="space-y-4">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <div className="h-1 w-8 bg-blue-500 rounded-full"></div>
-                    <h3 className="text-lg font-semibold text-gray-900">Parish Registration</h3>
-                  </div>
+                  <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">Parish Registration</h3>
                 <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Personal & Contact Info */}
@@ -379,10 +376,7 @@ const MemberDirectoryPage = () => {
 
                 {/* Head of House - View Mode */}
                 <div className="space-y-4">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <div className="h-1 w-8 bg-green-500 rounded-full"></div>
-                    <h3 className="text-lg font-semibold text-gray-900">Head of House</h3>
-                  </div>
+                  <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 border-t pt-6">Head of House</h3>
                 <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Basic Info */}
@@ -461,10 +455,7 @@ const MemberDirectoryPage = () => {
                 {/* Spouse Information - View Mode */}
                 {member.spouse_first_name && (
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <div className="h-1 w-8 bg-pink-500 rounded-full"></div>
-                      <h3 className="text-lg font-semibold text-gray-900">Spouse</h3>
-                    </div>
+                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 border-t pt-6">Spouse</h3>
                   <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       {/* Basic Info */}
@@ -550,10 +541,7 @@ const MemberDirectoryPage = () => {
                 {/* Children - View Mode */}
                 {member.children && member.children.length > 0 && (
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <div className="h-1 w-8 bg-purple-500 rounded-full"></div>
-                      <h3 className="text-lg font-semibold text-gray-900">Children ({member.children.length})</h3>
-                    </div>
+                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 border-t pt-6">Children ({member.children.length})</h3>
                     <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
                       <div className="space-y-4">
                         {member.children.map((child, index) => (
@@ -615,10 +603,7 @@ const MemberDirectoryPage = () => {
                 {(member.talent_to_share || member.interested_ministry || member.parish_help_needed || 
                   member.other_languages || member.ethnicity || member.homebound_special_needs) && (
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <div className="h-1 w-8 bg-orange-500 rounded-full"></div>
-                      <h3 className="text-lg font-semibold text-gray-900">Additional Information</h3>
-                    </div>
+                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 border-t pt-6">Additional Information</h3>
                   <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {/* Ministry & Talents */}
@@ -686,10 +671,7 @@ const MemberDirectoryPage = () => {
                 {/* Admin Notes - View Mode */}
                 {member.notes && (
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <div className="h-1 w-8 bg-gray-500 rounded-full"></div>
-                      <h3 className="text-lg font-semibold text-gray-900">Staff Notes</h3>
-                    </div>
+                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 border-t pt-6">Staff Notes</h3>
                   <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
                     <p className="text-sm text-gray-900">{member.notes}</p>
                   </div>

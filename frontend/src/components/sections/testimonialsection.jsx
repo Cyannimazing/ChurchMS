@@ -1,10 +1,25 @@
 import React from "react";
+import { Quote } from 'lucide-react';
+
+const TestimonialCard = ({ name, title, quote, heading }) => (
+  <div className="bg-white p-8 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 border border-gray-200">
+    <div className="mb-4">
+      <Quote className="w-10 h-10 text-indigo-200" />
+    </div>
+    <h3 className="text-xl font-bold text-gray-900 mb-3">{heading}</h3>
+    <p className="text-gray-600 leading-relaxed mb-6">"{quote}"</p>
+    <div className="pt-6 border-t border-gray-100">
+      <p className="font-semibold text-gray-900">{name}</p>
+      <p className="text-sm text-gray-500">{title}</p>
+    </div>
+  </div>
+);
 
 const TestimonialsSection = ({ id }) => {
   const testimonials = [
     {
       name: "Fr. John Santos",
-      title: "Parish Priest at St. Mary’s Church",
+      title: "Parish Priest at St. Mary's Church",
       quote:
         "FaithSeeker has transformed how we manage sacramental services. The online booking system and real-time scheduling have eliminated conflicts and saved us countless hours.",
       heading: "Streamlined Scheduling Process",
@@ -13,7 +28,7 @@ const TestimonialsSection = ({ id }) => {
       name: "Maria Cruz",
       title: "Church Administrator at Holy Cross Parish",
       quote:
-        "The role-based dashboard allows us to assign tasks efficiently and manage documents securely. It’s a game-changer for organizing baptisms and weddings seamlessly.",
+        "The role-based dashboard allows us to assign tasks efficiently and manage documents securely. It's a game-changer for organizing baptisms and weddings seamlessly.",
       heading: "Efficient Church Administration",
     },
     {
@@ -27,61 +42,32 @@ const TestimonialsSection = ({ id }) => {
       name: "Bro. Luis Gomez",
       title: "Church Staff at San Isidro Parish",
       quote:
-        "The automated notifications keep everyone informed about service updates. It’s made communication with parishioners smoother and reduced missed appointments.",
+        "The automated notifications keep everyone informed about service updates. It's made communication with parishioners smoother and reduced missed appointments.",
       heading: "Enhanced Communication",
     },
   ];
 
   return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center"
-      id={id}
-    >
-      <section className="py-24 bg-gray-50 w-full flex justify-center">
-        <div className="max-w-screen-xl mx-auto text-center">
-          <h1 className="mb-4 text-4xl font-extrabold leading-none tracking-tight md:text-5xl lg:text-6xl text-black">
-            Testimonials
-          </h1>
-          <p className="mb-6 text-lg font-normal text-black lg:text-xl mx-auto max-w-3xl">
-            Hear from those who have experienced the benefits of FaithSeeker.
-          </p>
-        </div>
-      </section>
+    <section className="py-24 bg-white" id={id}>
+      {/* Header */}
+      <div className="max-w-7xl mx-auto text-center px-4 sm:px-6 lg:px-8 mb-16">
+        <h1 className="mb-4 text-4xl font-bold leading-tight tracking-tight md:text-5xl lg:text-6xl text-gray-900">
+          What People <span className="text-indigo-600">Say</span>
+        </h1>
+        <p className="text-lg text-gray-600 lg:text-xl max-w-3xl mx-auto">
+          Hear from those who have experienced the benefits of FaithSeeker.
+        </p>
+      </div>
 
-      <div className="w-full flex justify-center">
-        <div className="grid mb-8 border border-gray-200 rounded-lg shadow-lg md:mb-12 md:grid-cols-2 bg-white max-w-screen-xl">
+      {/* Testimonials Grid */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {testimonials.map((testimonial, index) => (
-            <figure
-              key={index}
-              className={`flex flex-col items-center justify-center p-8 text-center bg-white border-gray-200 shadow-lg ${
-                index === 0
-                  ? "border-b rounded-t-lg md:rounded-t-none md:rounded-ss-lg md:border-e"
-                  : index === 1
-                  ? "border-b md:rounded-se-lg"
-                  : index === 2
-                  ? "border-b md:rounded-es-lg md:border-e md:border-b-0"
-                  : "rounded-b-lg md:rounded-se-lg"
-              }`}
-            >
-              <blockquote className="max-w-2xl mx-auto mb-4 text-gray-500 lg:mb-8 text-center">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {testimonial.heading}
-                </h3>
-                <p className="my-4">{testimonial.quote}</p>
-              </blockquote>
-              <figcaption className="flex flex-col items-center justify-center">
-                <div className="space-y-0.5 font-medium text-center">
-                  <div>{testimonial.name}</div>
-                  <div className="text-sm text-gray-500">
-                    {testimonial.title}
-                  </div>
-                </div>
-              </figcaption>
-            </figure>
+            <TestimonialCard key={index} {...testimonial} />
           ))}
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 

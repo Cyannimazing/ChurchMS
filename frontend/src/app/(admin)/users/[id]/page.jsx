@@ -82,7 +82,7 @@ const UserDetail = () => {
   if (isLoading) {
     return (
       <div className="p-6 w-full h-full">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full mx-auto">
           <DataLoading message="Loading user details..." />
         </div>
       </div>
@@ -92,7 +92,7 @@ const UserDetail = () => {
   if (!user) {
     return (
       <div className="lg:p-6 w-full h-full pt-20">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full mx-auto">
           <div className="bg-white overflow-hidden shadow-sm rounded-lg">
             <div className="p-6 text-center text-gray-600">User not found.</div>
           </div>
@@ -103,7 +103,7 @@ const UserDetail = () => {
 
   return (
     <div className="lg:p-6 w-full h-screen pt-20">
-      <div className="max-w-7xl mx-auto h-full">
+      <div className="w-full mx-auto h-full">
         <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
           <div className="p-6 bg-white border-b border-gray-200 flex-1 overflow-auto">
             {/* Header */}

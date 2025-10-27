@@ -1015,7 +1015,7 @@ const SacramentPage = () => {
                                           <div className="grid grid-cols-2 gap-4">
                                             <div>
                                               <Label className="text-xs font-medium text-gray-700">Start Time *</Label>
-                                              <input
+                                              <Input
                                                 type="time"
                                                 value={schedule.StartTime}
                                                 onChange={(e) => {
@@ -1029,7 +1029,7 @@ const SacramentPage = () => {
 
                                             <div>
                                               <Label className="text-xs font-medium text-gray-700">End Time *</Label>
-                                              <input
+                                              <Input
                                                 type="time"
                                                 value={schedule.EndTime}
                                                 onChange={(e) => {

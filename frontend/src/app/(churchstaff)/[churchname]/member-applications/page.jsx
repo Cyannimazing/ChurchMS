@@ -8,6 +8,7 @@ import axios from "@/lib/axios";
 import DataLoading from "@/components/DataLoading";
 import SearchAndPagination from "@/components/SearchAndPagination";
 import { Button } from "@/components/Button.jsx";
+import Label from "@/components/Label.jsx";
 
 const MemberApplicationsPage = () => {
   const { churchname } = useParams();
@@ -171,10 +172,7 @@ const MemberApplicationsPage = () => {
             <div className="bg-gray-50 rounded-xl p-4 space-y-4">
             {/* Parish Registration Info */}
             <div className="space-y-4">
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="h-1 w-8 bg-blue-500 rounded-full"></div>
-                <h3 className="text-lg font-semibold text-gray-900">Parish Registration</h3>
-              </div>
+              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">Parish Registration</h3>
             <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Personal & Contact Info */}
@@ -215,10 +213,7 @@ const MemberApplicationsPage = () => {
 
             {/* Head of House */}
             <div className="space-y-4">
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="h-1 w-8 bg-green-500 rounded-full"></div>
-                <h3 className="text-lg font-semibold text-gray-900">Head of House</h3>
-              </div>
+              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 border-t pt-6">Head of House</h3>
             <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Basic Info */}
@@ -296,10 +291,7 @@ const MemberApplicationsPage = () => {
             {/* Spouse Info */}
             {app.spouse_first_name && (
               <div className="space-y-4">
-                <div className="flex items-center space-x-2 mb-4">
-                  <div className="h-1 w-8 bg-pink-500 rounded-full"></div>
-                  <h3 className="text-lg font-semibold text-gray-900">Spouse</h3>
-                </div>
+                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 border-t pt-6">Spouse</h3>
               <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Basic Info */}
@@ -384,10 +376,7 @@ const MemberApplicationsPage = () => {
             {/* Children */}
             {app.children && app.children.length > 0 && (
               <div className="space-y-4">
-                <div className="flex items-center space-x-2 mb-4">
-                  <div className="h-1 w-8 bg-gray-400 rounded-full"></div>
-                  <h3 className="text-lg font-semibold text-gray-900">Children ({app.children.length})</h3>
-                </div>
+                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 border-t pt-6">Children ({app.children.length})</h3>
                 <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
                   <div className="space-y-4">
                     {app.children.map((child, index) => (
@@ -447,10 +436,7 @@ const MemberApplicationsPage = () => {
 
             {/* About Yourself */}
             <div className="space-y-4">
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="h-1 w-8 bg-gray-400 rounded-full"></div>
-                <h3 className="text-lg font-semibold text-gray-900">About Yourself</h3>
-              </div>
+              <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3 border-t pt-6">About Yourself</h3>
               <div className="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Ministry & Talents */}
@@ -515,15 +501,15 @@ const MemberApplicationsPage = () => {
             </div>
 
             {/* Notes Section */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="border-t pt-6">
+              <Label className="block text-sm font-medium text-gray-700 mb-1">
                 Notes (optional)
-              </label>
+              </Label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
                 placeholder="Add any notes about this application..."
               />
             </div>

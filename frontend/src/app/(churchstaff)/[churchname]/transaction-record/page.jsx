@@ -9,6 +9,8 @@ import DataLoading from "@/components/DataLoading";
 import SearchAndPagination from "@/components/SearchAndPagination";
 import { Button } from "@/components/Button.jsx";
 import Alert from "@/components/Alert.jsx";
+import Input from "@/components/Input.jsx";
+import Label from "@/components/Label.jsx";
 
 const TransactionRecordPage = () => {
   const { user } = useAuth({ middleware: "auth" });
@@ -22,6 +24,12 @@ const TransactionRecordPage = () => {
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
+  
+  // Filter states
+  const [selectedService, setSelectedService] = useState('');
+  const [selectedDate, setSelectedDate] = useState('');
+  const [availableServices, setAvailableServices] = useState([]);
+  const [availableDates, setAvailableDates] = useState([]);
   
   // Transaction details modal state
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -110,10 +118,62 @@ const TransactionRecordPage = () => {
       fetchConvenienceFee();
     }
   }, [hasAccess, churchname]);
+  
+  // Extract unique services and dates from transactions
+  useEffect(() => {
+    if (transactions.length > 0) {
+      // Extract unique services (exclude refunded)
+      const services = transactions
+        .filter(t => t.refund_status !== 'refunded' && t.appointment?.service?.ServiceName)
+        .map(t => t.appointment.service.ServiceName)
+        .filter((value, index, self) => self.indexOf(value) === index)
+        .sort();
+      setAvailableServices(services);
+    }
+  }, [transactions]);
+  
+  // Update available dates when service is selected
+  useEffect(() => {
+    if (selectedService && transactions.length > 0) {
+      // Extract dates for the selected service
+      const dates = transactions
+        .filter(t => 
+          t.refund_status !== 'refunded' && 
+          t.appointment?.service?.ServiceName === selectedService &&
+          t.transaction_date
+        )
+        .map(t => {
+          const date = new Date(t.transaction_date);
+          return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+        })
+        .filter((value, index, self) => self.indexOf(value) === index)
+        .sort((a, b) => new Date(b) - new Date(a)); // Sort descending (newest first)
+      setAvailableDates(dates);
+    } else {
+      setAvailableDates([]);
+      setSelectedDate('');
+    }
+  }, [selectedService, transactions]);
 
-  // Filter transactions based on search term
+  // Filter transactions based on search term, service, and date
   useEffect(() => {
     let filtered = [...transactions];
+    
+    // Apply service filter
+    if (selectedService) {
+      filtered = filtered.filter(transaction => 
+        transaction.appointment?.service?.ServiceName === selectedService
+      );
+    }
+    
+    // Apply date filter
+    if (selectedDate) {
+      filtered = filtered.filter(transaction => {
+        if (!transaction.transaction_date) return false;
+        const transactionDate = new Date(transaction.transaction_date).toISOString().split('T')[0];
+        return transactionDate === selectedDate;
+      });
+    }
     
     // Apply search filter
     if (searchTerm) {
@@ -133,7 +193,7 @@ const TransactionRecordPage = () => {
     
     setFilteredTransactions(filtered);
     setCurrentPage(1);
-  }, [searchTerm, transactions]);
+  }, [searchTerm, selectedService, selectedDate, transactions]);
 
   // Pagination
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
@@ -361,10 +421,17 @@ const TransactionRecordPage = () => {
     }
   };
 
-  // Calculate totals (exclude refunded transactions)
-  const totalIncome = transactions
+  // Calculate totals (exclude refunded transactions, apply filters)
+  const totalIncome = filteredTransactions
     .filter(t => t.refund_status !== 'refunded')
     .reduce((sum, t) => sum + parseFloat(t.amount_paid || 0), 0);
+  
+  // Clear all filters
+  const handleClearFilters = () => {
+    setSelectedService('');
+    setSelectedDate('');
+    setSearchTerm('');
+  };
 
   if (!hasAccess) {
     return (
@@ -401,21 +468,21 @@ const TransactionRecordPage = () => {
         )}
         
         <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
-          <div className="p-6 bg-white border-b border-gray-200 flex-1 overflow-auto">
-            <h1 className="text-2xl font-semibold text-gray-900 mb-6">
+          <div className="p-4 bg-white border-b border-gray-200 flex-1 overflow-auto">
+            <h1 className="text-xl font-semibold text-gray-900 mb-4">
               Church Transaction Record
             </h1>
             
-            <div className="mt-6">
+            <div className="mt-4">
               <div className="overflow-x-auto">
                 <div className="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
-                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-                    <div className="flex justify-between items-start">
+                  <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+                    <div className="flex justify-between items-center">
                       <div>
-                        <h3 className="text-lg font-medium text-gray-900">Appointment Payment Records</h3>
-                        <p className="mt-1 text-sm text-gray-600">View all income transactions from appointment payments.</p>
+                        <h3 className="text-base font-medium text-gray-900">Appointment Payment Records</h3>
+                        <p className="text-xs text-gray-600">View all transactions from appointment payments.</p>
                       </div>
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center gap-3">
                         {convenienceFee && convenienceFee.is_active && (
                           <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
                             <div className="text-sm">
@@ -440,7 +507,117 @@ const TransactionRecordPage = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="px-6 py-4 space-y-4">
+                  <div className="px-4 py-3 space-y-3">
+                    {/* Filters */}
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <h4 className="text-sm font-medium text-gray-700">Filters</h4>
+                          {(selectedService || selectedDate || searchTerm) && (
+                            <Button
+                              onClick={handleClearFilters}
+                              variant="outline"
+                              className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-600 hover:text-gray-800 border-gray-300"
+                            >
+                              <X className="h-3 w-3 mr-1" />
+                              Clear Filters
+                            </Button>
+                          )}
+                        </div>
+                        {/* Total Amount Display */}
+                        <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-1.5">
+                          <div className="text-xs text-green-600 font-medium">Collections</div>
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-lg font-bold text-green-700">{formatCurrency(totalIncome)}</span>
+                            <span className="text-xs text-green-600">({filteredTransactions.filter(t => t.refund_status !== 'refunded').length})</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Service Filter */}
+                        <div>
+                          <Label htmlFor="service-filter" className="text-sm font-medium text-gray-700 mb-1">
+                            Service
+                          </Label>
+                          <select
+                            id="service-filter"
+                            value={selectedService}
+                            onChange={(e) => setSelectedService(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm cursor-pointer"
+                          >
+                            <option value="">All Services</option>
+                            {availableServices.map((service) => (
+                              <option key={service} value={service}>
+                                {service}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        
+                        {/* Date Filter */}
+                        <div>
+                          <Label htmlFor="date-filter" className="text-sm font-medium text-gray-700 mb-1">
+                            Transaction Date
+                          </Label>
+                          <select
+                            id="date-filter"
+                            value={selectedDate}
+                            onChange={(e) => setSelectedDate(e.target.value)}
+                            disabled={!selectedService && availableDates.length === 0}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          >
+                            <option value="">All Dates</option>
+                            {selectedService && availableDates.length > 0 ? (
+                              availableDates.map((date) => (
+                                <option key={date} value={date}>
+                                  {new Date(date + 'T00:00:00').toLocaleDateString('en-PH', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                  })}
+                                </option>
+                              ))
+                            ) : (
+                              !selectedService && (
+                                <option value="" disabled>Select a service first</option>
+                              )
+                            )}
+                          </select>
+                          {selectedService && availableDates.length === 0 && (
+                            <p className="text-xs text-gray-500 mt-1">No dates available for this service</p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Active Filters Display */}
+                      {(selectedService || selectedDate) && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {selectedService && (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              Service: {selectedService}
+                              <button
+                                onClick={() => setSelectedService('')}
+                                className="ml-1.5 hover:text-blue-900"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </span>
+                          )}
+                          {selectedDate && (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                              Date: {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              <button
+                                onClick={() => setSelectedDate('')}
+                                className="ml-1.5 hover:text-purple-900"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
                     <div className="text-sm text-gray-600">
                       Showing {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? 's' : ''}
                     </div>
@@ -852,10 +1029,36 @@ const TransactionRecordPage = () => {
                   </div>
                 </div>
 
+                {/* Cancellation Info */}
+                {selectedTransaction.appointment && selectedTransaction.appointment.cancellation_category && (
+                  <div className="p-4 bg-gray-50 border border-gray-300 rounded-lg">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3">Cancellation Information</h4>
+                    
+                    {/* Cancellation badge */}
+                    <div className="mb-2">
+                      <span className="text-xs font-medium text-gray-700">Category:</span>
+                      <div className={`mt-1 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                        selectedTransaction.appointment.cancellation_category === 'no_fee' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {selectedTransaction.appointment.cancellation_category === 'no_fee' ? 'No Fee (Green)' : 'With Fee (Red)'}
+                      </div>
+                    </div>
+
+                    {/* Cancellation note */}
+                    {selectedTransaction.appointment.cancellation_note && (
+                      <div>
+                        <span className="text-xs font-medium text-gray-700">Note:</span>
+                        <p className="text-xs text-gray-600 mt-1 bg-white p-2 rounded border border-gray-200">{selectedTransaction.appointment.cancellation_note}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Refund calculation display */}
                 {selectedTransaction && (
                   <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <h4 className="text-sm font-medium text-blue-900 mb-2">Refund Calculation</h4>
+
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-blue-700">Base Amount:</span>
@@ -878,46 +1081,46 @@ const TransactionRecordPage = () => {
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Label className="block text-sm font-medium text-gray-700 mb-1">
                     Receipt Code <span className="text-red-500">*</span>
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     type="text"
                     value={refundData.receipt_code}
                     onChange={(e) => setRefundData({...refundData, receipt_code: e.target.value.toUpperCase()})}
                     placeholder="Enter receipt code (e.g., TXN000123)"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
                     required
                   />
                 </div>
 
                 {/* Apply convenience fee checkbox */}
                 <div className="border-t border-gray-200 pt-3">
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center">
                     <input
                       type="checkbox"
                       id="apply_convenience_fee"
                       checked={refundData.apply_convenience_fee}
                       onChange={(e) => setRefundData({...refundData, apply_convenience_fee: e.target.checked})}
                       disabled={!convenienceFee || !convenienceFee.is_active}
-                      className="rounded"
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     />
-                    <label htmlFor="apply_convenience_fee" className={`text-sm ${
+                    <Label htmlFor="apply_convenience_fee" className={`ml-2 text-sm font-medium ${
                       convenienceFee && convenienceFee.is_active ? 'text-gray-700' : 'text-gray-400'
                     }`}>
                       Apply convenience fee deduction
-                      {convenienceFee && convenienceFee.is_active && (
-                        <span className="ml-2 text-xs text-blue-600">
-                          ({convenienceFee.fee_type === 'percent' ? `${convenienceFee.fee_value}%` : formatCurrency(convenienceFee.fee_value)})
-                        </span>
-                      )}
-                      {(!convenienceFee || !convenienceFee.is_active) && (
-                        <span className="ml-2 text-xs text-gray-400">
-                          (No active convenience fee)
-                        </span>
-                      )}
-                    </label>
+                    </Label>
                   </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {convenienceFee && convenienceFee.is_active ? (
+                      <>
+                        Fee: {convenienceFee.fee_type === 'percent' ? `${convenienceFee.fee_value}%` : formatCurrency(convenienceFee.fee_value)} - 
+                        This will be deducted from the refund amount.
+                      </>
+                    ) : (
+                      'No active convenience fee configured.'
+                    )}
+                  </p>
                 </div>
 
               </div>
@@ -987,80 +1190,71 @@ const TransactionRecordPage = () => {
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Label className="block text-sm font-medium text-gray-700 mb-1">
                     Fee Name
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     type="text"
                     value={convenienceFeeForm.fee_name}
                     onChange={(e) => setConvenienceFeeForm({...convenienceFeeForm, fee_name: e.target.value})}
                     placeholder="Enter fee name"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Label className="block text-sm font-medium text-gray-700 mb-2">
                     Fee Type
-                  </label>
-                  <div className="flex space-x-4">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="fee_type"
-                        value="percent"
-                        checked={convenienceFeeForm.fee_type === 'percent'}
-                        onChange={(e) => setConvenienceFeeForm({...convenienceFeeForm, fee_type: e.target.value})}
-                        className="mr-2"
-                      />
-                      <span className="text-sm text-gray-700">Percentage (%)</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="fee_type"
-                        value="fixed"
-                        checked={convenienceFeeForm.fee_type === 'fixed'}
-                        onChange={(e) => setConvenienceFeeForm({...convenienceFeeForm, fee_type: e.target.value})}
-                        className="mr-2"
-                      />
-                      <span className="text-sm text-gray-700">Fixed Amount (₱)</span>
-                    </label>
-                  </div>
+                  </Label>
+                  <select
+                    value={convenienceFeeForm.fee_type}
+                    onChange={(e) => setConvenienceFeeForm({...convenienceFeeForm, fee_type: e.target.value})}
+                    className="w-full bg-white border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="percent">Percentage (%)</option>
+                    <option value="fixed">Fixed Amount (PHP)</option>
+                  </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Label className="block text-sm font-medium text-gray-700 mb-1">
                     Fee Value
-                  </label>
-                  <input
+                  </Label>
+                  <Input
                     type="number"
                     step={convenienceFeeForm.fee_type === 'percent' ? '0.01' : '0.01'}
                     min="0"
                     max={convenienceFeeForm.fee_type === 'percent' ? '100' : undefined}
                     value={convenienceFeeForm.fee_value}
                     onChange={(e) => setConvenienceFeeForm({...convenienceFeeForm, fee_value: parseFloat(e.target.value) || 0})}
-                    placeholder={convenienceFeeForm.fee_type === 'percent' ? 'Enter percentage (0-100)' : 'Enter amount'}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder={convenienceFeeForm.fee_type === 'percent' ? 'Enter percentage (e.g., 2.5 for 2.5%)' : 'Enter amount (e.g., 100 for PHP100)'}
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
                     required
                   />
-                  {convenienceFeeForm.fee_type === 'percent' && (
-                    <p className="text-xs text-gray-500 mt-1">Enter percentage value (e.g., 2.5 for 2.5%)</p>
-                  )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    {convenienceFeeForm.fee_type === 'percent' 
+                      ? 'Enter the percentage fee (e.g., 2.5 for 2.5%)' 
+                      : 'Enter the fixed fee amount in PHP (e.g., 100 for PHP100)'}
+                  </p>
                 </div>
 
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="is_active"
-                    checked={convenienceFeeForm.is_active}
-                    onChange={(e) => setConvenienceFeeForm({...convenienceFeeForm, is_active: e.target.checked})}
-                    className="mr-2"
-                  />
-                  <label htmlFor="is_active" className="text-sm text-gray-700">
-                    Active (deduct from refunds)
-                  </label>
+                <div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="is_active"
+                      checked={convenienceFeeForm.is_active}
+                      onChange={(e) => setConvenienceFeeForm({...convenienceFeeForm, is_active: e.target.checked})}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                    <Label htmlFor="is_active" className="ml-2 text-sm font-medium text-gray-700">
+                      Active (deduct from refunds)
+                    </Label>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Check this box to automatically deduct this fee from refund calculations.
+                  </p>
                 </div>
               </div>
 
