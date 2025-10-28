@@ -267,7 +267,7 @@ const SacramentPage = () => {
   };
 
   const handleConfigure = (sacramentId) => {
-    router.push(`/${churchname}/sacrament/configure/${sacramentId}`);
+    router.push(`/${churchname}/service/configure/${sacramentId}`);
   };
 
   const handleSubmit = async (e) => {
@@ -339,11 +339,19 @@ const SacramentPage = () => {
     return () => clearTimeout(timeout);
   }, [alertMessage]);
 
-  const hasAccess =
-    user?.profile?.system_role?.role_name === "ChurchOwner" ||
-    user?.church_role?.permissions?.some(
-      (perm) => perm.PermissionName === "sacrament_list"
-    );
+  // Permission helper function
+  const hasPermission = (permissionName) => {
+    return user?.profile?.system_role?.role_name === "ChurchOwner" ||
+      user?.church_role?.permissions?.some(
+        (perm) => perm.PermissionName === permissionName
+      );
+  };
+
+  const hasAccess = hasPermission("service_list");
+  const canAddService = hasPermission("service_add");
+  const canEditService = hasPermission("service_edit");
+  const canDeleteService = hasPermission("service_delete");
+  const canConfigureService = hasPermission("service_configure");
 
   if (!hasAccess) {
     return (
@@ -355,7 +363,7 @@ const SacramentPage = () => {
                 Unauthorized
               </h2>
               <p className="mt-2 text-gray-600">
-                You do not have permission to access the Sacrament page.
+                You do not have permission to access the Service page.
               </p>
             </div>
           </div>
@@ -398,7 +406,12 @@ const SacramentPage = () => {
                         <h3 className="text-lg font-medium text-gray-900">Church Sacraments</h3>
                         <p className="mt-1 text-sm text-gray-600">Manage sacraments and their schedules for church members.</p>
                       </div>
-                      <Button onClick={handleOpen} className="flex items-center">
+                      <Button 
+                        onClick={handleOpen} 
+                        className="flex items-center" 
+                        disabled={!canAddService}
+                        title={!canAddService ? 'You do not have permission to add services' : ''}
+                      >
                         <Plus className="mr-2 h-4 w-4" />
                         Add Sacrament
                       </Button>
@@ -501,8 +514,9 @@ const SacramentPage = () => {
                                   <Button
                                     onClick={() => handleEdit(sacrament.ServiceID)}
                                     variant="outline"
-                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 min-h-0 h-auto"
-                                    disabled={isLoadingEdit}
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 min-h-0 h-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={isLoadingEdit || !canEditService}
+                                    title={!canEditService ? 'You do not have permission to edit services' : ''}
                                   >
                                     {isLoadingEdit ? (
                                       <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -514,7 +528,9 @@ const SacramentPage = () => {
                                   <Button
                                     onClick={() => handleDelete(sacrament.ServiceID)}
                                     variant="outline"
-                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto"
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={!canDeleteService}
+                                    title={!canDeleteService ? 'You do not have permission to delete services' : ''}
                                   >
                                     <Trash2 className="h-3 w-3 mr-1" />
                                     Delete
@@ -522,7 +538,9 @@ const SacramentPage = () => {
                                   <Button
                                     onClick={() => handleConfigure(sacrament.ServiceID)}
                                     variant="outline"
-                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 min-h-0 h-auto"
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 min-h-0 h-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={!canConfigureService}
+                                    title={!canConfigureService ? 'You do not have permission to configure services' : ''}
                                   >
                                     <Settings className="h-3 w-3 mr-1" />
                                     Configure

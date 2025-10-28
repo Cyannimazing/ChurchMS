@@ -7,6 +7,8 @@ use App\Models\ChurchOwnerDocument;
 use App\Models\ChurchProfile;
 use App\Models\ChurchSubscription;
 use App\Models\ChurchPaymentConfig;
+use App\Models\ChurchRole;
+use App\Models\Permission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -180,6 +182,18 @@ class ChurchController extends Controller
                         ];
                     }
                 }
+
+                // Create Admin role with all permissions
+                $adminRole = ChurchRole::create([
+                    'ChurchID' => $church->ChurchID,
+                    'RoleName' => 'Admin'
+                ]);
+
+                // Get all permissions
+                $allPermissions = Permission::all();
+
+                // Attach all permissions to the admin role
+                $adminRole->permissions()->attach($allPermissions->pluck('PermissionID'));
 
                 // Return successful response with comprehensive information
                 return response()->json([

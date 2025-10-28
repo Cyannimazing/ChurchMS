@@ -219,6 +219,7 @@ const FormBuilderPage = () => {
   const [formElements, setFormElements] = useState([]);
   const [selectedElement, setSelectedElement] = useState(null);
   const [serviceName, setServiceName] = useState("");
+  const [isMass, setIsMass] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [requirements, setRequirements] = useState([]);
@@ -248,6 +249,7 @@ const FormBuilderPage = () => {
         const sacrament = sacramentResponse.data.sacraments?.find(s => s.ServiceID.toString() === serviceId);
         if (sacrament) {
           setServiceName(sacrament.ServiceName || "Sacrament Service");
+          setIsMass(sacrament.isMass || false);
         }
         
         // Load existing form configuration if any
@@ -515,6 +517,39 @@ const FormBuilderPage = () => {
   const saveFormConfiguration = async () => {
     if (isSaving) return; // Prevent multiple saves
     
+    // Validation for Mass services
+    if (isMass) {
+      const donationLabels = formElements.filter(el => 
+        (el.type === 'heading' || el.type === 'paragraph') && 
+        el.content && 
+        el.content.toUpperCase().includes('DONATION')
+      );
+      
+      const donationFields = formElements.filter(el => 
+        el.type === 'number' && 
+        el.label && 
+        el.label.toUpperCase().includes('DONATION')
+      );
+      
+      if (donationLabels.length === 0 || donationFields.length === 0) {
+        setAlertMessage('Mass services must include a "DONATION" label (heading/paragraph) and a "DONATION" number input field.');
+        setAlertType('error');
+        return;
+      }
+      
+      if (donationLabels.length > 1) {
+        setAlertMessage('Mass services must have exactly one "DONATION" label. You have ' + donationLabels.length + ' labels.');
+        setAlertType('error');
+        return;
+      }
+      
+      if (donationFields.length > 1) {
+        setAlertMessage('Mass services must have exactly one "DONATION" number input field. You have ' + donationFields.length + ' fields.');
+        setAlertType('error');
+        return;
+      }
+    }
+    
     try {
       setIsSaving(true);
       
@@ -563,8 +598,8 @@ const FormBuilderPage = () => {
       
       console.log("Form configuration saved:", response.data);
       
-      // Redirect back to sacrament page after successful save
-      router.push(`/${churchname}/sacrament`);
+      // Redirect back to service page after successful save
+      router.push(`/${churchname}/service`);
       
     } catch (error) {
       console.error("Failed to save form configuration:", error);
@@ -726,15 +761,15 @@ const FormBuilderPage = () => {
         {/* Header */}
         <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Button
-              onClick={() => router.push(`/${churchname}/sacrament`)}
-              variant="outline"
-              className="flex items-center"
-              disabled
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Sacraments
-            </Button>
+          <Button
+            onClick={() => router.push(`/${churchname}/service`)}
+            variant="outline"
+            className="flex items-center"
+            disabled
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Services
+          </Button>
             <div>
               <h1 className="text-xl font-semibold text-gray-900">Form Builder</h1>
               <p className="text-sm text-gray-600">Loading...</p>
@@ -800,14 +835,14 @@ const FormBuilderPage = () => {
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button
-            onClick={() => router.push(`/${churchname}/sacrament`)}
-            variant="outline"
-            className="flex items-center"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Sacraments
-          </Button>
+        <Button
+          onClick={() => router.push(`/${churchname}/service`)}
+          variant="outline"
+          className="flex items-center"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Services
+        </Button>
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Form Builder</h1>
             <p className="text-sm text-gray-600">Configure: {serviceName}</p>
@@ -834,27 +869,18 @@ const FormBuilderPage = () => {
         </div>
       </div>
 
-      {/* Toast Notification */}
+      {/* Inline Alert Notification */}
       {alertMessage && (
-        <div className="fixed top-4 right-4 z-50 max-w-sm">
-          <div className={`rounded-lg shadow-lg p-4 flex items-center justify-between transition-all duration-300 transform ${
-            alertType === "success" 
-              ? "bg-white border border-green-200 text-green-800" 
-              : "bg-white border border-red-200 text-red-800"
+        <div className="px-6 py-3 bg-white border-b border-gray-200">
+          <div className={`p-4 rounded-md flex justify-between items-center ${
+            alertType === "success" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
           }`}>
-            <div className="flex items-center">
-              {alertType === "success" ? (
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
-              ) : (
-                <div className="w-2 h-2 bg-red-500 rounded-full mr-3"></div>
-              )}
-              <p className="text-sm font-medium">{alertMessage}</p>
-            </div>
+            <p className="text-sm font-medium">{alertMessage}</p>
             <button
               onClick={() => setAlertMessage("")}
-              className="ml-4 inline-flex text-gray-400 hover:text-gray-600 transition-colors"
+              className="inline-flex text-gray-400 hover:text-gray-600"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </button>
           </div>
         </div>

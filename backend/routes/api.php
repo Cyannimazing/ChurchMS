@@ -122,6 +122,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('staff', [ChurchStaffController::class, 'store']);
     Route::get('staff/{staffId}', [ChurchStaffController::class, 'show']);
     Route::put('staff/{staffId}', [ChurchStaffController::class, 'update']);
+    Route::patch('staff/{staffId}/toggle-status', [ChurchStaffController::class, 'toggleStatus']);
 });
 
 //Clergy Management

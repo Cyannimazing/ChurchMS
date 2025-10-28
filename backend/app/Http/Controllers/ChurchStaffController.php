@@ -146,4 +146,18 @@ class ChurchStaffController extends Controller
             'userChurchRole' => $userChurchRole->load(['user.profile', 'church', 'role'])
         ]);
     }
+
+    public function toggleStatus($userChurchRoleId)
+    {
+        $userChurchRole = UserChurchRole::findOrFail($userChurchRoleId);
+        
+        // Toggle the is_active status
+        $userChurchRole->is_active = !$userChurchRole->is_active;
+        $userChurchRole->save();
+        
+        return response()->json([
+            'message' => 'Staff status updated successfully',
+            'is_active' => $userChurchRole->is_active
+        ]);
+    }
 }

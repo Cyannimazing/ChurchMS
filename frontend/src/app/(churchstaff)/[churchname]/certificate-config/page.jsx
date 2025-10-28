@@ -6,9 +6,22 @@ import { Settings, FileText, Save, RotateCcw, ChevronRight } from "lucide-react"
 import { Button } from "@/components/Button.jsx";
 import Alert from "@/components/Alert";
 import axios from "@/lib/axios";
+import { useAuth } from "@/hooks/auth.jsx";
 
 const CertificateConfig = () => {
   const { churchname } = useParams();
+  const { user } = useAuth();
+
+  // Permission helper
+  const hasPermission = (permissionName) => {
+    return user?.profile?.system_role?.role_name === "ChurchOwner" ||
+      user?.church_role?.permissions?.some(
+        (perm) => perm.PermissionName === permissionName
+      );
+  };
+
+  const hasAccess = hasPermission("certificate-config_list");
+  const canFieldMapping = hasPermission("certificate-config_fieldMapping");
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -260,6 +273,21 @@ const CertificateConfig = () => {
 
   const selectedCert = certificates.find(cert => cert.id === selectedCertificate);
 
+  if (!hasAccess) {
+    return (
+      <div className="lg:p-6 w-full h-screen pt-20">
+        <div className="w-full h-full">
+          <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
+            <div className="p-6 bg-white border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-red-600">Unauthorized</h2>
+              <p className="mt-2 text-gray-600">You do not have permission to access the Certificate Configuration page.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="lg:p-6 w-full h-screen pt-20">
       <div className="w-full h-full">
@@ -380,7 +408,7 @@ const CertificateConfig = () => {
                                     selectedCert.setConfig({ ...selectedCert.config, fields: updatedFields });
                                   }}
                                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                                  disabled={!selectedCert?.config.enabled || isLoadingFields}
+                                  disabled={!selectedCert?.config.enabled || isLoadingFields || !canFieldMapping}
                                 >
                                   <option value="">Select a field</option>
                                   {Array.isArray(serviceInputFields) && serviceInputFields.map((inputField) => (
@@ -449,7 +477,7 @@ const CertificateConfig = () => {
                                     selectedCert.setConfig({ ...selectedCert.config, fields: updatedFields });
                                   }}
                                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                                  disabled={!selectedCert?.config.enabled || isLoadingFields}
+                                  disabled={!selectedCert?.config.enabled || isLoadingFields || !canFieldMapping}
                                 >
                                   <option value="">Select a field</option>
                                   {Array.isArray(serviceInputFields) && serviceInputFields.map((inputField) => (
@@ -518,7 +546,7 @@ const CertificateConfig = () => {
                                     selectedCert.setConfig({ ...selectedCert.config, fields: updatedFields });
                                   }}
                                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                                  disabled={!selectedCert?.config.enabled || isLoadingFields}
+                                  disabled={!selectedCert?.config.enabled || isLoadingFields || !canFieldMapping}
                                 >
                                   <option value="">Select a field</option>
                                   {Array.isArray(serviceInputFields) && serviceInputFields.map((inputField) => (
@@ -587,7 +615,7 @@ const CertificateConfig = () => {
                                     selectedCert.setConfig({ ...selectedCert.config, fields: updatedFields });
                                   }}
                                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                                  disabled={!selectedCert?.config.enabled || isLoadingFields}
+                                  disabled={!selectedCert?.config.enabled || isLoadingFields || !canFieldMapping}
                                 >
                                   <option value="">Select a field</option>
                                   {Array.isArray(serviceInputFields) && serviceInputFields.map((inputField) => (
@@ -677,7 +705,8 @@ const CertificateConfig = () => {
                   <Button
                     onClick={handleSave}
                     className="flex items-center"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !canFieldMapping}
+                    title={!canFieldMapping ? 'You do not have permission to save field mappings' : ''}
                   >
                     <Save className="mr-2 h-4 w-4" />
                     {isSubmitting ? "Saving..." : "Save Changes"}

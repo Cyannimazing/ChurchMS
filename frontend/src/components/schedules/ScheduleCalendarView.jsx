@@ -18,7 +18,10 @@ const ScheduleCalendarView = ({
   onDeleteSchedule,
   onCreateSchedule,
   selectedService,
-  searchTerm
+  searchTerm,
+  canEditSchedule = true,
+  canDeleteSchedule = true,
+  canAddSchedule = true
 }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -278,6 +281,8 @@ const ScheduleCalendarView = ({
                   onClick={() => onCreateSchedule()}
                   className="w-full flex items-center justify-center"
                   variant="outline"
+                  disabled={!canAddSchedule}
+                  title={!canAddSchedule ? 'You do not have permission to add schedules' : ''}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Schedule
@@ -291,6 +296,8 @@ const ScheduleCalendarView = ({
                 onClick={() => onCreateSchedule()}
                 className="flex items-center justify-center"
                 variant="outline"
+                disabled={!canAddSchedule}
+                title={!canAddSchedule ? 'You do not have permission to add schedules' : ''}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Schedule

@@ -201,12 +201,43 @@ const RolePermissionPage = () => {
   };
 
   const handlePermissionChange = (permission) => {
-    setForm((prev) => ({
-      ...prev,
-      permissions: prev.permissions.includes(permission)
-        ? prev.permissions.filter((p) => p !== permission)
-        : [...prev.permissions, permission],
-    }));
+    setForm((prev) => {
+      const isChecked = prev.permissions.includes(permission);
+      const moduleName = permission.split('_')[0];
+      const moduleListPerm = `${moduleName}_list`;
+
+      if (isChecked) {
+        // Remove the permission
+        const next = prev.permissions.filter((p) => p !== permission);
+        return { ...prev, permissions: next };
+      } else {
+        // Add the permission and ensure module list is also checked
+        const next = [...prev.permissions, permission];
+        if (permission !== moduleListPerm && !next.includes(moduleListPerm)) {
+          next.push(moduleListPerm);
+        }
+        return { ...prev, permissions: next };
+      }
+    });
+  };
+
+  const toggleModuleList = (moduleName) => {
+    const moduleListPerm = `${moduleName}_list`;
+    setForm((prev) => {
+      const isChecked = prev.permissions.includes(moduleListPerm);
+      // Determine if any child permission (non-list) in this module is checked
+      const hasChildChecked = prev.permissions.some((p) => p.startsWith(`${moduleName}_`) && p !== moduleListPerm);
+
+      if (isChecked) {
+        // If children are checked, do not allow unchecking
+        if (hasChildChecked) return prev;
+        // Otherwise, allow uncheck
+        return { ...prev, permissions: prev.permissions.filter((p) => p !== moduleListPerm) };
+      } else {
+        // Check the list permission
+        return { ...prev, permissions: [...prev.permissions, moduleListPerm] };
+      }
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -486,7 +517,7 @@ const RolePermissionPage = () => {
       {open && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
           <div
-            className="bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 p-6 relative max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 p-6 relative max-h-[90vh] overflow-y-auto"
             role="dialog"
             aria-labelledby="modal-title"
           >
@@ -500,7 +531,7 @@ const RolePermissionPage = () => {
             </Button>
             <h2
               id="modal-title"
-              className="text-xl font-bold text-gray-900 mb-6"
+              className="text-2xl font-bold text-gray-900 mb-6"
             >
               {editRoleId ? "Edit Role" : "Create Role"}
             </h2>
@@ -540,20 +571,63 @@ const RolePermissionPage = () => {
                     No permissions available. Check API or login status.
                   </p>
                 ) : (
-                  <div className="max-h-60 overflow-y-auto space-y-2 border border-gray-200 rounded-md p-3 bg-gray-50">
-                    {permissions.map((permission) => (
-                      <label key={permission} className="flex items-center cursor-pointer hover:bg-white rounded px-2 py-1 transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={form.permissions.includes(permission)}
-                          onChange={() => handlePermissionChange(permission)}
-                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        />
-                        <span className="ml-2 text-sm text-gray-700">
-                          {permission.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase())}
-                        </span>
-                      </label>
-                    ))}
+                  <div className="max-h-[55vh] overflow-y-auto border border-gray-200 rounded-md bg-gray-50 p-3">
+                    {(() => {
+                      // Group permissions by module
+                      const grouped = {};
+                      permissions.forEach(permission => {
+                        const moduleName = permission.split('_')[0];
+                        if (!grouped[moduleName]) grouped[moduleName] = [];
+                        grouped[moduleName].push(permission);
+                      });
+
+                      const sortedModules = Object.keys(grouped).sort();
+
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {sortedModules.map(module => {
+                            const moduleListPerm = `${module}_list`;
+                            const childPermissions = grouped[module].filter((p) => p !== moduleListPerm);
+                            const hasChildChecked = childPermissions.some((p) => form.permissions.includes(p));
+                            const isModuleListChecked = form.permissions.includes(moduleListPerm);
+
+                            return (
+                              <div key={module} className="rounded-lg border border-gray-200 bg-white shadow-sm">
+                                <div className="bg-gray-100 px-3 py-2 rounded-t-lg flex items-center justify-between">
+                                  <span className="font-semibold text-sm text-gray-800 capitalize">{module.replace('-', ' ')}</span>
+                                  <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                                    <span>Menu</span>
+                                    <input
+                                      type="checkbox"
+                                      checked={isModuleListChecked}
+                                      onChange={() => toggleModuleList(module)}
+                                      disabled={hasChildChecked && isModuleListChecked}
+                                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                                      title={hasChildChecked && isModuleListChecked ? 'Cannot uncheck while other permissions are selected' : ''}
+                                    />
+                                  </label>
+                                </div>
+                                <div className="p-3 space-y-2">
+                                  {childPermissions.map((permission) => (
+                                    <label key={permission} className="flex items-center cursor-pointer hover:bg-gray-50 rounded px-2 py-1 transition-colors">
+                                      <input
+                                        type="checkbox"
+                                        checked={form.permissions.includes(permission)}
+                                        onChange={() => handlePermissionChange(permission)}
+                                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                      />
+                                      <span className="ml-2 text-sm text-gray-700">
+                                        {permission.split('_').slice(1).join(' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                      </span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
                 <p className="mt-1 text-xs text-gray-500">

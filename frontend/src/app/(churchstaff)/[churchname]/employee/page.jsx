@@ -252,6 +252,9 @@ const EmployeePage = () => {
   // Confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState({ open: false, clergyId: null, currentStatus: null });
   const [confirmLoading, setConfirmLoading] = useState(false);
+  // Staff confirm dialog state
+  const [staffConfirmDialog, setStaffConfirmDialog] = useState({ open: false, staffId: null, currentStatus: null });
+  const [staffConfirmLoading, setStaffConfirmLoading] = useState(false);
   const itemsPerPage = 5;
 
   useEffect(() => {
@@ -566,6 +569,35 @@ const EmployeePage = () => {
     }
   };
 
+  const handleStaffToggleStatus = (staffId, currentStatus) => {
+    setStaffConfirmDialog({
+      open: true,
+      staffId,
+      currentStatus
+    });
+  };
+
+  const confirmStaffToggleStatus = async () => {
+    try {
+      setStaffConfirmLoading(true);
+      await axios.patch(`/api/staff/${staffConfirmDialog.staffId}/toggle-status`);
+      
+      // Refresh staff list
+      const data = await fetchChurchStaffAndRoles(churchname, () => {});
+      setStaffList(data.staff);
+      setFilteredStaff(data.staff);
+      
+      setAlertMessage(`Staff member ${staffConfirmDialog.currentStatus ? 'deactivated' : 'activated'} successfully!`);
+      setAlertType("success");
+    } catch (err) {
+      setAlertMessage("Failed to update staff status.");
+      setAlertType("error");
+    } finally {
+      setStaffConfirmLoading(false);
+      setStaffConfirmDialog({ open: false, staffId: null, currentStatus: null });
+    }
+  };
+
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === "Escape" && open) {
@@ -576,11 +608,18 @@ const EmployeePage = () => {
     return () => window.removeEventListener("keydown", handleEscape);
   }, [open]);
 
-  const hasAccess =
-    user?.profile?.system_role?.role_name === "ChurchOwner" ||
-    user?.church_role?.permissions?.some(
-      (perm) => perm.PermissionName === "employee_list"
-    );
+  // Permission helper function
+  const hasPermission = (permissionName) => {
+    return user?.profile?.system_role?.role_name === "ChurchOwner" ||
+      user?.church_role?.permissions?.some(
+        (perm) => perm.PermissionName === permissionName
+      );
+  };
+
+  const hasAccess = hasPermission("employee_list");
+  const canAddEmployee = hasPermission("employee_add");
+  const canEditEmployee = hasPermission("employee_edit");
+  const canDeactivateEmployee = hasPermission("employee_deactivate");
 
   if (!hasAccess) {
     return (
@@ -659,7 +698,12 @@ const EmployeePage = () => {
                           <h3 className="text-lg font-medium text-gray-900">Church Staff</h3>
                           <p className="mt-1 text-sm text-gray-600">Manage staff members with system accounts and roles.</p>
                         </div>
-                        <Button onClick={handleOpen} className="flex items-center">
+                        <Button 
+                          onClick={handleOpen} 
+                          className="flex items-center" 
+                          disabled={!canAddEmployee}
+                          title={!canAddEmployee ? 'You do not have permission to add employees' : ''}
+                        >
                           <Plus className="mr-2 h-4 w-4" />
                           Add Staff
                         </Button>
@@ -684,6 +728,7 @@ const EmployeePage = () => {
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                             <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Actions
                             </th>
@@ -692,13 +737,13 @@ const EmployeePage = () => {
                         <tbody className="bg-white divide-y divide-gray-200">
                           {isInitialLoading ? (
                             <tr>
-                              <td colSpan={4} className="px-6 py-8">
+                              <td colSpan={5} className="px-6 py-8">
                                 <DataLoading message="Loading staff..." />
                               </td>
                             </tr>
                           ) : currentStaff.length > 0 ? (
                             currentStaff.map((staff) => (
-                              <tr key={staff.UserChurchRoleID} className="hover:bg-gray-50">
+                              <tr key={staff.UserChurchRoleID} className={`hover:bg-gray-50 ${!staff.is_active ? 'opacity-60' : ''}`}>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <div className="text-sm font-medium text-gray-900">
 {(() => {
@@ -727,15 +772,39 @@ const EmployeePage = () => {
                                     )}
                                   </div>
                                 </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    staff.is_active 
+                                      ? 'bg-green-100 text-green-800' 
+                                      : 'bg-red-100 text-red-800'
+                                  }`}>
+                                    {staff.is_active ? 'Active' : 'Inactive'}
+                                  </span>
+                                </td>
                                 <td className="px-4 py-3">
                                   <div className="flex justify-center items-center space-x-2">
                                     <Button
                                       onClick={() => handleEdit(staff.UserChurchRoleID)}
                                       variant="outline"
-                                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 min-h-0 h-auto"
+                                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 min-h-0 h-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                                      disabled={!canEditEmployee}
+                                      title={!canEditEmployee ? 'You do not have permission to edit employees' : ''}
                                     >
                                       <Pencil className="h-3 w-3 mr-1" />
                                       Edit
+                                    </Button>
+                                    <Button
+                                      onClick={() => handleStaffToggleStatus(staff.UserChurchRoleID, staff.is_active)}
+                                      variant="outline"
+                                      className={`inline-flex items-center px-2 py-1 text-xs font-medium min-h-0 h-auto disabled:opacity-50 disabled:cursor-not-allowed ${
+                                        staff.is_active 
+                                          ? 'text-red-700 bg-red-50 hover:bg-red-100 border-red-200'
+                                          : 'text-green-700 bg-green-50 hover:bg-green-100 border-green-200'
+                                      }`}
+                                      disabled={!canDeactivateEmployee}
+                                      title={!canDeactivateEmployee ? 'You do not have permission to deactivate employees' : ''}
+                                    >
+                                      {staff.is_active ? 'Deactivate' : 'Activate'}
                                     </Button>
                                   </div>
                                 </td>
@@ -743,7 +812,7 @@ const EmployeePage = () => {
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                              <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                                 No staff members found.
                               </td>
                             </tr>
@@ -767,7 +836,12 @@ const EmployeePage = () => {
                           <h3 className="text-lg font-medium text-gray-900">Clergy Members</h3>
                           <p className="mt-1 text-sm text-gray-600">Manage clergy information for reference purposes.</p>
                         </div>
-                        <Button onClick={handleClergyOpen} className="flex items-center">
+                        <Button 
+                          onClick={handleClergyOpen} 
+                          className="flex items-center" 
+                          disabled={!canAddEmployee}
+                          title={!canAddEmployee ? 'You do not have permission to add clergy' : ''}
+                        >
                           <Plus className="mr-2 h-4 w-4" />
                           Add Clergy
                         </Button>
@@ -840,7 +914,9 @@ const EmployeePage = () => {
                                     <Button
                                       onClick={() => handleClergyEdit(clergy.ClergyID)}
                                       variant="outline"
-                                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 min-h-0 h-auto"
+                                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 min-h-0 h-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                                      disabled={!canEditEmployee}
+                                      title={!canEditEmployee ? 'You do not have permission to edit clergy' : ''}
                                     >
                                       <Pencil className="h-3 w-3 mr-1" />
                                       Edit
@@ -848,11 +924,13 @@ const EmployeePage = () => {
                                     <Button
                                       onClick={() => handleToggleStatus(clergy.ClergyID, clergy.is_active)}
                                       variant="outline"
-                                      className={`inline-flex items-center px-2 py-1 text-xs font-medium min-h-0 h-auto ${
+                                      className={`inline-flex items-center px-2 py-1 text-xs font-medium min-h-0 h-auto disabled:opacity-50 disabled:cursor-not-allowed ${
                                         clergy.is_active 
                                           ? 'text-red-700 bg-red-50 hover:bg-red-100 border-red-200'
                                           : 'text-green-700 bg-green-50 hover:bg-green-100 border-green-200'
                                       }`}
+                                      disabled={!canDeactivateEmployee}
+                                      title={!canDeactivateEmployee ? 'You do not have permission to deactivate clergy' : ''}
                                     >
                                       {clergy.is_active ? 'Deactivate' : 'Activate'}
                                     </Button>
@@ -1345,6 +1423,17 @@ const EmployeePage = () => {
         confirmText={confirmDialog.currentStatus ? 'Deactivate' : 'Activate'}
         type={confirmDialog.currentStatus ? 'danger' : 'info'}
         isLoading={confirmLoading}
+      />
+
+      <ConfirmDialog
+        isOpen={staffConfirmDialog.open}
+        onClose={() => { if (!staffConfirmLoading) setStaffConfirmDialog({ open: false, staffId: null, currentStatus: null }); }}
+        onConfirm={confirmStaffToggleStatus}
+        title={`${staffConfirmDialog.currentStatus ? 'Deactivate' : 'Activate'} Staff Member`}
+        message={`Are you sure you want to ${staffConfirmDialog.currentStatus ? 'deactivate' : 'activate'} this staff member?`}
+        confirmText={staffConfirmDialog.currentStatus ? 'Deactivate' : 'Activate'}
+        type={staffConfirmDialog.currentStatus ? 'danger' : 'info'}
+        isLoading={staffConfirmLoading}
       />
     </div>
   );

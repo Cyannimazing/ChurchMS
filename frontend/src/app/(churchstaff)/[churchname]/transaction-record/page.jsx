@@ -60,12 +60,19 @@ const TransactionRecordPage = () => {
   const [convenienceFeeLoading, setConvenienceFeeLoading] = useState(false);
   const [convenienceFeeAlert, setConvenienceFeeAlert] = useState({ show: false, type: '', message: '' });
 
-  // Check if user has access
-  const hasAccess =
-    user?.profile?.system_role?.role_name === "ChurchOwner" ||
-    user?.church_role?.permissions?.some(
-      (perm) => perm.PermissionName === "appointment_list"
-    );
+  // Permission helper functions
+  const hasPermission = (permissionName) => {
+    return user?.profile?.system_role?.role_name === "ChurchOwner" ||
+      user?.church_role?.permissions?.some(
+        (perm) => perm.PermissionName === permissionName
+      );
+  };
+  
+  const hasAccess = hasPermission("transaction_list");
+  const canSetupFee = hasPermission("transaction_setupFee");
+  const canEditFee = hasPermission("transaction_editFee");
+  const canViewTransaction = hasPermission("transaction_view");
+  const canRefundTransaction = hasPermission("transaction_refund");
 
   // Fetch convenience fee
   const fetchConvenienceFee = async () => {
@@ -450,7 +457,7 @@ const TransactionRecordPage = () => {
         </div>
       </div>
     );
-  };
+  }
 
   return (
     <div className="lg:p-6 w-full h-screen pt-20">
@@ -499,7 +506,13 @@ const TransactionRecordPage = () => {
                         <Button
                           onClick={handleConvenienceFeeModalOpen}
                           variant="outline"
-                          className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-white hover:bg-blue-50 border border-blue-300 hover:border-blue-400 transition-colors"
+                          className="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-white hover:bg-blue-50 border border-blue-300 hover:border-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={convenienceFee ? !canEditFee : !canSetupFee}
+                          title={
+                            convenienceFee 
+                              ? (!canEditFee ? 'You do not have permission to edit convenience fee' : '')
+                              : (!canSetupFee ? 'You do not have permission to setup convenience fee' : '')
+                          }
                         >
                           <Settings className="h-4 w-4 mr-2" />
                           {convenienceFee ? 'Edit Fee' : 'Setup Fee'}
@@ -748,7 +761,9 @@ const TransactionRecordPage = () => {
                                   <Button
                                     onClick={() => handleViewTransaction(transaction)}
                                     variant="outline"
-                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 min-h-0 h-auto"
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 min-h-0 h-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={!canViewTransaction}
+                                    title={!canViewTransaction ? 'You do not have permission to view transaction details' : ''}
                                   >
                                     <Eye className="h-3 w-3 mr-1" />
                                     View
@@ -756,8 +771,12 @@ const TransactionRecordPage = () => {
                                   <Button
                                     onClick={() => canRefund(transaction) && handleRefundTransaction(transaction)}
                                     variant="outline"
-                                    disabled={!canRefund(transaction)}
-                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 disabled:hover:bg-red-50 border-red-200 min-h-0 h-auto"
+                                    disabled={!canRefund(transaction) || !canRefundTransaction}
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 disabled:hover:bg-red-50 border-red-200 min-h-0 h-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title={
+                                      !canRefundTransaction ? 'You do not have permission to process refunds' :
+                                      !canRefund(transaction) ? 'This transaction cannot be refunded' : ''
+                                    }
                                   >
                                     <RefreshCw className="h-3 w-3 mr-1" />
                                     Refund

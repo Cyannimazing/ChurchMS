@@ -135,7 +135,70 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Seed permissions
-        $permissions = ['appointment_list', 'employee_list', 'role_list', 'sacrament_list', 'schedule_list'];
+        $permissions = [
+            // Appointment
+            'appointment_list',
+            'appointment_review',
+            'appointment_saveFormData',
+            'appointment_acceptApplication',
+            'appointment_rejectApplication',
+            'appointment_markCompleted',
+            'appointment_generateCertificate',
+            'appointment_generateMassReport',
+            
+            // Transaction Record
+            'transaction_list',
+            'transaction_setupFee',
+            'transaction_editFee',
+            'transaction_view',
+            'transaction_refund',
+            
+            // Roles
+            'role_list',
+            'role_add',
+            'role_edit',
+            'role_delete',
+            
+            // Employee
+            'employee_list',
+            'employee_add',
+            'employee_edit',
+            'employee_deactivate',
+            
+            // Service
+            'service_list',
+            'service_add',
+            'service_edit',
+            'service_delete',
+            'service_configure',
+            
+            // Schedule
+            'schedule_list',
+            'schedule_add',
+            'schedule_edit',
+            'schedule_delete',
+            
+            // Signature
+            'signature_list',
+            'signature_add',
+            'signature_delete',
+            
+            // Member Application
+            'member-application_list',
+            'member-application_review',
+            
+            // Member Directory
+            'member-directory_list',
+            'member-directory_review',
+            'member-directory_edit',
+            'member-directory_markAsAway',
+            'member-directory_exportPDF',
+            
+            // Certificate Config
+            'certificate-config_list',
+            'certificate-config_fieldMapping',
+        ];
+        
         foreach ($permissions as $perm) {
             Permission::firstOrCreate(['PermissionName' => $perm]);
         }

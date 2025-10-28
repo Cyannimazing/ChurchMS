@@ -45,11 +45,18 @@ const SchedulePage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // Check if user has access
-  const hasAccess = user?.profile?.system_role?.role_name === "ChurchOwner" ||
-    user?.church_role?.permissions?.some(
-      (perm) => perm.PermissionName === "schedule_manage" || perm.PermissionName === "schedule_list"
-    );
+  // Permission helper function
+  const hasPermission = (permissionName) => {
+    return user?.profile?.system_role?.role_name === "ChurchOwner" ||
+      user?.church_role?.permissions?.some(
+        (perm) => perm.PermissionName === permissionName
+      );
+  };
+
+  const hasAccess = hasPermission("schedule_list");
+  const canAddSchedule = hasPermission("schedule_add");
+  const canEditSchedule = hasPermission("schedule_edit");
+  const canDeleteSchedule = hasPermission("schedule_delete");
 
   useEffect(() => {
     if (hasAccess) {
@@ -294,7 +301,12 @@ const SchedulePage = () => {
                             </button>
                           </div>
                           
-                          <Button onClick={() => setShowCreateModal(true)} className="flex items-center" disabled={isLoading || services.length === 0}>
+                          <Button 
+                            onClick={() => setShowCreateModal(true)} 
+                            className="flex items-center" 
+                            disabled={isLoading || services.length === 0 || !canAddSchedule}
+                            title={!canAddSchedule ? 'You do not have permission to add schedules' : ''}
+                          >
                             <Plus className="mr-2 h-4 w-4" />
                             Add Schedule
                           </Button>
@@ -318,6 +330,9 @@ const SchedulePage = () => {
                             onCreateSchedule={() => setShowCreateModal(true)}
                             selectedService={selectedService}
                             searchTerm={searchTerm}
+                            canEditSchedule={canEditSchedule}
+                            canDeleteSchedule={canDeleteSchedule}
+                            canAddSchedule={canAddSchedule}
                           />
                         )}
                       </div>
@@ -374,6 +389,8 @@ const SchedulePage = () => {
                                         <Button
                                           onClick={() => setShowCreateModal(true)}
                                           className="flex items-center mx-auto"
+                                          disabled={!canAddSchedule}
+                                          title={!canAddSchedule ? 'You do not have permission to add schedules' : ''}
                                         >
                                           <Plus className="h-4 w-4 mr-2" />
                                           Create Schedule
@@ -435,7 +452,9 @@ const SchedulePage = () => {
                                         <Button
                                           onClick={() => setEditingSchedule(schedule)}
                                           variant="outline"
-                                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 min-h-0 h-auto"
+                                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 min-h-0 h-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                                          disabled={!canEditSchedule}
+                                          title={!canEditSchedule ? 'You do not have permission to edit schedules' : ''}
                                         >
                                           <Edit className="h-3 w-3 mr-1" />
                                           Edit
@@ -443,7 +462,9 @@ const SchedulePage = () => {
                                         <Button
                                           onClick={() => handleDeleteClick(schedule)}
                                           variant="outline"
-                                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto"
+                                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                                          disabled={!canDeleteSchedule}
+                                          title={!canDeleteSchedule ? 'You do not have permission to delete schedules' : ''}
                                         >
                                           <Trash2 className="h-3 w-3 mr-1" />
                                           Delete

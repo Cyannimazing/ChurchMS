@@ -144,6 +144,22 @@ const AppointmentPage = () => {
     user?.church_role?.permissions?.some(
       (perm) => perm.PermissionName === "appointment_list"
     );
+  
+  // Permission helper functions
+  const hasPermission = (permissionName) => {
+    return user?.profile?.system_role?.role_name === "ChurchOwner" ||
+      user?.church_role?.permissions?.some(
+        (perm) => perm.PermissionName === permissionName
+      );
+  };
+  
+  const canReviewAppointment = hasPermission("appointment_review");
+  const canSaveFormData = hasPermission("appointment_saveFormData");
+  const canAcceptApplication = hasPermission("appointment_acceptApplication");
+  const canRejectApplication = hasPermission("appointment_rejectApplication");
+  const canMarkCompleted = hasPermission("appointment_markCompleted");
+  const canGenerateCertificate = hasPermission("appointment_generateCertificate");
+  const canGenerateMassReport = hasPermission("appointment_generateMassReport");
 
   // Fetch appointments
   const fetchAppointments = async () => {
@@ -817,7 +833,9 @@ const AppointmentPage = () => {
                       {isActiveMassService() && (
                         <Button
                           onClick={() => setShowMassReportModal(true)}
-                          className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md whitespace-nowrap"
+                          className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400"
+                          disabled={!canGenerateMassReport}
+                          title={!canGenerateMassReport ? 'You do not have permission to generate Mass reports' : ''}
                         >
                           <Download className="h-4 w-4 mr-2" />
                           Generate Report
@@ -1188,7 +1206,9 @@ const AppointmentPage = () => {
                                   <Button
                                     onClick={() => handleViewAppointment(appointment)}
                                     variant="outline"
-                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 min-h-0 h-auto"
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 min-h-0 h-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={!canReviewAppointment}
+                                    title={!canReviewAppointment ? 'You do not have permission to review appointments' : ''}
                                   >
                                     <Eye className="h-3 w-3 mr-1" />
                                     Review
@@ -1197,7 +1217,9 @@ const AppointmentPage = () => {
                                     <Button
                                       onClick={() => showStatusConfirmDialog(appointment.AppointmentID, 'Cancelled')}
                                       variant="outline"
-                                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto"
+                                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                                      disabled={!canRejectApplication}
+                                      title={!canRejectApplication ? 'You do not have permission to cancel appointments' : ''}
                                     >
                                       <X className="h-3 w-3 mr-1" />
                                       Cancel
@@ -1206,7 +1228,9 @@ const AppointmentPage = () => {
                                   {isDue && (
                                     <Button
                                       onClick={() => showStatusConfirmDialog(appointment.AppointmentID, 'Completed')}
-                                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 min-h-0 h-auto"
+                                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 min-h-0 h-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                                      disabled={!canMarkCompleted}
+                                      title={!canMarkCompleted ? 'You do not have permission to mark appointments as completed' : ''}
                                     >
                                       <Check className="h-3 w-3 mr-1" />
                                       Mark Completed
@@ -1463,8 +1487,9 @@ const AppointmentPage = () => {
                     <Button
                       onClick={() => handleSaveFormData()}
                       variant="outline"
-                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200"
-                      disabled={isUpdatingStatus}
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isUpdatingStatus || !canSaveFormData}
+                      title={!canSaveFormData ? 'You do not have permission to save form data' : ''}
                     >
                       <FileText className="h-4 w-4 mr-2" />
                       Save Form Data
@@ -1481,21 +1506,21 @@ const AppointmentPage = () => {
                           setShowCancelModal(true);
                         }}
                         variant="outline"
-                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200"
-                        disabled={isUpdatingStatus}
+                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isUpdatingStatus || !canRejectApplication}
+                        title={!canRejectApplication ? 'You do not have permission to cancel appointments' : ''}
                       >
                         <X className="h-4 w-4 mr-2" />
                         {isUpdatingStatus ? 'Updating...' : 'Cancel Appointment'}
                       </Button>
                       <Button
                         onClick={() => showStatusConfirmDialog(selectedAppointment.AppointmentID, 'Approved')}
-                        className={`inline-flex items-center px-4 py-2 text-sm font-medium ${
-                          canApproveAppointment 
-                            ? 'text-white bg-green-600 hover:bg-green-700' 
-                            : 'text-gray-400 bg-gray-300 cursor-not-allowed'
-                        }`}
-                        disabled={isUpdatingStatus || !canApproveAppointment}
-                        title={!canApproveAppointment ? 'All required submissions must be completed before approval' : ''}
+                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-300"
+                        disabled={isUpdatingStatus || !canApproveAppointment || !canAcceptApplication}
+                        title={
+                          !canAcceptApplication ? 'You do not have permission to approve appointments' :
+                          !canApproveAppointment ? 'All required submissions must be completed before approval' : ''
+                        }
                       >
                         <Check className="h-4 w-4 mr-2" />
                         {isUpdatingStatus ? 'Updating...' : 'Approve Appointment'}
@@ -1511,16 +1536,18 @@ const AppointmentPage = () => {
                           setShowCancelModal(true);
                         }}
                         variant="outline"
-                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200"
-                        disabled={isUpdatingStatus}
+                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isUpdatingStatus || !canRejectApplication}
+                        title={!canRejectApplication ? 'You do not have permission to cancel appointments' : ''}
                       >
                         <X className="h-4 w-4 mr-2" />
                         {isUpdatingStatus ? 'Updating...' : 'Cancel Appointment'}
                       </Button>
                       <Button
                         onClick={() => showStatusConfirmDialog(selectedAppointment.AppointmentID, 'Completed')}
-                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-                        disabled={isUpdatingStatus}
+                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isUpdatingStatus || !canMarkCompleted}
+                        title={!canMarkCompleted ? 'You do not have permission to mark appointments as completed' : ''}
                       >
                         <Check className="h-4 w-4 mr-2" />
                         {isUpdatingStatus ? 'Updating...' : 'Mark as Completed'}
@@ -1533,8 +1560,9 @@ const AppointmentPage = () => {
                     appointmentDetails?.sacramentService?.isCertificateGeneration) && (
                     <Button
                       onClick={handleGenerateCertificate}
-                      className="flex items-center bg-green-600 hover:bg-green-700"
-                      disabled={isUpdatingStatus}
+                      className="flex items-center bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isUpdatingStatus || !canGenerateCertificate}
+                      title={!canGenerateCertificate ? 'You do not have permission to generate certificates' : ''}
                     >
                       <CertificateIcon className="h-4 w-4 mr-2" />
                       Generate Certificate

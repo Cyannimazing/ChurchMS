@@ -25,6 +25,17 @@ const MemberApplicationsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
+  // Permission helper function
+  const hasPermission = (permissionName) => {
+    return user?.profile?.system_role?.role_name === "ChurchOwner" ||
+      user?.church_role?.permissions?.some(
+        (perm) => perm.PermissionName === permissionName
+      );
+  };
+
+  const hasAccess = hasPermission("member-application_list");
+  const canReviewApplication = hasPermission("member-application_review");
+
   useEffect(() => {
     fetchApplications();
   }, []);
@@ -522,7 +533,8 @@ const MemberApplicationsPage = () => {
               onClick={() => handleAction(app, "reject")}
               variant="outline"
               className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200"
-              disabled={actionLoading}
+              disabled={actionLoading || !canReviewApplication}
+              title={!canReviewApplication ? 'You do not have permission to review applications' : ''}
             >
               <XCircle className="h-4 w-4 mr-2" />
               {actionLoading ? "Processing..." : "Reject"}
@@ -530,7 +542,8 @@ const MemberApplicationsPage = () => {
             <Button
               onClick={() => handleAction(app, "approve")}
               className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700"
-              disabled={actionLoading}
+              disabled={actionLoading || !canReviewApplication}
+              title={!canReviewApplication ? 'You do not have permission to review applications' : ''}
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               {actionLoading ? "Processing..." : "Approve"}
@@ -541,6 +554,25 @@ const MemberApplicationsPage = () => {
     );
   };
 
+
+  if (!hasAccess) {
+    return (
+      <div className="lg:p-6 w-full h-screen pt-20">
+        <div className="w-full h-full">
+          <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
+            <div className="p-6 bg-white border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-red-600">
+                Unauthorized
+              </h2>
+              <p className="mt-2 text-gray-600">
+                You do not have permission to access the Member Applications page.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="lg:p-6 w-full h-screen pt-20">

@@ -26,6 +26,18 @@ export default function Signature() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [signatureToDelete, setSignatureToDelete] = useState(null);
 
+  // Permission helper function
+  const hasPermission = (permissionName) => {
+    return user?.profile?.system_role?.role_name === "ChurchOwner" ||
+      user?.church_role?.permissions?.some(
+        (perm) => perm.PermissionName === permissionName
+      );
+  };
+
+  const hasAccess = hasPermission("signature_list");
+  const canAddSignature = hasPermission("signature_add");
+  const canDeleteSignature = hasPermission("signature_delete");
+
   useEffect(() => {
     fetchSignatures();
   }, []);
@@ -157,6 +169,25 @@ export default function Signature() {
     }
   };
 
+  if (!hasAccess) {
+    return (
+      <div className="lg:p-6 w-full h-screen pt-20">
+        <div className="w-full h-full">
+          <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
+            <div className="p-6 bg-white border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-red-600">
+                Unauthorized
+              </h2>
+              <p className="mt-2 text-gray-600">
+                You do not have permission to access the Signature Management page.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="lg:p-6 w-full h-screen pt-20">
       <div className="w-full h-full">
@@ -173,7 +204,7 @@ export default function Signature() {
           <div className="p-6 flex-1 overflow-auto">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Add Signature Form */}
-              <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+              <div className={`bg-white border border-gray-200 rounded-lg shadow-sm ${!canAddSignature ? 'opacity-60' : ''}`}>
                 <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
                   <h3 className="text-lg font-medium text-gray-900 flex items-center">
                     <FileSignature className="w-5 h-5 mr-2 text-blue-600" />
@@ -242,9 +273,10 @@ export default function Signature() {
 
                     <Button
                       type="submit"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || !canAddSignature}
                       variant="primary"
                       className="w-full"
+                      title={!canAddSignature ? 'You do not have permission to add signatures' : ''}
                     >
                       <FileSignature className="w-4 h-4 mr-2" />
                       {isSubmitting ? "Adding..." : "Add Signature"}
@@ -314,6 +346,8 @@ export default function Signature() {
                               onClick={() => handleDeleteClick(sig)}
                               variant="danger"
                               className="px-2 py-1 text-xs flex-shrink-0"
+                              disabled={!canDeleteSignature}
+                              title={!canDeleteSignature ? 'You do not have permission to delete signatures' : ''}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

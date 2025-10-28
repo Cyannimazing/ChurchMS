@@ -14,6 +14,21 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 const MemberDirectoryPage = () => {
   const { churchname } = useParams();
   const { user } = useAuth();
+
+  // Permission helper
+  const hasPermission = (permissionName) => {
+    return user?.profile?.system_role?.role_name === "ChurchOwner" ||
+      user?.church_role?.permissions?.some(
+        (perm) => perm.PermissionName === permissionName
+      );
+  };
+
+  const hasAccess = hasPermission("member-directory_list");
+  const canReview = hasPermission("member-directory_review");
+  const canEdit = hasPermission("member-directory_edit");
+  const canMarkAsAway = hasPermission("member-directory_markAsAway");
+  const canExportPDF = hasPermission("member-directory_exportPDF");
+
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,8 +46,8 @@ const MemberDirectoryPage = () => {
   const [showComingSoonAlert, setShowComingSoonAlert] = useState(false);
 
   useEffect(() => {
-    fetchMembers();
-  }, [currentPage, statusFilter]);
+    if (hasAccess) fetchMembers();
+  }, [currentPage, statusFilter, hasAccess]);
 
   // Filter members based on search term
   useEffect(() => {
@@ -687,7 +702,8 @@ const MemberDirectoryPage = () => {
                 onClick={() => handleMarkAsAwayClick(member)}
                 variant="outline"
                 className="inline-flex items-center px-4 py-2 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 border-orange-200"
-                disabled={isUpdatingStatus}
+                disabled={!canMarkAsAway || isUpdatingStatus}
+                title={!canMarkAsAway ? "You don't have permission to mark members as away" : ""}
               >
                 <UserX className="h-4 w-4 mr-2" />
                 Mark as Away
@@ -699,6 +715,26 @@ const MemberDirectoryPage = () => {
     );
   };
 
+
+  // Show unauthorized view if user doesn't have access
+  if (!hasAccess) {
+    return (
+      <div className="lg:p-6 w-full h-screen pt-20">
+        <div className="w-full h-full">
+          <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
+            <div className="p-6 bg-white border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-red-600">
+                Unauthorized
+              </h2>
+              <p className="mt-2 text-gray-600">
+                You do not have permission to access the Member Directory page.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="lg:p-6 w-full h-screen pt-20">
@@ -752,7 +788,8 @@ const MemberDirectoryPage = () => {
                         onClick={handleExportMembers}
                         variant="outline"
                         className="flex items-center px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-                        disabled={filteredMembers.length === 0}
+                        disabled={!canExportPDF || filteredMembers.length === 0}
+                        title={!canExportPDF ? "You don't have permission to export PDF" : ""}
                       >
                         <Download className="w-4 h-4 mr-2" />
                         Export PDF
@@ -856,6 +893,8 @@ const MemberDirectoryPage = () => {
                                     onClick={() => handleViewMember(member)}
                                     variant="outline"
                                     className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 min-h-0 h-auto"
+                                    disabled={!canReview}
+                                    title={!canReview ? "You don't have permission to review members" : ""}
                                   >
                                     <Eye className="h-3 w-3 mr-1" />
                                     View
@@ -864,6 +903,8 @@ const MemberDirectoryPage = () => {
                                     onClick={handleEditClick}
                                     variant="outline"
                                     className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-200 min-h-0 h-auto"
+                                    disabled={!canEdit}
+                                    title={!canEdit ? "You don't have permission to edit members" : ""}
                                   >
                                     <Edit className="h-3 w-3 mr-1" />
                                     Edit
