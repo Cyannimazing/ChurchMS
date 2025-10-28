@@ -13,6 +13,7 @@ use App\Http\Controllers\SacramentServiceController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\PaymentConfigController;
+use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
 use App\Http\Controllers\ChurchMemberController;
 use App\Http\Controllers\ConvenienceFeeController;
 use App\Http\Controllers\SignatureController;
@@ -61,7 +62,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/church-subscriptions', [ChurchSubscriptionController::class, 'index']);
     Route::post('/church-subscriptions', [ChurchSubscriptionController::class, 'update']);
-    Route::delete('/church-subscriptions/pending', [ChurchSubscriptionController::class, 'cancelPending']);
     
     // Payment Routes
     Route::post('/church-subscriptions/gcash-payment', [ChurchSubscriptionController::class, 'createGCashPayment']);
@@ -70,6 +70,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Transaction and Receipt Routes
     Route::get('/transactions/{transactionId}', [ChurchSubscriptionController::class, 'getTransactionDetails'])->name('transactions.details');
     Route::get('/transactions/{transactionId}/receipt', [ChurchSubscriptionController::class, 'downloadReceipt'])->name('transactions.receipt');
+});
+
+// Admin Transactions (auth required)
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/admin/transactions', [AdminTransactionController::class, 'index']);
+    Route::get('/admin/transactions/{id}', [AdminTransactionController::class, 'show']);
+    // Refunds disabled for subscriptions
+    Route::get('/admin/transactions/search/by-reference', [AdminTransactionController::class, 'searchByReference']);
 });
 
 // Payment callback routes (no auth required)

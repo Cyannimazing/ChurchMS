@@ -13,7 +13,6 @@ const PaymentSuccess = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [transactionData, setTransactionData] = useState(null);
-  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     const fetchTransactionDetails = async () => {
@@ -63,52 +62,6 @@ const PaymentSuccess = () => {
     fetchTransactionDetails();
   }, [searchParams]);
 
-  const handleDownloadReceipt = async () => {
-    const transactionId = transactionData?.receipt_number || transactionData?.transaction?.SubTransactionID || transactionData?.transaction?.ChurchTransactionID;
-    if (!transactionId) {
-      alert('Transaction ID not found');
-      return;
-    }
-    
-    setIsDownloading(true);
-    try {
-      await axios.get('/sanctum/csrf-cookie');
-      
-      let apiUrl;
-      let filename;
-      
-      if (transactionData?.type === 'appointment') {
-        apiUrl = `/api/appointment-transactions/${transactionId}/receipt`;
-        filename = `appointment-receipt-${transactionId}.pdf`;
-      } else {
-        const sessionId = searchParams.get('session_id');
-        const params = sessionId ? `?session_id=${sessionId}` : '';
-        apiUrl = `/api/transactions/${transactionId}/receipt${params}`;
-        filename = `receipt-${transactionId}.pdf`;
-      }
-      
-      const response = await axios.get(apiUrl, {
-        responseType: 'blob'
-      });
-      
-      // Force download as PDF regardless of response type
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-    } catch (error) {
-      console.error('Error downloading receipt:', error);
-      alert('Failed to download receipt. Please try again.');
-    } finally {
-      setIsDownloading(false);
-    }
-  };
 
   const getErrorMessage = (errorCode) => {
     switch (errorCode) {
@@ -176,173 +129,63 @@ const PaymentSuccess = () => {
   }
 
   return (
-    <div className="lg:p-6 w-full h-screen pt-20 overflow-y-auto">
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white shadow-sm rounded-lg">
-          <div className="p-6 bg-white border-b border-gray-200">
-            <div className="text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-                <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h1 className="text-2xl font-semibold text-gray-900 mb-2">Payment Successful!</h1>
-              <p className="text-gray-600">
-                {transactionData?.type === 'appointment' 
-                  ? 'Your appointment payment has been processed successfully.'
-                  : 'Your subscription payment has been processed successfully.'
-                }
-              </p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="w-full max-w-md">
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+          {/* Success Header */}
+          <div className="bg-green-600 px-6 py-6 text-center">
+            <div className="mx-auto h-14 w-14 rounded-full bg-white/10 flex items-center justify-center mb-3">
+              <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
             </div>
+            <h1 className="text-xl font-semibold text-white">Payment Successful!</h1>
+            <p className="text-green-50 text-sm mt-1">
+              {transactionData?.type === 'appointment'
+                ? 'Your appointment payment has been processed successfully.'
+                : 'Your subscription payment has been processed successfully.'}
+            </p>
           </div>
 
+          {/* Content */}
           <div className="p-6">
             {transactionData && (
-              <div className="max-w-md mx-auto">
-                <div id="receipt-card" className="rounded-lg p-8 mb-6" style={{ backgroundColor: '#ffffff', border: '2px solid #e5e7eb' }}>
-                  {/* Receipt Header */}
-                  <div className="text-center mb-6" style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '1rem' }}>
-                    {transactionData?.type !== 'appointment' && (
-                      <h1 className="text-xl font-bold" style={{ color: '#111827' }}>FAITHSEEKER</h1>
-                    )}
-                    <h2 className="text-lg font-semibold mt-2" style={{ color: '#374151' }}>Payment Receipt</h2>
-                    <p className="text-xs mt-2" style={{ color: '#6b7280' }}>Generated on {new Date().toLocaleString()}</p>
-                  </div>
-                  
-                  <dl className="space-y-3">
-                    <div className="flex justify-between py-1">
-                      <dt className="text-sm" style={{ color: '#6b7280' }}>Transaction ID:</dt>
-                      <dd className="text-sm font-medium" style={{ color: '#111827' }}>{transactionData.receipt_number}</dd>
-                    </div>
-                    
-                    {transactionData?.type === 'appointment' && (
-                      <div className="flex justify-between py-1">
-                        <dt className="text-sm" style={{ color: '#6b7280' }}>Receipt Code:</dt>
-                        <dd className="text-sm font-medium font-mono" style={{ color: '#111827' }}>
-                          {transactionData.receipt_code || transactionData.transaction?.receipt_code || 'N/A'}
-                        </dd>
-                      </div>
-                    )}
-                    
-                    <div className="flex justify-between py-1">
-                      <dt className="text-sm" style={{ color: '#6b7280' }}>Date:</dt>
-                      <dd className="text-sm font-medium" style={{ color: '#111827' }}>{transactionData.formatted_date}</dd>
-                    </div>
-                    
-                    {transactionData?.type === 'appointment' ? (
-                      <>
-                        <div className="flex justify-between py-1">
-                          <dt className="text-sm" style={{ color: '#6b7280' }}>Church:</dt>
-                          <dd className="text-sm font-medium" style={{ color: '#111827' }}>
-                            {transactionData.church_name || 'N/A'}
-                          </dd>
-                        </div>
-                        
-                        <div className="flex justify-between py-1">
-                          <dt className="text-sm" style={{ color: '#6b7280' }}>Service:</dt>
-                          <dd className="text-sm font-medium" style={{ color: '#111827' }}>
-                            {transactionData.service_name || 'N/A'}
-                          </dd>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex justify-between py-1">
-                          <dt className="text-sm" style={{ color: '#6b7280' }}>Plan:</dt>
-                          <dd className="text-sm font-medium" style={{ color: '#111827' }}>
-                            {transactionData.transaction?.new_plan?.PlanName || transactionData.transaction?.newPlan?.PlanName || 'N/A'}
-                          </dd>
-                        </div>
-                        
-                        <div className="flex justify-between py-1">
-                          <dt className="text-sm" style={{ color: '#6b7280' }}>Duration:</dt>
-                          <dd className="text-sm font-medium" style={{ color: '#111827' }}>
-                            {transactionData.transaction?.new_plan?.DurationInMonths || transactionData.transaction?.newPlan?.DurationInMonths || 0} month(s)
-                          </dd>
-                        </div>
-                      </>
-                    )}
-                    
-                    <div className="flex justify-between py-1">
-                      <dt className="text-sm" style={{ color: '#6b7280' }}>Payment Method:</dt>
-                      <dd className="text-sm font-medium capitalize" style={{ color: '#111827' }}>
-                        {transactionData?.type === 'appointment' 
-                          ? transactionData.payment_method_display || 'N/A'
-                          : (transactionData.transaction?.PaymentMethod === 'multi' ? 'GCash' : transactionData.transaction?.PaymentMethod) || 'N/A'
-                        }
-                      </dd>
-                    </div>
-                    
-                    <div className="pt-3 mt-4" style={{ borderTop: '1px solid #e5e7eb' }}>
-                      <div className="flex justify-between">
-                        <dt className="text-base font-semibold" style={{ color: '#111827' }}>Amount Paid:</dt>
-                        <dd className="text-base font-bold amount-green" style={{ color: '#16a34a' }}>
-                          ₱{Number(
-                            transactionData?.type === 'appointment' 
-                              ? transactionData.transaction?.amount_paid || 0
-                              : transactionData.transaction?.AmountPaid || 0
-                          ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </dd>
-                      </div>
-                    </div>
-                  </dl>
-                  
-                  {/* Receipt Footer */}
-                  <div className="text-center mt-6 pt-4" style={{ borderTop: '1px solid #e5e7eb' }}>
-                    <p className="text-sm" style={{ color: '#4b5563' }}>
-                      {transactionData?.type === 'appointment' 
-                        ? 'Thank you for your appointment!'
-                        : 'Thank you for your subscription!'
-                      }
+              <div className="space-y-5">
+                {/* Reference Number Display */}
+                {transactionData.receipt_code && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 text-center">
+                    <p className="text-xs text-gray-600 mb-2">Your Reference Number</p>
+                    <p className="text-xl font-semibold text-blue-600 font-mono tracking-wide break-all mb-3">
+                      {transactionData.receipt_code}
                     </p>
-                    <p className="text-xs mt-1" style={{ color: '#6b7280' }}>Keep this receipt for your records.</p>
-                    {transactionData?.type === 'appointment' && (transactionData.receipt_code || transactionData.transaction?.receipt_code) && (
-                      <p className="text-xs mt-2 font-medium" style={{ color: '#dc2626' }}>
-                        Important: Save your Receipt Code for refunds if needed.
-                      </p>
-                    )}
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      A detailed receipt has been sent to your email by PayMongo.<br/>
+                      Please save this reference number for your records and future reference.
+                    </p>
                   </div>
-                </div>
+                )}
 
-                <div className="flex flex-col space-y-3">
-                  <Button 
-                    onClick={handleDownloadReceipt}
-                    disabled={isDownloading}
-                  >
-                    {isDownloading ? (
-                      <>
-                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Downloading Receipt...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Download Receipt
-                      </>
-                    )}
-                  </Button>
-                  
-                  {transactionData?.type === 'appointment' ? (
-                    <Link href="/appointment" className="w-full">
-                      <Button variant="outline" className="w-full">
-                        View My Appointments
-                      </Button>
-                    </Link>
-                  ) : (
-                    <Link href="/subscriptions" className="w-full">
-                      <Button variant="outline" className="w-full bg-transparent">
-                        View Subscription Status
-                      </Button>
-                    </Link>
-                  )}
-                </div>
+                {/* Action Button */}
+                {transactionData?.type === 'appointment' ? (
+                  <Link href="/appointment" className="block">
+                    <Button className="w-full">
+                      View My Appointments
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link href="/subscriptions" className="block">
+                    <Button className="w-full">
+                      View Subscription Status
+                    </Button>
+                  </Link>
+                )}
               </div>
             )}
+          </div>
+          
+          {/* Footer inside container */}
+          <div className="bg-gray-50 border-t border-gray-200 px-6 py-3 text-center">
+            <p className="text-xs text-gray-500">Thank you for your payment!</p>
           </div>
         </div>
       </div>

@@ -122,18 +122,6 @@ class DatabaseSeeder extends Seeder
             'Notes' => 'Initial subscription to Basic Plan',
         ]);
 
-        // Upgrade transaction for owner
-        SubscriptionTransaction::firstOrCreate([
-            'user_id' => $owner->id,
-            'OldPlanID' => $basicPlan->PlanID,
-            'NewPlanID' => $premiumPlan->PlanID,
-        ], [
-            'PaymentMethod' => 'PayPal',
-            'AmountPaid' => $premiumPlan->Price,
-            'TransactionDate' => now()->subDays(15),
-            'Notes' => 'Upgraded from Basic to Premium Plan',
-        ]);
-
         // Seed permissions
         $permissions = [
             // Appointment
@@ -202,5 +190,8 @@ class DatabaseSeeder extends Seeder
         foreach ($permissions as $perm) {
             Permission::firstOrCreate(['PermissionName' => $perm]);
         }
+        
+        // Seed provinces and cities
+        $this->call(ProvincesCitiesSeeder::class);
     }
 }

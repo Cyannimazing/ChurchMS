@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
-use Barryvdh\DomPDF\Facade\Pdf;
 
 class ChurchSubscriptionController extends Controller
 {
@@ -101,17 +100,92 @@ class ChurchSubscriptionController extends Controller
 
     public function cancelPending(Request $request)
     {
-        $userId = Auth::id();
-        $pendingSubscription = ChurchSubscription::where('UserID', $userId)
-            ->where('Status', 'Pending')
-            ->first();
+        return response()->json(['error' => 'Subscription cancellation is disabled'], 405);
 
-        if (!$pendingSubscription) {
-            return response()->json(['error' => 'No pending subscription found'], 404);
+        DB::beginTransaction();
+        try {
+            // Find the latest related paid payment session for this user and plan
+            $paymentSession = PaymentSession::where('user_id', $userId)
+                ->where('plan_id', $pendingSubscription->PlanID)
+                ->where('status', 'paid')
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            $refundProcessed = false;
+            $refund = null;
+
+            if ($paymentSession) {
+                // Find matching transaction
+                $transaction = SubscriptionTransaction::where('user_id', $userId)
+                    ->where('NewPlanID', $pendingSubscription->PlanID)
+                    ->where('Notes', 'like', '%Pending start%')
+                    ->where('Notes', 'not like', '%REFUNDED%')
+                    ->orderBy('TransactionDate', 'desc')
+                    ->first();
+
+                if ($transaction) {
+                    $paymongo = new PayMongoService();
+                    $paymentIdResult = $paymongo->getPaymentIdFromSession($paymentSession->paymongo_session_id);
+
+                    Log::info('Payment ID result', ['result' => $paymentIdResult]);
+
+                    if ($paymentIdResult['success']) {
+                        $refundResult = $paymongo->createRefund(
+                            $paymentIdResult['payment_id'],
+                            $transaction->AmountPaid,
+                            'User cancelled pending subscription'
+                        );
+
+                        Log::info('Refund result', [
+                            'success' => $refundResult['success'],
+                            'data' => $refundResult['data'] ?? null,
+                            'error' => $refundResult['error'] ?? null,
+                            'details' => $refundResult['details'] ?? null
+                        ]);
+
+                        if ($refundResult['success']) {
+                            $refundProcessed = true;
+                            $refund = $refundResult['data'];
+
+                            // Update records
+                            $transaction->update([
+                                'Notes' => ($transaction->Notes . ' | REFUNDED: ' . now()->format('Y-m-d H:i:s') . ' - User cancelled')
+                            ]);
+
+                            $paymentSession->update(['status' => 'refunded']);
+                        } else {
+                            Log::warning('Refund failed but continuing with cancellation', [
+                                'error' => $refundResult['error'] ?? 'Unknown error',
+                                'transaction_id' => $transaction->SubTransactionID
+                            ]);
+                        }
+                    } else {
+                        Log::warning('Could not get payment ID from session', [
+                            'session_id' => $paymentSession->paymongo_session_id,
+                            'error' => $paymentIdResult['error'] ?? 'Unknown error'
+                        ]);
+                    }
+                }
+            }
+
+            // Delete the pending subscription regardless (policy: refund only if paid)
+            $pendingSubscription->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'refunded' => $refundProcessed,
+                'refund' => $refund
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to cancel subscription',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $pendingSubscription->delete();
-        return response()->noContent();
     }
 
     /**
@@ -154,10 +228,14 @@ class ChurchSubscriptionController extends Controller
         $successUrl = url('/payment/success?session_id={CHECKOUT_SESSION_ID}');
         $cancelUrl = url('/payment/cancel?session_id={CHECKOUT_SESSION_ID}');
         
+        // Generate unique reference number
+        $referenceNumber = 'SUB-' . strtoupper(substr(uniqid(), -8));
+        
         $metadata = [
             'user_id' => $userId,
             'plan_id' => $plan->PlanID,
             'plan_name' => $plan->PlanName,
+            'receipt_code' => $referenceNumber,
         ];
 
         $result = $paymongoService->createGCashCheckout(
@@ -181,7 +259,7 @@ class ChurchSubscriptionController extends Controller
         $expiresAtRaw = $checkoutData['attributes']['expires_at'] ?? null;
         $expiresAt = $expiresAtRaw ? Carbon::parse($expiresAtRaw) : now()->addMinutes(30);
         
-        // Store payment session
+        // Store payment session with receipt code in metadata
         $paymentSession = PaymentSession::create([
             'user_id' => $userId,
             'plan_id' => $plan->PlanID,
@@ -242,10 +320,14 @@ class ChurchSubscriptionController extends Controller
         $successUrl = url('/payment/success?session_id={CHECKOUT_SESSION_ID}');
         $cancelUrl = url('/payment/cancel?session_id={CHECKOUT_SESSION_ID}');
         
+        // Generate unique reference number
+        $referenceNumber = 'SUB-' . strtoupper(substr(uniqid(), -8));
+        
         $metadata = [
             'user_id' => $userId,
             'plan_id' => $plan->PlanID,
             'plan_name' => $plan->PlanName,
+            'receipt_code' => $referenceNumber,
         ];
 
         // Always create multi-payment checkout (GCash and Card only)
@@ -546,18 +628,28 @@ class ChurchSubscriptionController extends Controller
                 'Status' => $subscriptionStatus,
             ]);
             
-            // Create transaction record
-            $transaction = SubscriptionTransaction::create([
-                'user_id' => $userId,
-                'OldPlanID' => $activeSubscription?->PlanID,
-                'NewPlanID' => $plan->PlanID,
-                'PaymentMethod' => $actualPaymentMethod,
-                'AmountPaid' => $plan->Price,
-                'TransactionDate' => now(),
-                'Notes' => $hasActiveSubscription 
-                    ? $actualPaymentMethod . ' payment via PayMongo - Pending start on ' . $startDate->toDateString() . ' - Session ID: ' . $paymentSession->paymongo_session_id
-                    : $actualPaymentMethod . ' payment via PayMongo - Session ID: ' . $paymentSession->paymongo_session_id,
-            ]);
+            // Check if transaction already exists for this payment session
+            $transaction = SubscriptionTransaction::where('paymongo_session_id', $paymentSession->paymongo_session_id)->first();
+            
+            if (!$transaction) {
+                // Get reference number from payment session metadata
+                $referenceNumber = $paymentSession->metadata['receipt_code'] ?? 'SUB-' . strtoupper(substr(uniqid(), -8));
+                
+                // Create transaction record
+                $transaction = SubscriptionTransaction::create([
+                    'user_id' => $userId,
+                    'OldPlanID' => $activeSubscription?->PlanID,
+                    'NewPlanID' => $plan->PlanID,
+                    'PaymentMethod' => $actualPaymentMethod,
+                    'AmountPaid' => $plan->Price,
+                    'TransactionDate' => now(),
+                    'receipt_code' => $referenceNumber,
+                    'paymongo_session_id' => $paymentSession->paymongo_session_id,
+                    'Notes' => $hasActiveSubscription 
+                        ? $actualPaymentMethod . ' payment via PayMongo - Pending start on ' . $startDate->toDateString() . ' - Reference: ' . $referenceNumber
+                        : $actualPaymentMethod . ' payment via PayMongo - Reference: ' . $referenceNumber,
+                ]);
+            }
             
             // Don't deactivate old subscription if new one is pending
             // The old subscription will remain active until the new one starts
@@ -665,6 +757,7 @@ class ChurchSubscriptionController extends Controller
                     'transaction' => $transaction,
                     'payment_session' => $paymentSession,
                     'receipt_number' => (string) $transaction->SubTransactionID,
+                    'receipt_code' => $transaction->receipt_code,
                     'formatted_date' => $transaction->TransactionDate->format('F j, Y g:i A'),
                 ]
             ]);
@@ -682,108 +775,5 @@ class ChurchSubscriptionController extends Controller
         }
     }
 
-    /**
-     * Download receipt PDF
-     */
-    public function downloadReceipt(Request $request, $transactionId)
-    {
-        try {
-            $transaction = SubscriptionTransaction::with(['newPlan', 'user'])
-                ->where('SubTransactionID', $transactionId)
-                ->where('user_id', Auth::id())
-                ->first();
-
-            if (!$transaction) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Transaction not found'
-                ], 404);
-            }
-
-            $sessionId = $request->query('session_id');
-            $paymentSession = null;
-            
-            if ($sessionId) {
-                $paymentSession = PaymentSession::where('paymongo_session_id', $sessionId)
-                    ->where('user_id', Auth::id())
-                    ->first();
-            }
-
-            $receiptNumber = (string) $transaction->SubTransactionID;
-            $paymentMethod = $transaction->PaymentMethod === 'multi' ? 'GCash' : $transaction->PaymentMethod;
-
-            $data = [
-                'brand' => 'FaithSeeker',
-                'receiptNumber' => $receiptNumber,
-                'formattedDate' => $transaction->TransactionDate->format('F j, Y g:i A'),
-                'transaction' => $transaction,
-                'plan' => $transaction->newPlan,
-                'amount' => $transaction->AmountPaid,
-                'paymentMethod' => $paymentMethod,
-                'duration' => $transaction->newPlan->DurationInMonths ?? null,
-                'user' => $transaction->user,
-                'session' => $paymentSession,
-            ];
-
-            $pdf = Pdf::loadView('receipts.subscription', $data)->setPaper('a4');
-            return $pdf->download('receipt-' . $receiptNumber . '.pdf');
-        } catch (\Exception $e) {
-            Log::error('Failed to generate receipt', [
-                'error' => $e->getMessage(),
-                'transaction_id' => $transactionId,
-                'user_id' => Auth::id()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to generate receipt'
-            ], 500);
-        }
-    }
-
-    /**
-     * Generate receipt content
-     */
-    private function generateReceiptContent($transaction, $paymentSession, $receiptNumber)
-    {
-        $content = "\n";
-        $content .= "================================================\n";
-        $content .= "           CHURCH BOOKING SYSTEM               \n";
-        $content .= "              PAYMENT RECEIPT                  \n";
-        $content .= "================================================\n\n";
-        
-        $content .= "Transaction ID: {$receiptNumber}\n";
-        $content .= "Transaction Date: " . $transaction->TransactionDate->format('F j, Y g:i A') . "\n";
-        $content .= "Customer: " . $transaction->user->name . "\n";
-        $content .= "Email: " . $transaction->user->email . "\n\n";
-        
-        $content .= "------------------------------------------------\n";
-        $content .= "PURCHASE DETAILS\n";
-        $content .= "------------------------------------------------\n";
-        $content .= "Plan: " . ($transaction->newPlan->PlanName ?? 'N/A') . "\n";
-        $content .= "Duration: " . ($transaction->newPlan->DurationInMonths ?? 'N/A') . " month(s)\n";
-        $content .= "Payment Method: " . $transaction->PaymentMethod . "\n";
-        
-        if ($paymentSession) {
-            $content .= "Payment Session ID: " . $paymentSession->paymongo_session_id . "\n";
-        }
-        
-        $content .= "\n------------------------------------------------\n";
-        $content .= "PAYMENT SUMMARY\n";
-        $content .= "------------------------------------------------\n";
-        $content .= "Amount Paid: ₱" . number_format($transaction->AmountPaid, 2) . "\n";
-        $content .= "Payment Status: PAID\n";
-        
-        $content .= "\n------------------------------------------------\n";
-        $content .= "NOTES\n";
-        $content .= "------------------------------------------------\n";
-        $content .= $transaction->Notes . "\n";
-        
-        $content .= "\n================================================\n";
-        $content .= "     Thank you for your subscription!          \n";
-        $content .= "================================================\n";
-        
-        return $content;
-    }
 
 }

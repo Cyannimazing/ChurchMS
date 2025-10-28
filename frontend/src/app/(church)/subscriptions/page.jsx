@@ -13,7 +13,6 @@ const SubscriptionStatus = () => {
   const searchParams = useSearchParams();
   const [currentSub, setCurrentSub] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
   const [messageType, setMessageType] = useState('info');
 
@@ -83,22 +82,6 @@ const SubscriptionStatus = () => {
     }
   }, [searchParams]);
 
-  const handleCancelPending = () => {
-    setShowCancelDialog(true);
-  };
-
-  const confirmCancelPending = () => {
-    axios
-      .delete("/api/church-subscriptions/pending")
-      .then(() => {
-        setCurrentSub({ ...currentSub, pending: null });
-        setShowCancelDialog(false);
-      })
-      .catch((error) => {
-        console.error("Error canceling pending subscription:", error);
-        setShowCancelDialog(false);
-      });
-  };
 
   return (
     <div className="lg:p-6 w-full h-screen pt-20">
@@ -123,6 +106,50 @@ const SubscriptionStatus = () => {
           </div>
           <div className="p-6 flex-1">
             <div>
+              {/* Status Message */}
+              {statusMessage && (
+                <div className={`mb-6 rounded-lg p-4 ${
+                  messageType === 'success' ? 'bg-green-50 border border-green-200' :
+                  messageType === 'error' ? 'bg-red-50 border border-red-200' :
+                  'bg-blue-50 border border-blue-200'
+                }`}>
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      {messageType === 'success' ? (
+                        <svg className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : messageType === 'error' ? (
+                        <svg className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      ) : (
+                        <svg className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="ml-3 flex-1">
+                      <p className={`text-sm ${
+                        messageType === 'success' ? 'text-green-800' :
+                        messageType === 'error' ? 'text-red-800' :
+                        'text-blue-800'
+                      }`}>
+                        {statusMessage}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setStatusMessage(null)}
+                      className="ml-3 flex-shrink-0"
+                    >
+                      <svg className="h-4 w-4 text-gray-400 hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              )}
+              
               {loading ? (
                 <DataLoading message="Loading your subscription status..." />
               ) : currentSub?.active ? (
@@ -204,13 +231,9 @@ const SubscriptionStatus = () => {
                               })
                             : "N/A"}
                         </p>
-                        <Button
-                          onClick={handleCancelPending}
-                          variant="outline"
-                          className="text-red-600 border-red-300 hover:bg-red-50"
-                        >
-                          Cancel Pending Subscription
-                        </Button>
+                        <p className="text-xs text-yellow-700 mt-2">
+                          Your new subscription will automatically begin when your current plan expires.
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -221,17 +244,6 @@ const SubscriptionStatus = () => {
         </div>
       </div>
       
-      {/* Cancellation Warning Dialog */}
-      <ConfirmDialog
-        isOpen={showCancelDialog}
-        onClose={() => setShowCancelDialog(false)}
-        onConfirm={confirmCancelPending}
-        title="Cancel Pending Subscription"
-        message="Are you sure you want to cancel your pending subscription? This action cannot be undone and you will need to reapply if you change your mind."
-        confirmText="Yes, Cancel Subscription"
-        cancelText="Keep Subscription"
-        type="warning"
-      />
     </div>
   );
 };

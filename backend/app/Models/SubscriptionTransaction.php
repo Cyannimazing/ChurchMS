@@ -19,6 +19,8 @@ class SubscriptionTransaction extends Model
         'AmountPaid',
         'TransactionDate',
         'Notes',
+        'receipt_code',
+        'paymongo_session_id',
     ];
 
     protected $casts = [

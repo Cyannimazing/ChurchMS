@@ -15,40 +15,42 @@ const PaymentCancel = () => {
   }, [searchParams]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full mx-auto">
-        <div className="bg-white shadow-lg rounded-lg p-6">
-          <div className="text-center">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
-              <svg className="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="w-full max-w-md">
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+          {/* Cancel Header */}
+          <div className="bg-red-600 px-6 py-6 text-center">
+            <div className="mx-auto h-14 w-14 rounded-full bg-white/10 flex items-center justify-center mb-3">
+              <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </div>
-            <h1 className="mt-4 text-xl font-semibold text-gray-900">Payment Cancelled</h1>
-            <p className="mt-2 text-gray-600">
-              Your GCash payment was cancelled. No charges have been made to your account.
-            </p>
-            <p className="mt-2 text-sm text-gray-500">
-              You can try again anytime or choose a different payment method.
-            </p>
-            
-            <div className="mt-6 space-y-3">
-              <Link href="/plans">
-                <Button className="w-full">
-                  Choose Plan Again
-                </Button>
-              </Link>
-              <Link href="/subscriptions">
-                <Button variant="outline" className="w-full">
-                  View Current Subscriptions
-                </Button>
-              </Link>
+            <h1 className="text-xl font-semibold text-white">Payment Cancelled</h1>
+            <p className="text-red-50 text-sm mt-1">Your payment was cancelled. No charges have been made.</p>
+          </div>
+
+          {/* Content */}
+          <div className="p-6">
+            <div className="space-y-5">
+              <p className="text-sm text-gray-600 text-center">You can try again anytime or choose a different payment method.</p>
+
+              <div className="space-y-3">
+                <Link href="/plans" className="block">
+                  <Button className="w-full">Try Again</Button>
+                </Link>
+                <Link href="/subscriptions" className="block">
+                  <Button variant="outline" className="w-full">View Current Subscriptions</Button>
+                </Link>
+              </div>
             </div>
-            
-            {sessionId && (
-              <p className="mt-4 text-xs text-gray-400">
-                Session ID: {sessionId.substring(0, 20)}...
-              </p>
+          </div>
+
+          {/* Footer inside container */}
+          <div className="bg-gray-50 border-t border-gray-200 px-6 py-3 text-center">
+            {sessionId ? (
+              <p className="text-xs text-gray-400">Session: {sessionId.substring(0, 24)}...</p>
+            ) : (
+              <p className="text-xs text-gray-500">Need help? Contact support.</p>
             )}
           </div>
         </div>

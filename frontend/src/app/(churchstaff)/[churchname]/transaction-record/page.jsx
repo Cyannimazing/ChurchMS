@@ -1042,7 +1042,7 @@ const TransactionRecordPage = () => {
                     </div>
                     <div className="ml-3">
                       <p className="text-xs text-amber-700">
-                        Customer should provide their receipt code to process the refund.
+                        Customer should provide their reference code to process the refund.
                       </p>
                     </div>
                   </div>
@@ -1101,13 +1101,13 @@ const TransactionRecordPage = () => {
 
                 <div>
                   <Label className="block text-sm font-medium text-gray-700 mb-1">
-                    Receipt Code <span className="text-red-500">*</span>
+                    Reference <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     type="text"
                     value={refundData.receipt_code}
                     onChange={(e) => setRefundData({...refundData, receipt_code: e.target.value.toUpperCase()})}
-                    placeholder="Enter receipt code (e.g., TXN000123)"
+                    placeholder="Enter reference code (e.g., TXN000123)"
                     className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
                     required
                   />

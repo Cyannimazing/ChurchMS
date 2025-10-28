@@ -1882,6 +1882,11 @@ class AppointmentController extends Controller
                 ->setTimeFromTimeString($scheduleTime->StartTime)
                 ->format('Y-m-d H:i:s');
 
+            // Generate unique receipt code for PayMongo email receipt reference
+            do {
+                $receiptCode = 'TXN' . str_pad(mt_rand(1, 99999999), 8, '0', STR_PAD_LEFT);
+            } while (ChurchTransaction::where('receipt_code', $receiptCode)->exists());
+
             // Prepare metadata for the checkout session
             $metadata = [
                 'user_id' => $user->id,
@@ -1893,7 +1898,8 @@ class AppointmentController extends Controller
                 'form_data' => $request->form_data ?? null,
                 'type' => 'appointment_payment',
                 'church_name' => $church->ChurchName,
-                'service_name' => $service->ServiceName
+                'service_name' => $service->ServiceName,
+                'receipt_code' => $receiptCode
             ];
 
             // Build description
@@ -2182,11 +2188,15 @@ class AppointmentController extends Controller
                 
                 $paymentMethod = $sessionData['attributes']['payment_method_used'] ?? 'multi';
                 
+                // Use receipt code from metadata (generated before checkout)
+                $receiptCode = $metadata['receipt_code'] ?? null;
+                
                 $transaction = ChurchTransaction::create([
                     'user_id' => $user->id,
                     'church_id' => $churchId,
                     'appointment_id' => $appointmentId,
                     'paymongo_session_id' => $checkoutSessionId,
+                    'receipt_code' => $receiptCode,
                     'payment_method' => $paymentMethod,
                     'amount_paid' => $amountPaid,
                     'currency' => 'PHP',

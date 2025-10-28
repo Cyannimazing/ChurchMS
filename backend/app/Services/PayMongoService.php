@@ -85,14 +85,16 @@ class PayMongoService
                 ])
                 ->post($this->baseUrl . '/checkout_sessions', [
                     'data' => [
-                        'attributes' => [
-                            'send_email_receipt' => false,
+                        'attributes' => array_filter([
+                            'send_email_receipt' => true,
                             'show_description' => true,
                             'show_line_items' => true,
                             'description' => $description,
                             'payment_method_types' => $paymentMethods,
                             'success_url' => $successUrl,
                             'cancel_url' => $cancelUrl,
+                            // If provided, this shows up as "Reference" in PayMongo's email receipt
+                            'reference_number' => $metadata['reference_number'] ?? ($metadata['receipt_code'] ?? null),
                             'metadata' => $metadata,
                             'line_items' => [
                                 [
@@ -103,7 +105,7 @@ class PayMongoService
                                     'quantity' => 1,
                                 ]
                             ],
-                        ]
+                        ], function($v) { return $v !== null; })
                     ]
                 ]);
 
@@ -244,6 +246,104 @@ class PayMongoService
             return [
                 'success' => false,
                 'error' => 'Invalid webhook data'
+            ];
+        }
+    }
+
+    /**
+     * Create a refund for a payment
+     */
+    public function createRefund($paymentId, $amount, $reason = null)
+    {
+        try {
+            $response = Http::withBasicAuth($this->secretKey, '')
+                ->withHeaders([
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                ])
+                ->post($this->baseUrl . '/refunds', [
+                    'data' => [
+                        'attributes' => array_filter([
+                            'amount' => $amount * 100, // Convert to centavos
+                            'payment_id' => $paymentId,
+                            'reason' => $reason,
+                            'notes' => $reason,
+                        ], function($v) { return $v !== null; })
+                    ]
+                ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                Log::info('PayMongo refund created', ['refund_id' => $data['data']['id']]);
+                return [
+                    'success' => true,
+                    'data' => $data['data']
+                ];
+            }
+
+            Log::error('PayMongo refund creation failed', [
+                'status' => $response->status(),
+                'response' => $response->json()
+            ]);
+
+            return [
+                'success' => false,
+                'error' => 'Failed to create refund',
+                'details' => $response->json()
+            ];
+
+        } catch (Exception $e) {
+            Log::error('PayMongo refund service error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'error' => 'Refund service unavailable',
+                'details' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Get payment ID from checkout session
+     */
+    public function getPaymentIdFromSession($sessionId)
+    {
+        try {
+            $result = $this->getCheckoutSession($sessionId);
+            
+            if ($result['success']) {
+                $sessionData = $result['data'];
+                $paymentIntent = $sessionData['attributes']['payment_intent'] ?? null;
+                
+                if ($paymentIntent) {
+                    $payments = $paymentIntent['attributes']['payments'] ?? [];
+                    
+                    if (!empty($payments)) {
+                        return [
+                            'success' => true,
+                            'payment_id' => $payments[0]['id']
+                        ];
+                    }
+                }
+            }
+            
+            return [
+                'success' => false,
+                'error' => 'Payment ID not found in session'
+            ];
+            
+        } catch (Exception $e) {
+            Log::error('Error retrieving payment ID from session', [
+                'session_id' => $sessionId,
+                'error' => $e->getMessage()
+            ]);
+            
+            return [
+                'success' => false,
+                'error' => 'Failed to retrieve payment ID'
             ];
         }
     }
