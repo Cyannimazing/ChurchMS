@@ -41,10 +41,10 @@ class ClergyController extends Controller
     {
         $request->validate([
             'ChurchID' => 'required|exists:Church,ChurchID',
-            'FirstName' => 'required|string|max:100',
-            'LastName' => 'required|string|max:100',
-            'MiddleName' => 'nullable|string|max:100',
-            'Position' => 'required|string|max:100',
+            'first_name' => 'required|string|max:100',
+            'last_name' => 'required|string|max:100',
+            'middle_name' => 'nullable|string|max:100',
+            'position' => 'required|string|max:100',
         ]);
 
         $clergy = Clergy::create($request->all());
@@ -72,17 +72,17 @@ class ClergyController extends Controller
         }
 
         $request->validate([
-            'FirstName' => 'required|string|max:100',
-            'LastName' => 'required|string|max:100',
-            'MiddleName' => 'nullable|string|max:100',
-            'Position' => 'required|string|max:100',
+            'first_name' => 'required|string|max:100',
+            'last_name' => 'required|string|max:100',
+            'middle_name' => 'nullable|string|max:100',
+            'position' => 'required|string|max:100',
         ]);
 
         $clergy->update($request->only([
-            'FirstName',
-            'LastName',
-            'MiddleName',
-            'Position'
+            'first_name',
+            'last_name',
+            'middle_name',
+            'position'
         ]));
 
         return response()->json($clergy);
