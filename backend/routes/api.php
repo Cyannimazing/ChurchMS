@@ -21,6 +21,8 @@ use App\Http\Controllers\SubServiceController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\CertificateConfigurationController;
 use App\Http\Controllers\ClergyController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\DashboardController;
 
 // Locations (public routes)
 Route::get('/provinces', [LocationController::class, 'getProvinces']);
@@ -50,6 +52,18 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
 Route::get('/users_list', [UserController::class, 'index'])->middleware('auth:sanctum');
 Route::put('/users/{id}/update-active', [UserController::class, 'updateActiveStatus'])->middleware('auth:sanctum');
 Route::get('/users/{id}', [UserController::class, 'show'])->middleware('auth:sanctum');
+
+//NOTIFICATIONS
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unreadCount');
+    Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+    Route::put('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
+    Route::delete('/notifications/{id}', [NotificationController::class, 'destroy'])->name('notifications.destroy');
+});
+
+//DASHBOARD ANALYTICS
+Route::middleware('auth:sanctum')->get('/dashboard/analytics', [DashboardController::class, 'getAnalytics'])->name('dashboard.analytics');
 
 //SUBSCRIPTION PLANS
 Route::get('/subscription-plans', [SubscriptionPlanController::class, 'index']);

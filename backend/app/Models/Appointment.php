@@ -52,6 +52,11 @@ class Appointment extends Model
         return $this->belongsTo(ServiceSchedule::class, 'ScheduleID', 'ScheduleID');
     }
     
+    public function subService(): BelongsTo
+    {
+        return $this->belongsTo(SubService::class, 'SubServiceID', 'SubServiceID');
+    }
+    
     public function churchTransaction(): BelongsTo
     {
         return $this->belongsTo(ChurchTransaction::class, 'AppointmentID', 'appointment_id');

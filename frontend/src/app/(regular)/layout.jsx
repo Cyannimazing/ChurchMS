@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/auth.jsx";
 import Loading from "@/components/Loading.jsx";
 import Navigation from "./Navigation";
+import { initializeEcho } from "@/lib/echo";
 
 const AppLayout = ({ children }) => {
   const { user } = useAuth({ middleware: "auth" });
@@ -14,6 +15,8 @@ const AppLayout = ({ children }) => {
 
   useEffect(() => {
     if (user) {
+      // Initialize Echo for real-time notifications
+      initializeEcho();
       
       const role = user.profile.system_role.role_name;
 

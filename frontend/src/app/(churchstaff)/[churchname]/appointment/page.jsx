@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "@/lib/axios";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { Calendar, Clock, MapPin, Users, Eye, Check, X, AlertTriangle, Search, FileText, User, Mail, Phone, MapPin as Location, FileText as CertificateIcon, Download } from "lucide-react";
 import { useAuth } from "@/hooks/auth.jsx";
 import DataLoading from "@/components/DataLoading";
@@ -78,6 +78,7 @@ const AppointmentPage = () => {
   const { user } = useAuth({ middleware: "auth" });
   const router = useRouter();
   const { churchname } = useParams();
+  const searchParams = useSearchParams();
   
   const [appointments, setAppointments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -91,6 +92,8 @@ const AppointmentPage = () => {
   const itemsPerPage = 6;
   // Warning quick-filters: 'none' | 'expired_pending' | 'due_approved'
   const [warningFilter, setWarningFilter] = useState('none');
+  // Focused appointment from notifications
+  const [focusAppointmentId, setFocusAppointmentId] = useState(null);
   
   // Review modal state
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -161,6 +164,7 @@ const AppointmentPage = () => {
   const canGenerateCertificate = hasPermission("appointment_generateCertificate");
   const canGenerateMassReport = hasPermission("appointment_generateMassReport");
 
+
   // Fetch appointments
   const fetchAppointments = async () => {
     try {
@@ -189,6 +193,33 @@ const AppointmentPage = () => {
     }
   }, [hasAccess, churchname]);
 
+  // Read appointmentId from URL and set focus (do not open modal)
+  useEffect(() => {
+    const appointmentId = searchParams.get('appointmentId');
+    if (appointmentId) {
+      setFocusAppointmentId(parseInt(appointmentId));
+      // Remove the query parameter from URL after capturing it
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [searchParams]);
+
+  // When focus is set and appointments are loaded, switch to its service tab and loosen filters
+  useEffect(() => {
+    if (focusAppointmentId && appointments.length > 0) {
+      const apt = appointments.find(a => a.AppointmentID === focusAppointmentId);
+      if (apt) {
+        setActiveServiceTab(apt.ServiceName || 'All');
+        setStatusFilter('All');
+        setYearFilter('All');
+        setWarningFilter('none');
+        setSearchTerm('');
+        setCurrentPage(1);
+      }
+    }
+  }, [focusAppointmentId, appointments]);
+
+
   // Update approval eligibility when appointment details change
   useEffect(() => {
     if (appointmentDetails?.formConfiguration) {
@@ -212,18 +243,23 @@ const AppointmentPage = () => {
   useEffect(() => {
     let filtered = [...appointments];
 
-    // Apply active service tab filter
-    if (activeServiceTab !== "All") {
+    // If focused from notification, show only that appointment
+    if (focusAppointmentId) {
+      filtered = filtered.filter(appointment => appointment.AppointmentID === focusAppointmentId);
+    }
+
+    // Apply active service tab filter (skipped if focused already narrowed to one)
+    if (!focusAppointmentId && activeServiceTab !== "All") {
       filtered = filtered.filter(appointment => appointment.ServiceName === activeServiceTab);
     }
 
     // Apply status filter
-    if (statusFilter !== "All") {
+    if (!focusAppointmentId && statusFilter !== "All") {
       filtered = filtered.filter(appointment => appointment.Status === statusFilter);
     }
     
     // Apply year filter
-    if (yearFilter !== "All") {
+    if (!focusAppointmentId && yearFilter !== "All") {
       filtered = filtered.filter(appointment => {
         const appointmentDate = new Date(appointment.AppointmentDate);
         return appointmentDate.getFullYear().toString() === yearFilter;
@@ -231,14 +267,16 @@ const AppointmentPage = () => {
     }
 
     // Apply warning quick-filters
-    if (warningFilter === 'expired_pending') {
-      filtered = filtered.filter(a => isAppointmentExpired(a.created_at, a.Status));
-    } else if (warningFilter === 'due_approved') {
-      filtered = filtered.filter(a => isAppointmentDueOrOverdue(a));
+    if (!focusAppointmentId) {
+      if (warningFilter === 'expired_pending') {
+        filtered = filtered.filter(a => isAppointmentExpired(a.created_at, a.Status));
+      } else if (warningFilter === 'due_approved') {
+        filtered = filtered.filter(a => isAppointmentDueOrOverdue(a));
+      }
     }
 
     // Apply search filter
-    if (searchTerm) {
+    if (!focusAppointmentId && searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(appointment => (
         appointment.ServiceName?.toLowerCase().includes(searchLower) ||
@@ -247,12 +285,12 @@ const AppointmentPage = () => {
       ));
     }
 
-    // Sort by creation date ascending (oldest first - FIFO)
-    filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    // Sort by creation date descending (newest first - recently added on top)
+    filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
     setFilteredAppointments(filtered);
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, activeServiceTab, yearFilter, warningFilter, appointments]);
+  }, [searchTerm, statusFilter, activeServiceTab, yearFilter, warningFilter, appointments, focusAppointmentId]);
 
   // Pagination
   const totalPages = Math.ceil(filteredAppointments.length / itemsPerPage);
@@ -321,8 +359,17 @@ const AppointmentPage = () => {
 
   // Helper function to check if appointment is expired (72+ hours old)
   const isAppointmentExpired = (createdAt, status) => {
-    return status === 'Pending' && createdAt && 
-      new Date() - new Date(createdAt) > 72 * 60 * 60 * 1000;
+    if (status !== 'Pending') return false;
+    if (!createdAt) return false;
+    
+    // Parse date properly (handle 'YYYY-MM-DD HH:mm:ss' format)
+    const created = new Date(createdAt.replace(' ', 'T'));
+    const now = new Date();
+    const diffMs = now - created;
+    const hoursElapsed = diffMs / (1000 * 60 * 60);
+    const isExpired = hoursElapsed >= 72;
+    
+    return isExpired;
   };
 
   // Helper: check if an Approved appointment is due today or overdue
@@ -470,6 +517,7 @@ const AppointmentPage = () => {
     
     // Reset form data for new appointment
     setStaffFormData({});
+    
     
     try {
       // Fetch detailed appointment information
@@ -974,6 +1022,24 @@ const AppointmentPage = () => {
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</span>
+                        {/* Clear All Filters Button */}
+                        {(activeServiceTab !== "All" || statusFilter !== "All" || yearFilter !== "All" || searchTerm || warningFilter !== 'none' || focusAppointmentId) && (
+                          <button
+                            onClick={() => {
+                              setActiveServiceTab('All');
+                              setStatusFilter('All');
+                              setYearFilter('All');
+                              setSearchTerm('');
+                              setWarningFilter('none');
+                              setFocusAppointmentId(null);
+                              setCurrentPage(1);
+                            }}
+                            className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium text-white bg-gray-700 hover:bg-gray-800 transition-colors cursor-pointer"
+                          >
+                            <X className="w-3 h-3 mr-1" />
+                            Clear All Filters
+                          </button>
+                        )}
                         {["All", "Pending", "Approved", "Completed", "Cancelled"].map((status) => {
                           const count = status === "All" 
                             ? (activeServiceTab === "All" ? appointments.length : appointments.filter(apt => apt.ServiceName === activeServiceTab).length)
@@ -1149,8 +1215,14 @@ const AppointmentPage = () => {
                           currentAppointments.map((appointment) => {
                             const isExpired = isAppointmentExpired(appointment.created_at, appointment.Status);
                             const isDue = isAppointmentDueOrOverdue(appointment);
+                            const isFocused = focusAppointmentId === appointment.AppointmentID;
                             return (
-                            <tr key={appointment.AppointmentID} className={`hover:bg-gray-50 ${isExpired ? 'bg-red-50 border-l-4 border-l-red-400' : isDue ? 'bg-amber-50 border-l-4 border-l-amber-400' : ''}`}>
+                            <tr key={appointment.AppointmentID} className={`hover:bg-gray-50 ${
+                              isFocused ? 'bg-blue-100 border-l-4 border-l-blue-600 animate-pulse' :
+                              isExpired ? 'bg-red-50 border-l-4 border-l-red-400' : 
+                              isDue ? 'bg-amber-50 border-l-4 border-l-amber-400' : 
+                              ''
+                            }`}>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
                                   <div className="flex-shrink-0 h-10 w-10">

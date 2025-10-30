@@ -17,7 +17,11 @@ use App\Models\AppointmentPaymentSession;
 use App\Models\PaymentSession;
 use App\Models\ChurchTransaction;
 use App\Models\ChurchConvenienceFee;
+use App\Models\Notification;
 use App\Services\PayMongoService;
+use App\Events\AppointmentCreated;
+use App\Events\NotificationCreated;
+use App\Events\NotificationRead;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -434,6 +438,21 @@ class AppointmentController extends Controller
                 } else {
                     Log::info('Not reserving slot - appointment status is not pending');
                 }
+                
+                // Create notification for church staff
+                $notification = $this->createAppointmentNotification(
+                    $request->church_id,
+                    $appointmentId,
+                    $user,
+                    $service,
+                    $appointmentDateTime
+                );
+                
+                // Load the full appointment to broadcast
+                $appointment = Appointment::find($appointmentId);
+                
+                // Broadcast event to church staff
+                event(new AppointmentCreated($appointment, $request->church_id, $notification));
                 
                 DB::commit();
                 
@@ -972,6 +991,7 @@ class AppointmentController extends Controller
                                  'a.AppointmentDate',
                                  'a.Status',
                                  'a.Notes',
+                                 'a.created_at',
                                  'c.ChurchName',
                                  's.ServiceName',
                                  's.Description as ServiceDescription',
@@ -1389,6 +1409,9 @@ class AppointmentController extends Controller
 
                 // Handle slot management based on status changes
                 $this->updateSlotAvailability($appointment, $oldStatus, $newStatus);
+
+                // Send notifications for status changes
+                $this->sendStatusChangeNotifications($appointmentId, $appointment, $newStatus, $oldStatus);
 
                 DB::commit();
 
@@ -2303,6 +2326,25 @@ class AppointmentController extends Controller
                     ]
                 ]);
                 
+                // Create notification for church staff
+                $notification = $this->createAppointmentNotification(
+                    $churchId,
+                    $appointmentId,
+                    $user,
+                    $service,
+                    $appointmentDate
+                );
+                
+                // Load the full appointment to broadcast
+                $appointment = Appointment::find($appointmentId);
+                
+                // Broadcast event to church staff
+                event(new AppointmentCreated($appointment, $churchId, $notification));
+                // Also notify applicant user channel
+                if ($notification) {
+                    event(new NotificationCreated($user->id, $notification));
+                }
+                
                 DB::commit();
                 
                 Log::info('Appointment created after successful payment', [
@@ -3168,6 +3210,28 @@ class AppointmentController extends Controller
             // Update session status
             $appointmentSession->update(['status' => 'paid']);
             
+            // Create notification for church staff
+            $user = User::find($appointmentSession->user_id);
+            $service = SacramentService::find($appointmentSession->service_id);
+            
+            if ($user && $service) {
+                $notification = $this->createAppointmentNotification(
+                    $appointmentSession->church_id,
+                    $appointmentId,
+                    $user,
+                    $service,
+                    $appointmentSession->appointment_date
+                );
+                
+                // Load the full appointment to broadcast
+                $appointment = Appointment::find($appointmentId);
+                
+                // Broadcast event to church staff
+                if ($appointment && $notification) {
+                    event(new AppointmentCreated($appointment, $appointmentSession->church_id, $notification));
+                }
+            }
+            
             DB::commit();
             
             Log::info('Appointment and transaction created successfully', [
@@ -3437,6 +3501,265 @@ class AppointmentController extends Controller
                 'success' => false,
                 'message' => 'Failed to fetch transactions'
             ], 500);
+        }
+    }
+    
+    /**
+     * Create notification for church staff about new appointment
+     */
+    private function createAppointmentNotification($churchId, $appointmentId, $user, $service, $appointmentDateTime)
+    {
+        try {
+            // Get church owner to notify
+            $church = Church::find($churchId);
+            if (!$church) {
+                return null;
+            }
+
+            // Get user's full name from profile
+            $userName = 'Unknown User';
+            if ($user->profile) {
+                $userName = trim(($user->profile->first_name ?? '') . ' ' . ($user->profile->last_name ?? ''));
+                if (empty($userName)) {
+                    $userName = $user->email;
+                }
+            } else {
+                $userName = $user->email;
+            }
+            
+            // Create notification for church owner
+            $notification = Notification::create([
+                'user_id' => $church->user_id,
+                'type' => 'appointment_created',
+                'title' => 'New Appointment Request',
+                'message' => sprintf(
+                    '%s has requested an appointment for %s on %s',
+                    $userName,
+                    $service->ServiceName,
+                    Carbon::parse($appointmentDateTime)->format('F j, Y g:i A')
+                ),
+                'data' => [
+                    'appointment_id' => $appointmentId,
+                    'church_id' => $churchId,
+                    'service_id' => $service->ServiceID,
+                    'user_id' => $user->id,
+                    'user_name' => $userName,
+                    'service_name' => $service->ServiceName,
+                    'appointment_date' => $appointmentDateTime,
+                ],
+            ]);
+            // Broadcast to owner
+            event(new NotificationCreated($church->user_id, $notification));
+
+            // Create notification for the applicant (regular user)
+            $userNotification = Notification::create([
+                'user_id' => $user->id,
+                'type' => 'appointment_submitted',
+                'title' => 'Appointment Submitted',
+                'message' => sprintf(
+                    'Your appointment for %s at %s was submitted. Please prepare requirements within 72 hours.',
+                    $service->ServiceName,
+                    $church->ChurchName
+                ),
+                'data' => [
+                    'appointment_id' => $appointmentId,
+                    'church_id' => $churchId,
+                    'service_id' => $service->ServiceID,
+                    'service_name' => $service->ServiceName,
+                    'appointment_date' => $appointmentDateTime,
+                ],
+            ]);
+            event(new NotificationCreated($user->id, $userNotification));
+
+            // Also notify active staff members with view_appointments permission
+            $staffMembers = \App\Models\UserChurchRole::where('ChurchID', $churchId)
+                ->whereHas('role', function($query) {
+                    $query->whereHas('permissions', function($permQuery) {
+                        $permQuery->where('PermissionName', 'view_appointments');
+                    });
+                })
+                ->get();
+
+            foreach ($staffMembers as $staffRole) {
+                $staffNotif = Notification::create([
+                    'user_id' => $staffRole->user_id,
+                    'type' => 'appointment_created',
+                    'title' => 'New Appointment Request',
+                    'message' => sprintf(
+                        '%s has requested an appointment for %s on %s',
+                        $userName,
+                        $service->ServiceName,
+                        Carbon::parse($appointmentDateTime)->format('F j, Y g:i A')
+                    ),
+                    'data' => [
+                    'appointment_id' => $appointmentId,
+                        'church_id' => $churchId,
+                        'service_id' => $service->ServiceID,
+                        'user_id' => $user->id,
+                        'user_name' => $userName,
+                        'service_name' => $service->ServiceName,
+                        'appointment_date' => $appointmentDateTime,
+                    ],
+                ]);
+                event(new NotificationCreated($staffRole->user_id, $staffNotif));
+            }
+
+            return $notification;
+        } catch (\Exception $e) {
+            Log::error('Failed to create appointment notification', [
+                'error' => $e->getMessage(),
+                'appointment_id' => $appointmentId
+            ]);
+            return null;
+        }
+    }
+    
+    /**
+     * Send notifications when appointment status changes
+     */
+    private function sendStatusChangeNotifications($appointmentId, $appointment, $newStatus, $oldStatus)
+    {
+        try {
+            // Only send notifications for Approved or Cancelled status
+            if (!in_array($newStatus, ['Approved', 'Cancelled', 'Rejected'])) {
+                return;
+            }
+            
+            // Get appointment with related data
+            $appointmentData = \App\Models\Appointment::with(['user.profile', 'service', 'church'])
+                ->where('AppointmentID', $appointmentId)
+                ->first();
+                
+            if (!$appointmentData) {
+                return;
+            }
+            
+            $user = $appointmentData->user;
+            $service = $appointmentData->service;
+            $church = $appointmentData->church;
+            $appointmentDateTime = Carbon::parse($appointment->AppointmentDate)->format('F j, Y g:i A');
+            
+            // Prepare notification data based on status
+            $notificationData = $this->prepareStatusNotificationData($newStatus, $service, $appointmentDateTime);
+            
+            // 1. Notify the user who owns the appointment
+            $userNotification = Notification::create([
+                'user_id' => $user->id,
+                'type' => 'appointment_status_changed',
+                'title' => $notificationData['title'],
+                'message' => sprintf(
+                    $notificationData['user_message'],
+                    $service->ServiceName,
+                    $church->ChurchName,
+                    $appointmentDateTime
+                ),
+                'data' => [
+                    'appointment_id' => $appointmentId,
+                    'church_id' => $church->ChurchID,
+                    'service_id' => $service->ServiceID,
+                    'service_name' => $service->ServiceName,
+                    'appointment_date' => $appointment->AppointmentDate,
+                    'old_status' => $oldStatus,
+                    'new_status' => $newStatus,
+                ],
+            ]);
+            event(new NotificationCreated($user->id, $userNotification));
+            
+            // 2. Notify church owner
+            $ownerNotification = Notification::create([
+                'user_id' => $church->user_id,
+                'type' => 'appointment_status_changed',
+                'title' => $notificationData['staff_title'],
+                'message' => sprintf(
+                    $notificationData['staff_message'],
+                    $user->email,
+                    $service->ServiceName,
+                    $appointmentDateTime
+                ),
+                'data' => [
+                    'appointment_id' => $appointmentId,
+                    'church_id' => $church->ChurchID,
+                    'service_id' => $service->ServiceID,
+                    'user_id' => $user->id,
+                    'service_name' => $service->ServiceName,
+                    'appointment_date' => $appointment->AppointmentDate,
+                    'old_status' => $oldStatus,
+                    'new_status' => $newStatus,
+                ],
+            ]);
+            event(new NotificationCreated($church->user_id, $ownerNotification));
+            
+            // 3. Notify church staff with permissions
+            $staffMembers = \App\Models\UserChurchRole::where('ChurchID', $church->ChurchID)
+                ->whereHas('role', function($query) {
+                    $query->whereHas('permissions', function($permQuery) {
+                        $permQuery->where('PermissionName', 'appointment_list');
+                    });
+                })
+                ->get();
+                
+            foreach ($staffMembers as $staffRole) {
+                $staffNotification = Notification::create([
+                    'user_id' => $staffRole->user_id,
+                    'type' => 'appointment_status_changed',
+                    'title' => $notificationData['staff_title'],
+                    'message' => sprintf(
+                        $notificationData['staff_message'],
+                        $user->email,
+                        $service->ServiceName,
+                        $appointmentDateTime
+                    ),
+                    'data' => [
+                        'appointment_id' => $appointmentId,
+                        'church_id' => $church->ChurchID,
+                        'service_id' => $service->ServiceID,
+                        'user_id' => $user->id,
+                        'service_name' => $service->ServiceName,
+                        'appointment_date' => $appointment->AppointmentDate,
+                        'old_status' => $oldStatus,
+                        'new_status' => $newStatus,
+                    ],
+                ]);
+                event(new NotificationCreated($staffRole->user_id, $staffNotification));
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Failed to send status change notifications', [
+                'error' => $e->getMessage(),
+                'appointment_id' => $appointmentId,
+                'new_status' => $newStatus
+            ]);
+        }
+    }
+    
+    /**
+     * Prepare notification data based on status
+     */
+    private function prepareStatusNotificationData($status, $service, $appointmentDateTime)
+    {
+        switch ($status) {
+            case 'Approved':
+                return [
+                    'title' => 'Appointment Approved',
+                    'user_message' => 'Your appointment for %s at %s on %s has been approved!',
+                    'staff_title' => 'Appointment Status Updated',
+                    'staff_message' => 'Appointment for %s (%s on %s) has been approved.',
+                ];
+            case 'Cancelled':
+            case 'Rejected':
+                return [
+                    'title' => 'Appointment Cancelled',
+                    'user_message' => 'Your appointment for %s at %s on %s has been cancelled. Please contact the church for more details.',
+                    'staff_title' => 'Appointment Cancelled',
+                    'staff_message' => 'Appointment for %s (%s on %s) has been cancelled.',
+                ];
+            default:
+                return [
+                    'title' => 'Appointment Status Changed',
+                    'user_message' => 'Your appointment for %s at %s on %s status has been updated.',
+                    'staff_title' => 'Appointment Status Updated',
+                    'staff_message' => 'Appointment for %s (%s on %s) status has been updated.',
+                ];
         }
     }
     

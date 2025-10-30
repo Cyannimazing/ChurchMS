@@ -6,6 +6,22 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/auth.jsx";
 import ApplicationLogo from "@/components/ApplicationLogo.jsx";
 import { Menu, X, Church } from "lucide-react";
+import axios from "@/lib/axios";
+import { getEcho } from "@/lib/echo";
+
+// Lightweight sound player for new notifications (sidebar only)
+let __navNotifAudio;
+const playNavNotificationSound = () => {
+  try {
+    if (!__navNotifAudio) {
+      __navNotifAudio = new Audio('/notification-sound.mp3');
+      __navNotifAudio.preload = 'auto';
+    }
+    __navNotifAudio.currentTime = 0;
+    const p = __navNotifAudio.play();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+  } catch (_) {}
+};
 
 const Navigation = ({ user }) => {
   const pathname = usePathname();
@@ -14,6 +30,64 @@ const Navigation = ({ user }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  
+  // Fetch unread count + realtime + fallbacks
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await axios.get('/api/notifications/unread-count');
+        setUnreadCount(response.data.count || 0);
+      } catch (error) {
+        console.error('Error fetching unread count:', error);
+      }
+    };
+
+    if (!user) return;
+
+    // Initial fetch
+    fetchUnreadCount();
+
+    // WebSocket realtime updates
+    const echo = getEcho();
+    let userChannel;
+    if (echo) {
+      userChannel = echo.private(`user.${user.id}`);
+      const refresh = () => fetchUnreadCount();
+      userChannel.listen('.notification.created', () => {
+        refresh();
+        try {
+          if (!pathname.endsWith('/notifications')) playNavNotificationSound();
+        } catch (_) {}
+      });
+      userChannel.listen('.notification.read', refresh);
+      userChannel.listen('.notification.read_all', refresh);
+      userChannel.listen('.notification.deleted', refresh);
+    }
+
+    // Polling fallback every 10s (covers missed events / reconnections)
+    const intervalId = setInterval(fetchUnreadCount, 10000);
+
+    // Update on tab focus/visibility
+    const handleVisibility = () => { if (document.visibilityState === 'visible') fetchUnreadCount(); };
+    const handleFocus = () => fetchUnreadCount();
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+      try {
+        if (userChannel) {
+          userChannel.stopListening('.notification.created');
+          userChannel.stopListening('.notification.read');
+          userChannel.stopListening('.notification.read_all');
+          userChannel.stopListening('.notification.deleted');
+        }
+      } catch (_) {}
+    };
+  }, [user, pathname]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -65,6 +139,12 @@ const Navigation = ({ user }) => {
           icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
           badge: null,
           permission: "transaction_list",
+        },
+        {
+          name: "Notifications",
+          href: `/${churchname}/notifications`,
+          icon: "M15 17h5l-1.405-1.405C18.79 14.79 18 13.42 18 12V8a6 6 0 10-12 0v4c0 1.42-.79 2.79-2.595 3.595L2 17h5m8 0a3 3 0 11-6 0 3 3 0 016 0z",
+          badge: "dynamic",
         },
       ],
     },
@@ -358,9 +438,9 @@ const Navigation = ({ user }) => {
                             </svg>
                             <span className="font-medium">{item.name}</span>
                           </div>
-                          {item.badge && (
-                            <span className="px-2 py-0.5 text-xs rounded-full bg-indigo-100 text-indigo-800">
-                              {item.badge}
+                          {item.badge === "dynamic" && unreadCount > 0 && pathname !== item.href && (
+                            <span className="ml-auto px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                              {unreadCount}
                             </span>
                           )}
                         </Link>

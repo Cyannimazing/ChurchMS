@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import axios from "@/lib/axios";
-import { Calendar, Clock, MapPin, FileText } from "lucide-react";
+import { Calendar, Clock, MapPin, FileText, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/auth.jsx";
 
 const AppointmentPage = () => {
@@ -60,6 +60,52 @@ const AppointmentPage = () => {
     return `${displayHour}:${minutes} ${ampm}`;
   };
 
+  const parseDate = (input) => {
+    if (!input) return null;
+    if (input instanceof Date) return input;
+    if (typeof input === 'number') return new Date(input);
+    if (typeof input === 'string') {
+      // Ensure browser-parseable format (YYYY-MM-DDTHH:mm:ss)
+      const iso = input.includes('T') ? input : input.replace(' ', 'T');
+      let d = new Date(iso);
+      if (!isNaN(d.getTime())) return d;
+      d = new Date(iso + 'Z');
+      if (!isNaN(d.getTime())) return d;
+    }
+    return null;
+  };
+
+  const getHoursElapsed = (createdAt) => {
+    const created = parseDate(createdAt);
+    if (!created) return 0;
+    const now = new Date();
+    const diffMs = now.getTime() - created.getTime();
+    return diffMs / (1000 * 60 * 60);
+  };
+
+  const getRemainingHours = (createdAt) => {
+    const hoursElapsed = getHoursElapsed(createdAt);
+    const remaining = 72 - hoursElapsed;
+    return Math.max(0, remaining);
+  };
+
+  const getCreatedAt = (a) => a?.created_at || a?.CreatedAt || a?.createdAt;
+
+  const isExpiringSoon = (appointment) => {
+    if (appointment.Status !== 'Pending') return false;
+    const hoursElapsed = getHoursElapsed(getCreatedAt(appointment));
+    return hoursElapsed >= 72;
+  };
+
+  const formatRemainingTime = (hours) => {
+    if (hours <= 0) return '0 hours';
+    if (hours < 1) {
+      const minutes = Math.floor(hours * 60);
+      return `${minutes} minutes`;
+    }
+    return `${Math.floor(hours)} hours`;
+  };
+
   return (
     <div className="lg:p-6 w-full h-screen pt-20">
       <div className="w-full h-full">
@@ -107,57 +153,96 @@ const AppointmentPage = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {appointments.map((appointment) => (
-                  <div key={appointment.AppointmentID} className="border border-gray-200 rounded-lg p-6 hover:border-gray-300 transition-colors">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            {appointment.ServiceName}
-                          </h3>
-                          <span className={getStatusBadge(appointment.Status)}>
-                            {appointment.Status}
-                          </span>
+                {appointments.map((appointment) => {
+                  const isExpiring = isExpiringSoon(appointment);
+                  const remainingHours = getRemainingHours(getCreatedAt(appointment));
+                  
+                  return (
+                    <div key={appointment.AppointmentID} className={`border rounded-lg p-6 transition-colors ${
+                      isExpiring ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}>
+                      {/* Expiration Warning Banner */}
+                      {isExpiring && (
+                        <div className="mb-4 bg-red-100 border border-red-300 rounded-lg p-4">
+                          <div className="flex items-start gap-3">
+                            <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                              <h4 className="text-sm font-semibold text-red-900 mb-1">
+                                ⚠️ Cancellation Warning - 72 Hours Exceeded
+                              </h4>
+                              <p className="text-sm text-red-800">
+                                This appointment was requested more than 72 hours ago without approval. 
+                                It may be automatically cancelled to free up the slot for other applicants.
+                                Please contact the church if you need to maintain this reservation.
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center text-sm text-gray-600 mb-1">
-                          <MapPin className="w-4 h-4 mr-2" />
-                          <span>{appointment.ChurchName}</span>
+                      )}
+
+                      {/* Time Remaining Indicator for Pending Appointments */}
+                      {appointment.Status === 'Pending' && !isExpiring && (
+                        <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-sm text-amber-800">
+                            <Clock className="w-4 h-4" />
+                            <span className="font-medium">
+                              Time remaining: {formatRemainingTime(remainingHours)}
+                            </span>
+                            <span className="text-amber-700">until 72-hour deadline</span>
+                          </div>
                         </div>
-                        <div className="flex items-center text-sm text-gray-600 mb-1">
-                          <Calendar className="w-4 h-4 mr-2" />
-                          <span>
-                            {new Date(appointment.AppointmentDate).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
-                          </span>
-                        </div>
-                        {appointment.StartTime && appointment.EndTime && (
-                          <div className="flex items-center text-sm text-gray-600">
-                            <Clock className="w-4 h-4 mr-2" />
-                            <span>
-                              {formatTime(appointment.StartTime)} - {formatTime(appointment.EndTime)}
+                      )}
+
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              {appointment.ServiceName}
+                            </h3>
+                            <span className={getStatusBadge(appointment.Status)}>
+                              {appointment.Status}
                             </span>
                           </div>
-                        )}
+                          <div className="flex items-center text-sm text-gray-600 mb-1">
+                            <MapPin className="w-4 h-4 mr-2" />
+                            <span>{appointment.ChurchName}</span>
+                          </div>
+                          <div className="flex items-center text-sm text-gray-600 mb-1">
+                            <Calendar className="w-4 h-4 mr-2" />
+                            <span>
+                              {new Date(appointment.AppointmentDate).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </span>
+                          </div>
+                          {appointment.StartTime && appointment.EndTime && (
+                            <div className="flex items-center text-sm text-gray-600">
+                              <Clock className="w-4 h-4 mr-2" />
+                              <span>
+                                {formatTime(appointment.StartTime)} - {formatTime(appointment.EndTime)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
+                      
+                      {appointment.ServiceDescription && (
+                        <div className="mb-4">
+                          <p className="text-sm text-gray-600">{appointment.ServiceDescription}</p>
+                        </div>
+                      )}
+                      
+                      {appointment.Notes && (
+                        <div className="bg-gray-50 rounded-md p-3">
+                          <h4 className="text-sm font-medium text-gray-900 mb-1">Notes:</h4>
+                          <p className="text-sm text-gray-600">{appointment.Notes}</p>
+                        </div>
+                      )}
                     </div>
-                    
-                    {appointment.ServiceDescription && (
-                      <div className="mb-4">
-                        <p className="text-sm text-gray-600">{appointment.ServiceDescription}</p>
-                      </div>
-                    )}
-                    
-                    {appointment.Notes && (
-                      <div className="bg-gray-50 rounded-md p-3">
-                        <h4 className="text-sm font-medium text-gray-900 mb-1">Notes:</h4>
-                        <p className="text-sm text-gray-600">{appointment.Notes}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
