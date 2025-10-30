@@ -273,29 +273,6 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
     setSubmitError(null)
     
     try {
-      // Check if service is free (any amount = 0) and require membership
-      const hasFreeSchedules = selectedSchedule.fees && selectedSchedule.fees.some(fee => {
-        const amount = parseFloat(fee.Amount || fee.Fee || fee.amount || fee.fee || 0)
-        return amount === 0
-      })
-      
-      if (hasFreeSchedules) {
-        // Free service - check membership requirement
-        try {
-          const membershipResponse = await axios.get(`/api/user/membership/${church.ChurchID}`)
-          console.log("Membership response:", membershipResponse)
-          if (!membershipResponse.data || membershipResponse.data.status !== 'approved') {
-            setMembershipError('This is a free service. You must be an approved member of this church to request it. Please apply for membership first.')
-            return
-          }
-        } catch (error) {
-          if (error.response?.status === 404) {
-            setMembershipError('This is a free service. You must be an approved member of this church to request it. Please apply for membership first.')
-            return
-          }
-          // Other errors, continue with request
-        }
-      }
       
       // Prepare basic application data
       // Fix timezone issue by using local date string
@@ -392,30 +369,6 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
         }
       }
       
-      // Check if service is free (any amount = 0) and require membership
-      // Skip membership check for Mass services as they accept donations
-      const hasFreeSchedules = selectedSchedule.fees && selectedSchedule.fees.some(fee => {
-        const amount = parseFloat(fee.Amount || fee.Fee || fee.amount || fee.fee || 0)
-        return amount === 0
-      })
-      
-      if (hasFreeSchedules && !selectedService?.isMass) {
-        // Free service (non-Mass) - check membership requirement
-        try {
-          const membershipResponse = await axios.get(`/api/user/membership/${church.ChurchID}`)
-          
-          if (!membershipResponse.data || membershipResponse.data.status !== 'approved') {
-            setMembershipError('This is a free service. You must be an approved member of this church to request it. Please apply for membership first.')
-            return
-          }
-        } catch (error) {
-          if (error.response?.status === 404) {
-            setMembershipError('This is a free service. You must be an approved member of this church to request it. Please apply for membership first.')
-            return
-          }
-          // Other errors, continue with request
-        }
-      }
       
       // Check if we have required form fields filled
       const requiredFields = formConfig.form_elements?.filter(field => field.required && !['heading', 'paragraph', 'label', 'container'].includes(field.type)) || []
@@ -515,31 +468,6 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
 
   const formatScheduleDisplay = (schedule) => {
     const startDate = new Date(schedule.StartDate)
-    const fees = schedule.fees || []
-    
-    // Format fees with discount information if applicable
-    const formatFeesWithDiscount = () => {
-      if (fees.length === 0) return 'No fees'
-      
-      // Calculate total fees
-      const totalFees = fees.reduce((sum, fee) => {
-        return sum + parseFloat(fee.Fee || fee.Amount || 0)
-      }, 0)
-      
-      // Return empty string if total is 0
-      if (totalFees === 0) return ''
-      
-      return fees.map(fee => {
-        const originalAmount = parseFloat(fee.Fee || fee.Amount || 0)
-        const discountInfo = getDiscountInfo(originalAmount, selectedService)
-        
-        if (discountInfo) {
-          return `${fee.FeeType}: ₱${discountInfo.discountedFee.toFixed(2)} (was ₱${originalAmount.toFixed(2)})`
-        } else {
-          return `${fee.FeeType}: ₱${originalAmount.toFixed(2)}`
-        }
-      }).join(', ')
-    }
     
     return {
       date: startDate.toLocaleDateString('en-US', { 
@@ -548,8 +476,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
         day: 'numeric', 
         year: 'numeric' 
       }),
-      totalSlots: schedule.SlotCapacity,
-      fees: formatFeesWithDiscount()
+      totalSlots: schedule.SlotCapacity
     }
   }
 
@@ -1356,7 +1283,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col" style={{
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col" style={{
         maxHeight: '90vh'
       }}>
         {/* Header */}
@@ -1515,27 +1442,31 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                     </div>
                   )}
                   
-                  {/* Calendar Header */}
-                  <div className="flex items-center justify-between mb-4 p-3 bg-gray-50 rounded-lg">
-                    <button
-                      onClick={() => navigateMonth(-1)}
-                      className="p-2 hover:bg-gray-200 rounded-md transition-colors cursor-pointer"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <h4 className="font-medium text-gray-900">
-                      {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                    </h4>
-                    <button
-                      onClick={() => navigateMonth(1)}
-                      className="p-2 hover:bg-gray-200 rounded-md transition-colors cursor-pointer"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
+                  {/* Two-column layout: Calendar on left, Details on right */}
+                  <div className="flex gap-4">
+                    {/* Left Column: Calendar */}
+                    <div className="flex-1">
+                      {/* Calendar Header */}
+                      <div className="flex items-center justify-between mb-4 p-3 bg-gray-50 rounded-lg">
+                        <button
+                          onClick={() => navigateMonth(-1)}
+                          className="p-2 hover:bg-gray-200 rounded-md transition-colors cursor-pointer"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <h4 className="font-medium text-gray-900">
+                          {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                        </h4>
+                        <button
+                          onClick={() => navigateMonth(1)}
+                          className="p-2 hover:bg-gray-200 rounded-md transition-colors cursor-pointer"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
 
-                  {/* Calendar Grid */}
-                  <div className="mb-4">
+                      {/* Calendar Grid */}
+                      <div>
                     {/* Days of week header */}
                     <div className="grid grid-cols-7 gap-1 mb-2">
                       {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
@@ -1607,96 +1538,112 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                         )
                       })}
                     </div>
-                  </div>
-
-                  {/* Schedule Details for Selected Date */}
-                  {selectedDate && (
-                    <div className="border-t border-gray-200 pt-4">
-                      {slotsLoading ? (
-                        <div className="flex items-center justify-center py-8">
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                          <span className="ml-3 text-gray-600">Loading slot availability...</span>
-                        </div>
-                      ) : selectedSchedule ? (
-                        <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <h5 className="font-medium text-gray-900">
-                              Select Time Slot
-                            </h5>
-                            <button
-                              onClick={() => setSelectedSchedule(null)}
-                              className="text-sm text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
-                            >
-                              ← Back to schedules
-                            </button>
+                      </div>
+                      
+                      {/* Calendar Legend */}
+                      {!selectedDate && (
+                        <div className="mt-4">
+                          <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded bg-green-50 border-2 border-green-300 flex items-center justify-center">
+                                <span className="text-green-900 font-medium text-[10px]">15</span>
+                              </div>
+                              <span className="text-gray-600">Available</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center">
+                                <span className="text-white font-medium text-[10px]">15</span>
+                              </div>
+                              <span className="text-gray-600">Selected</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded flex items-center justify-center">
+                                <span className="text-gray-300 font-medium text-[10px]">15</span>
+                              </div>
+                              <span className="text-gray-600">Unavailable</span>
+                            </div>
                           </div>
-                          <div className="space-y-2">
-                            {selectedSchedule.times?.map((scheduleTime) => {
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Right Column: Schedule Details */}
+                    <div className="flex-1 border-l border-gray-200 pl-4">
+                      {selectedDate ? (
+                        <div>
+                          {slotsLoading ? (
+                            <div className="flex flex-col items-center justify-center py-8">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                              <span className="mt-2 text-sm text-gray-600">Loading slots...</span>
+                            </div>
+                          ) : selectedSchedule ? (
+                            <div>
+                              <div className="flex items-center justify-between mb-3">
+                                <h5 className="font-medium text-gray-900 text-sm">
+                                  Select Time Slot
+                                </h5>
+                                <button
+                                  onClick={() => setSelectedSchedule(null)}
+                                  className="text-xs text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
+                                >
+                                  ← Back
+                                </button>
+                              </div>
+                              <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
+                                {selectedSchedule.times?.map((scheduleTime) => {
                               const timeDisplay = formatScheduleTimeDisplay(scheduleTime, selectedSchedule)
                               const isAvailable = timeDisplay.availableSlots > 0
                               return (
-                                <div
-                                  key={scheduleTime.ScheduleTimeID}
-                                  onClick={() => isAvailable ? handleScheduleTimeSelect(scheduleTime) : null}
-                                  className={`p-3 border rounded-lg transition-all ${
-                                    isAvailable
-                                      ? 'border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer group'
-                                      : 'border-red-200 bg-red-50 cursor-not-allowed'
-                                  }`}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex-1">
-                                      <div className="flex items-center text-sm text-gray-700 mb-1">
-                                        <Clock className="w-4 h-4 mr-2" />
-                                        <span className="font-medium">{timeDisplay.time}</span>
+                                  <div
+                                    key={scheduleTime.ScheduleTimeID}
+                                    onClick={() => isAvailable ? handleScheduleTimeSelect(scheduleTime) : null}
+                                    className={`p-2.5 border rounded-lg transition-all ${
+                                      isAvailable
+                                        ? 'border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer group'
+                                        : 'border-red-200 bg-red-50 cursor-not-allowed'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex-1">
+                                        <div className="flex items-center text-xs text-gray-700 mb-1">
+                                          <Clock className="w-3.5 h-3.5 mr-1.5" />
+                                          <span className="font-medium">{timeDisplay.time}</span>
+                                        </div>
+                                        <div className="flex items-center text-xs">
+                                          <Users className="w-3.5 h-3.5 mr-1.5" />
+                                          <span className={isAvailable ? 'text-gray-600' : 'text-red-600'}>
+                                            {isAvailable
+                                              ? `${timeDisplay.availableSlots}/${timeDisplay.totalSlots} left`
+                                              : 'Fully booked'
+                                            }
+                                          </span>
+                                        </div>
                                       </div>
-                                      <div className="flex items-center text-sm">
-                                        <Users className="w-4 h-4 mr-2" />
-                                        <span className={isAvailable ? 'text-gray-600' : 'text-red-600'}>
-                                          {isAvailable
-                                            ? `${timeDisplay.availableSlots} of ${timeDisplay.totalSlots} slots available`
-                                            : 'Fully booked'
-                                          }
-                                        </span>
+                                      <div className="flex items-center gap-2">
+                                        {isAvailable && (
+                                          <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
+                                        )}
                                       </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      {selectedSchedule.fees && selectedSchedule.fees.length > 0 && (() => {
-                                        const totalFees = selectedSchedule.fees.reduce((sum, fee) => {
-                                          const amount = parseFloat(fee.Amount || fee.Fee || fee.amount || fee.fee || 0)
-                                          return sum + amount
-                                        }, 0)
-                                        // Only show if total fees > 0
-                                        if (totalFees > 0) {
-                                          return (
-                                            <div className="text-xs text-gray-500 text-right">
-                                              {formatScheduleDisplay(selectedSchedule).fees}
-                                            </div>
-                                          )
-                                        }
-                                        return null
-                                      })()}
-                                      {isAvailable && (
-                                        <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
-                                      )}
                                     </div>
                                   </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <h5 className="font-medium text-gray-900 mb-3">
-                            Available Schedules for {selectedDate.toLocaleDateString('en-US', { 
-                              weekday: 'long', 
-                              month: 'long', 
-                              day: 'numeric', 
-                              year: 'numeric' 
-                            })}
-                          </h5>
-                          <div className="space-y-2">
+                                )
+                                })}
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <h5 className="font-medium text-gray-900 mb-3 text-sm">
+                                Available Schedules
+                              </h5>
+                              <p className="text-xs text-gray-600 mb-3">
+                                {selectedDate.toLocaleDateString('en-US', { 
+                                  weekday: 'long', 
+                                  month: 'long', 
+                                  day: 'numeric', 
+                                  year: 'numeric' 
+                                })}
+                              </p>
+                              <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
                             {getSchedulesForDate(selectedDate).map((schedule) => {
                               const displayInfo = formatScheduleDisplay(schedule)
                               
@@ -1725,114 +1672,138 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                                 scheduleCapacity: schedule.SlotCapacity
                               })
                               
-                              return (
-                                <div
-                                  key={`${schedule.ScheduleID}-${selectedDate.toISOString()}`}
-                                  onClick={() => hasAvailableSlots ? handleScheduleSelect(schedule) : null}
-                                  className={`p-3 border rounded-lg transition-all ${
-                                    hasAvailableSlots 
-                                      ? 'border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer group'
-                                      : 'border-red-200 bg-red-50 cursor-not-allowed opacity-75'
-                                  }`}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex-1">
-                                      <div className="flex items-center text-sm text-gray-700 mb-1">
-                                        <span className="font-medium">Schedule #{schedule.ScheduleID}</span>
-                                        {schedule.IsRecurring && schedule.RecurrencePattern && (
-                                          <span className={`ml-2 text-xs px-2 py-1 rounded ${
-                                            hasAvailableSlots 
-                                              ? 'text-blue-600 bg-blue-50' 
-                                              : 'text-gray-500 bg-gray-100'
-                                          }`}>
-                                            {schedule.RecurrencePattern}
-                                          </span>
-                                        )}
-                                        {!hasAvailableSlots && (
-                                          <span className="ml-2 text-xs text-red-600 bg-red-100 px-2 py-1 rounded font-medium">
-                                            Fully Booked
-                                          </span>
-                                        )}
+                                return (
+                                  <div
+                                    key={`${schedule.ScheduleID}-${selectedDate.toISOString()}`}
+                                    onClick={() => hasAvailableSlots ? handleScheduleSelect(schedule) : null}
+                                    className={`p-2.5 border rounded-lg transition-all ${
+                                      hasAvailableSlots 
+                                        ? 'border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer group'
+                                        : 'border-red-200 bg-red-50 cursor-not-allowed opacity-75'
+                                    }`}
+                                  >
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        {/* Header row with schedule info and badges */}
+                                        <div className="flex items-center flex-wrap gap-1.5 mb-2">
+                                          <span className="font-semibold text-sm text-gray-900">Schedule #{schedule.ScheduleID}</span>
+                                          {schedule.sub_sacrament_service && (
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                              {schedule.sub_sacrament_service.SubServiceName}
+                                            </span>
+                                          )}
+                                          {!hasAvailableSlots && (
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                              Fully Booked
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        {/* Time and slots info */}
+                                        <div className="space-y-1.5">
+                                          <div className="flex items-center text-xs text-gray-600">
+                                            <Clock className="w-3.5 h-3.5 mr-1.5 flex-shrink-0" />
+                                            <span>
+                                              {schedule.times?.length === 1
+                                                ? `${schedule.times[0].StartTime} - ${schedule.times[0].EndTime}`
+                                                : `${schedule.times?.length || 0} time slots`
+                                              }
+                                            </span>
+                                          </div>
+
+                                          <div className="flex items-center text-xs text-gray-600">
+                                            <Users className="w-3.5 h-3.5 mr-1.5 flex-shrink-0" />
+                                            <span className={hasAvailableSlots ? 'text-gray-600' : 'text-red-600'}>
+                                              {getSlotAvailabilityText(schedule, selectedDate)}
+                                            </span>
+                                          </div>
+                                        </div>
                                       </div>
-                                      <div className="flex items-center text-sm text-gray-600 mb-1">
-                                        <Clock className="w-4 h-4 mr-2" />
-                                        <span>
-                                          {schedule.times?.length === 1
-                                            ? `${schedule.times[0].StartTime} - ${schedule.times[0].EndTime}`
-                                            : `${schedule.times?.length || 0} time slots available`
+
+                                      {/* Fee section on the right */}
+                                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                        {(() => {
+                                          // Calculate fee to display: Use variant fee if exists, otherwise parent service fee
+                                          let feeAmount = 0
+                                          
+                                          // Check for variant (sub-sacrament service) fee first
+                                          if (schedule.sub_sacrament_service && schedule.sub_sacrament_service.fee > 0) {
+                                            feeAmount = parseFloat(schedule.sub_sacrament_service.fee)
                                           }
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center text-sm text-gray-600">
-                                        <Users className="w-4 mr-2" />
-                                        <span className={hasAvailableSlots ? 'text-gray-600' : 'text-red-600'}>
-                                          {getSlotAvailabilityText(schedule, selectedDate)}
-                                        </span>
-                                        {displayInfo.fees && displayInfo.fees !== 'No fees' && displayInfo.fees !== '' && (
-                                          <span className="ml-4">
-                                            {displayInfo.fees}
-                                          </span>
-                                        )}
-                                        {isApprovedMember() && selectedService && selectedService.member_discount_type && (
-                                          <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-medium">
-                                            Member Discount: {selectedService.member_discount_type === 'percentage' 
-                                              ? `${selectedService.member_discount_value}% OFF`
-                                              : `₱${selectedService.member_discount_value} OFF`
+                                          // Otherwise use parent service fee
+                                          else if (selectedService && selectedService.fee > 0) {
+                                            feeAmount = parseFloat(selectedService.fee)
+                                          }
+                                          
+                                          // Apply member discount if applicable
+                                          const originalFee = feeAmount
+                                          console.log('Fee display check:', {
+                                            isApprovedMember: isApprovedMember(),
+                                            hasService: !!selectedService,
+                                            feeAmount,
+                                            discountType: selectedService?.member_discount_type,
+                                            discountValue: selectedService?.member_discount_value,
+                                            userMembership
+                                          })
+                                          if (isApprovedMember() && selectedService && feeAmount > 0) {
+                                            const discountedFee = calculateDiscountedFee(feeAmount, selectedService)
+                                            console.log('Discount calculated:', { originalFee, discountedFee })
+                                            if (discountedFee < originalFee) {
+                                              return (
+                                                <div className="text-right">
+                                                  <div className="text-xs text-gray-500 line-through">
+                                                    ₱{originalFee.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                  </div>
+                                                  <div className="text-sm font-semibold text-green-700">
+                                                    ₱{discountedFee.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                  </div>
+                                                  <div className="text-[10px] text-green-600">Member Fee</div>
+                                                </div>
+                                              )
                                             }
-                                          </span>
-                                        )}
+                                          }
+                                          
+                                          // Display regular fee
+                                          if (feeAmount > 0) {
+                                            return (
+                                              <div className="text-right">
+                                                <div className="text-sm font-semibold text-gray-900">
+                                                  ₱{feeAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </div>
+                                                <div className="text-[10px] text-gray-500">Fee</div>
+                                              </div>
+                                            )
+                                          }
+                                          
+                                          return null
+                                        })()}
                                       </div>
+                                      {hasAvailableSlots ? (
+                                        <ChevronRight className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                                      ) : (
+                                        <div className="w-3.5 h-3.5 text-gray-300">
+                                          <svg viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                                          </svg>
+                                        </div>
+                                      )}
                                     </div>
-                                    {hasAvailableSlots ? (
-                                      <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
-                                    ) : (
-                                      <div className="w-4 h-4 text-gray-300">
-                                        <svg viewBox="0 0 24 24" fill="currentColor">
-                                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" opacity="0.3"/>
-                                          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                                        </svg>
-                                      </div>
-                                    )}
                                   </div>
-                                </div>
-                              )
-                            })}
-                          </div>
+                                )
+                              })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                          <Calendar className="w-12 h-12 mb-3 text-gray-300" />
+                          <p className="text-sm text-gray-500 font-medium">Select a Date</p>
+                          <p className="text-xs text-gray-400 mt-1">Click on a highlighted date to view schedules</p>
                         </div>
                       )}
                     </div>
-                  )}
-
-                  {!selectedDate && (
-                    <div className="mt-6">
-                      <div className="text-center py-4 text-gray-500 text-sm mb-4">
-                        <Calendar className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                        Select a date with available schedules
-                      </div>
-                      
-                      {/* Legend */}
-                      <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-green-50 border-2 border-green-300 flex items-center justify-center">
-                            <span className="text-green-900 font-medium">15</span>
-                          </div>
-                          <span className="text-gray-600">Available</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-                            <span className="text-white font-medium">15</span>
-                          </div>
-                          <span className="text-gray-600">Selected</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center">
-                            <span className="text-gray-300 font-medium">15</span>
-                          </div>
-                          <span className="text-gray-600">Unavailable</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
               )}
             </div>
@@ -1849,7 +1820,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                   </p>
                 </div>
                 <button
-                  onClick={() => setCurrentStep(2)}
+                  onClick={() => { setSelectedSchedule(null); setSelectedScheduleTime(null); setCurrentStep(2); }}
                   className="flex items-center text-sm text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" />
@@ -1907,7 +1878,14 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                   <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
                     <h4 className="font-medium text-blue-800 mb-3">Application Summary</h4>
                     <div className="space-y-2 text-sm text-blue-700">
-                      <div><span className="font-medium">Service:</span> {selectedService?.ServiceName}</div>
+                      <div>
+                        <span className="font-medium">Service:</span> {selectedService?.ServiceName}
+                        {selectedSchedule?.sub_sacrament_service && (
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-200 text-blue-900">
+                            {selectedSchedule.sub_sacrament_service.SubServiceName}
+                          </span>
+                        )}
+                      </div>
                       <div><span className="font-medium">Date:</span> {selectedDate?.toLocaleDateString('en-US', { 
                         weekday: 'long', 
                         month: 'long', 

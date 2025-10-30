@@ -519,32 +519,20 @@ const FormBuilderPage = () => {
     
     // Validation for Mass services
     if (isMass) {
-      const donationLabels = formElements.filter(el => 
-        (el.type === 'heading' || el.type === 'paragraph') && 
-        el.content && 
-        el.content.toUpperCase().includes('DONATION')
-      );
-      
       const donationFields = formElements.filter(el => 
         el.type === 'number' && 
         el.label && 
         el.label.toUpperCase().includes('DONATION')
       );
       
-      if (donationLabels.length === 0 || donationFields.length === 0) {
-        setAlertMessage('Mass services must include a "DONATION" label (heading/paragraph) and a "DONATION" number input field.');
-        setAlertType('error');
-        return;
-      }
-      
-      if (donationLabels.length > 1) {
-        setAlertMessage('Mass services must have exactly one "DONATION" label. You have ' + donationLabels.length + ' labels.');
+      if (donationFields.length === 0) {
+        setAlertMessage('Mass services must include a "DONATION" number input field. Please add a Number field with "DONATION" in the label.');
         setAlertType('error');
         return;
       }
       
       if (donationFields.length > 1) {
-        setAlertMessage('Mass services must have exactly one "DONATION" number input field. You have ' + donationFields.length + ' fields.');
+        setAlertMessage('Mass services must have exactly one "DONATION" number input field. You currently have ' + donationFields.length + ' donation fields.');
         setAlertType('error');
         return;
       }

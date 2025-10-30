@@ -356,15 +356,10 @@ class ChurchMemberController extends Controller
 
     public function rejectApplication(Request $request, ChurchMember $churchMember)
     {
-        $churchMember->update([
-            'status' => 'rejected',
-            'approved_by' => Auth::id(),
-            'notes' => $request->notes
-        ]);
+        $churchMember->delete();
 
         return response()->json([
-            'message' => 'Member application rejected',
-            'member' => $churchMember->fresh()
+            'message' => 'Member application rejected and deleted successfully'
         ]);
     }
 

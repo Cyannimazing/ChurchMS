@@ -247,8 +247,8 @@ const AppointmentPage = () => {
       ));
     }
 
-    // Sort by AppointmentDate ascending (oldest first)
-    filtered.sort((a, b) => new Date(a.AppointmentDate) - new Date(b.AppointmentDate));
+    // Sort by creation date ascending (oldest first - FIFO)
+    filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
     setFilteredAppointments(filtered);
     setCurrentPage(1);
@@ -1169,8 +1169,15 @@ const AppointmentPage = () => {
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {appointment.ServiceName}
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-gray-900">
+                                    {appointment.ServiceName}
+                                  </span>
+                                  {appointment.SubServiceName && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                      {appointment.SubServiceName}
+                                    </span>
+                                  )}
                                 </div>
                                 {appointment.ServiceDescription && (
                                   <div className="text-sm text-gray-500 truncate max-w-xs">

@@ -6,7 +6,6 @@ import {
   Calendar, 
   Clock, 
   Users, 
-  DollarSign,
   Plus
 } from "lucide-react";
 import { Button } from "@/components/Button.jsx";
@@ -104,12 +103,6 @@ const ScheduleCalendarView = ({
     }).join(", ");
   };
 
-  const formatFees = (fees) => {
-    if (!fees || fees.length === 0) return "Free";
-    return fees.map(fee => 
-      `${fee.FeeType}: ₱${parseFloat(fee.Fee).toFixed(2)}`
-    ).join(", ");
-  };
 
   return (
     <div className="h-full flex flex-col">
@@ -186,15 +179,20 @@ const ScheduleCalendarView = ({
                   
                   {hasSchedules && (
                     <div className="flex-1 flex flex-col gap-1 overflow-hidden">
-                      {schedulesForDay.slice(0, 1).map((schedule, idx) => (
-                        <div 
-                          key={idx} 
-                          className="text-xs bg-blue-500 text-white px-1.5 py-1 rounded text-center font-medium truncate"
-                          title={schedule.service?.ServiceName}
-                        >
-                          {schedule.service?.ServiceName}
-                        </div>
-                      ))}
+                      {schedulesForDay.slice(0, 1).map((schedule, idx) => {
+                        const displayName = schedule.sub_sacrament_service 
+                          ? `${schedule.service?.ServiceName} (${schedule.sub_sacrament_service.SubServiceName})`
+                          : schedule.service?.ServiceName;
+                        return (
+                          <div 
+                            key={idx} 
+                            className="text-xs bg-blue-500 text-white px-1.5 py-1 rounded text-center font-medium truncate"
+                            title={displayName}
+                          >
+                            {displayName}
+                          </div>
+                        );
+                      })}
                       {schedulesForDay.length > 1 && (
                         <div className="text-xs text-gray-500 text-center font-medium">
                           +{schedulesForDay.length - 1} more
@@ -232,14 +230,18 @@ const ScheduleCalendarView = ({
 
               <div className="flex-1 overflow-y-auto p-4">
                 <div className="space-y-4">
-                  {getSchedulesForDate(selectedDate).map((schedule) => (
-                    <div key={schedule.ScheduleID} className="border border-gray-200 rounded-lg p-4">
-                      <div className="mb-3">
-                        <h4 className="font-medium text-gray-900">
-                          {schedule.service?.ServiceName}
-                        </h4>
-                        <p className="text-sm text-gray-500">Schedule #{schedule.ScheduleID}</p>
-                      </div>
+                  {getSchedulesForDate(selectedDate).map((schedule) => {
+                    const displayName = schedule.sub_sacrament_service 
+                      ? `${schedule.service?.ServiceName} (${schedule.sub_sacrament_service.SubServiceName})`
+                      : schedule.service?.ServiceName;
+                    return (
+                      <div key={schedule.ScheduleID} className="border border-gray-200 rounded-lg p-4">
+                        <div className="mb-3">
+                          <h4 className="font-medium text-gray-900">
+                            {displayName}
+                          </h4>
+                          <p className="text-sm text-gray-500">Schedule #{schedule.ScheduleID}</p>
+                        </div>
 
                       <div className="space-y-2 text-sm text-gray-600">
                         <div className="flex items-center">
@@ -252,10 +254,6 @@ const ScheduleCalendarView = ({
                           <span>Capacity: {schedule.SlotCapacity}</span>
                         </div>
 
-                        <div className="flex items-center">
-                          <DollarSign className="h-4 w-4 mr-2" />
-                          <span>{formatFees(schedule.fees)}</span>
-                        </div>
                       </div>
 
                       <div className="mt-3 pt-3 border-t border-gray-100">
@@ -272,7 +270,8 @@ const ScheduleCalendarView = ({
                         </span>
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               </div>
               

@@ -11,6 +11,7 @@ use App\Models\ServiceRequirement;
 use App\Models\SubService;
 use App\Models\SubServiceSchedule;
 use App\Models\SubServiceRequirement;
+use App\Models\SubSacramentService;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 
@@ -35,8 +36,8 @@ class SacramentServiceController extends Controller
                 ], 404);
             }
 
-            // Get all sacrament services for this church with sub-services
-            $sacramentServices = SacramentService::with(['subServices.schedules', 'subServices.requirements'])
+            // Get all sacrament services for this church with sub-services and sub-sacrament services
+            $sacramentServices = SacramentService::with(['subServices.schedules', 'subServices.requirements', 'subSacramentServices'])
                                                 ->where('ChurchID', $church->ChurchID)
                                                 ->orderBy('ServiceName')
                                                 ->get();
@@ -105,7 +106,12 @@ class SacramentServiceController extends Controller
                 'advanceBookingUnit' => 'nullable|string|in:weeks,months',
                 'member_discount_type' => 'nullable|string|in:percentage,fixed',
                 'member_discount_value' => 'nullable|numeric|min:0',
+                'fee' => 'nullable|numeric|min:0',
+                'isMultipleService' => 'nullable|boolean',
                 'isCertificateGeneration' => 'nullable|boolean',
+                'sub_sacrament_services' => 'nullable|array',
+                'sub_sacrament_services.*.name' => 'required_with:sub_sacrament_services|string|max:100',
+                'sub_sacrament_services.*.fee' => 'required_with:sub_sacrament_services|numeric|min:0',
                 'sub_services' => 'nullable|array',
                 'sub_services.*.SubServiceName' => 'required|string|max:100',
                 'sub_services.*.Description' => 'nullable|string',
@@ -153,8 +159,21 @@ class SacramentServiceController extends Controller
                     'advanceBookingUnit' => $request->advanceBookingUnit,
                     'member_discount_type' => $request->member_discount_type,
                     'member_discount_value' => $request->member_discount_value,
+                    'fee' => $request->isMultipleService ? 0 : ($request->fee ?? 0),
+                    'isMultipleService' => $request->isMultipleService ?? false,
                     'isCertificateGeneration' => $request->isCertificateGeneration ?? false,
                 ]);
+
+                // Create sub-sacrament services (variants) if provided
+                if ($request->has('sub_sacrament_services') && is_array($request->sub_sacrament_services) && $request->isMultipleService) {
+                    foreach ($request->sub_sacrament_services as $variant) {
+                        SubSacramentService::create([
+                            'ParentServiceID' => $sacramentService->ServiceID,
+                            'SubServiceName' => $variant['name'],
+                            'fee' => $variant['fee'] ?? 0,
+                        ]);
+                    }
+                }
 
                 // Create sub-services if provided
                 if ($request->has('sub_services') && is_array($request->sub_services)) {
@@ -195,8 +214,8 @@ class SacramentServiceController extends Controller
 
                 DB::commit();
 
-                // Load sub-services for response
-                $sacramentService->load(['subServices.schedules', 'subServices.requirements']);
+                // Load sub-services and sub-sacrament services for response
+                $sacramentService->load(['subServices.schedules', 'subServices.requirements', 'subSacramentServices']);
 
                 return response()->json($sacramentService, 201);
 
@@ -229,7 +248,12 @@ class SacramentServiceController extends Controller
                 'advanceBookingUnit' => 'nullable|string|in:weeks,months',
                 'member_discount_type' => 'nullable|string|in:percentage,fixed',
                 'member_discount_value' => 'nullable|numeric|min:0',
+                'fee' => 'nullable|numeric|min:0',
+                'isMultipleService' => 'nullable|boolean',
                 'isCertificateGeneration' => 'nullable|boolean',
+                'sub_sacrament_services' => 'nullable|array',
+                'sub_sacrament_services.*.name' => 'required_with:sub_sacrament_services|string|max:100',
+                'sub_sacrament_services.*.fee' => 'required_with:sub_sacrament_services|numeric|min:0',
                 'sub_services' => 'nullable|array',
                 'sub_services.*.SubServiceName' => 'required|string|max:100',
                 'sub_services.*.Description' => 'nullable|string',
@@ -286,8 +310,24 @@ class SacramentServiceController extends Controller
                     'advanceBookingUnit' => $request->advanceBookingUnit,
                     'member_discount_type' => $request->member_discount_type,
                     'member_discount_value' => $request->member_discount_value,
+                    'fee' => $request->isMultipleService ? 0 : ($request->fee ?? 0),
+                    'isMultipleService' => $request->isMultipleService ?? false,
                     'isCertificateGeneration' => $request->isCertificateGeneration ?? false,
                 ]);
+
+                // Delete existing sub-sacrament services
+                SubSacramentService::where('ParentServiceID', $serviceId)->delete();
+
+                // Create new sub-sacrament services if provided
+                if ($request->has('sub_sacrament_services') && is_array($request->sub_sacrament_services) && $request->isMultipleService) {
+                    foreach ($request->sub_sacrament_services as $variant) {
+                        SubSacramentService::create([
+                            'ParentServiceID' => $sacramentService->ServiceID,
+                            'SubServiceName' => $variant['name'],
+                            'fee' => $variant['fee'] ?? 0,
+                        ]);
+                    }
+                }
 
                 // Delete existing sub-services (cascade will delete schedules)
                 SubService::where('ServiceID', $serviceId)->delete();
@@ -331,8 +371,8 @@ class SacramentServiceController extends Controller
 
                 DB::commit();
 
-                // Load sub-services for response
-                $sacramentService->load(['subServices.schedules', 'subServices.requirements']);
+                // Load sub-services and sub-sacrament services for response
+                $sacramentService->load(['subServices.schedules', 'subServices.requirements', 'subSacramentServices']);
 
                 return response()->json($sacramentService);
 
@@ -547,6 +587,7 @@ class SacramentServiceController extends Controller
                                                     'Description', 
                                                     'isStaffForm',
                                                     'isMass',
+                                                    'fee',
                                                     'advanceBookingNumber',
                                                     'advanceBookingUnit',
                                                     'member_discount_type',
@@ -596,7 +637,7 @@ class SacramentServiceController extends Controller
             }
 
             // Get schedules with related data (don't filter by RemainingSlot here)
-            $schedules = \App\Models\ServiceSchedule::with(['recurrences', 'times', 'fees'])
+            $schedules = \App\Models\ServiceSchedule::with(['recurrences', 'times', 'subSacramentService'])
                 ->where('ServiceID', $serviceId)
                 ->orderBy('StartDate', 'asc')
                 ->get()
@@ -617,6 +658,7 @@ class SacramentServiceController extends Controller
                     // Frontend will calculate date-specific availability using dynamic slot calculation
                     return [
                         'ScheduleID' => $schedule->ScheduleID,
+                        'SubSacramentServiceID' => $schedule->SubSacramentServiceID,
                         'StartDate' => $schedule->StartDate,
                         'EndDate' => $schedule->EndDate,
                         'SlotCapacity' => $schedule->SlotCapacity,
@@ -624,7 +666,7 @@ class SacramentServiceController extends Controller
                         'RecurrencePattern' => $recurrencePattern,
                         'recurrences' => $schedule->recurrences,
                         'times' => $schedule->times,
-                        'fees' => $schedule->fees
+                        'sub_sacrament_service' => $schedule->subSacramentService
                     ];
                 });
 
@@ -635,6 +677,7 @@ class SacramentServiceController extends Controller
                     'Description' => $service->Description,
                     'isStaffForm' => $service->isStaffForm,
                     'isMass' => $service->isMass,
+                    'fee' => $service->fee,
                     'advanceBookingNumber' => $service->advanceBookingNumber,
                     'advanceBookingUnit' => $service->advanceBookingUnit,
                 ],

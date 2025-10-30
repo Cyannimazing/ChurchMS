@@ -105,23 +105,6 @@ class DatabaseSeeder extends Seeder
             'EndDate' => now()->addMonths(1),
             'Status' => 'Active',
         ]);
-
-        // Seed subscription transactions
-        $basicPlan = SubscriptionPlan::where('PlanName', 'Basic')->first();
-        $premiumPlan = SubscriptionPlan::where('PlanName', 'Premium')->first();
-
-        // Initial subscription transaction for owner
-        SubscriptionTransaction::firstOrCreate([
-            'user_id' => $owner->id,
-            'NewPlanID' => $basicPlan->PlanID,
-        ], [
-            'OldPlanID' => null, // First subscription, no old plan
-            'PaymentMethod' => 'Credit Card',
-            'AmountPaid' => $basicPlan->Price,
-            'TransactionDate' => now()->subDays(30),
-            'Notes' => 'Initial subscription to Basic Plan',
-        ]);
-
         // Seed permissions
         $permissions = [
             // Appointment
@@ -190,8 +173,5 @@ class DatabaseSeeder extends Seeder
         foreach ($permissions as $perm) {
             Permission::firstOrCreate(['PermissionName' => $perm]);
         }
-        
-        // Seed provinces and cities
-        $this->call(ProvincesCitiesSeeder::class);
     }
 }

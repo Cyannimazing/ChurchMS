@@ -21,6 +21,8 @@ class SacramentService extends Model
         'advanceBookingUnit',
         'member_discount_type',
         'member_discount_value',
+        'fee',
+        'isMultipleService',
         'isCertificateGeneration',
     ];
     
@@ -30,6 +32,8 @@ class SacramentService extends Model
         'isMass' => 'boolean',
         'advanceBookingNumber' => 'integer',
         'member_discount_value' => 'decimal:2',
+        'fee' => 'decimal:2',
+        'isMultipleService' => 'boolean',
         'isCertificateGeneration' => 'boolean',
     ];
     
@@ -105,5 +109,13 @@ class SacramentService extends Model
     public function subServices(): HasMany
     {
         return $this->hasMany(SubService::class, 'ServiceID', 'ServiceID');
+    }
+    
+    /**
+     * Get all sub-sacrament services (variants) for this service.
+     */
+    public function subSacramentServices(): HasMany
+    {
+        return $this->hasMany(SubSacramentService::class, 'ParentServiceID', 'ServiceID');
     }
 }

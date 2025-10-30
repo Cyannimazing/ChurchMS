@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\ServiceSchedule;
 use App\Models\ScheduleRecurrence;
 use App\Models\ScheduleTime;
-use App\Models\ScheduleFee;
 use App\Models\SacramentService;
+use App\Models\SubSacramentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -21,7 +21,7 @@ class ScheduleController extends Controller
         try {
             $service = SacramentService::findOrFail($serviceId);
             
-            $schedules = ServiceSchedule::with(['recurrences', 'times', 'fees'])
+            $schedules = ServiceSchedule::with(['recurrences', 'times', 'subSacramentService'])
                 ->where('ServiceID', $serviceId)
                 ->orderBy('StartDate', 'asc')
                 ->get();
@@ -45,7 +45,7 @@ class ScheduleController extends Controller
     public function getSchedule($scheduleId)
     {
         try {
-            $schedule = ServiceSchedule::with(['recurrences', 'times', 'fees', 'sacramentService'])
+            $schedule = ServiceSchedule::with(['recurrences', 'times', 'sacramentService', 'subSacramentService'])
                 ->findOrFail($scheduleId);
             
             return response()->json([
@@ -69,6 +69,8 @@ class ScheduleController extends Controller
             'start_date' => 'required|date',
             'end_date' => 'nullable|date',
             'slot_capacity' => 'required|integer|min:1',
+            'service_id' => 'nullable|integer',
+            'is_variant' => 'nullable|boolean',
             
             // Recurrence rules
             'recurrences' => 'required|array|min:1',
@@ -81,11 +83,6 @@ class ScheduleController extends Controller
             'times' => 'required|array|min:1',
             'times.*.start_time' => 'required|string',
             'times.*.end_time' => 'required|string',
-            
-            // Fees (optional)
-            'fees' => 'nullable|array',
-            'fees.*.fee_type' => 'nullable|in:Fee,Donation',
-            'fees.*.fee' => 'nullable|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -98,9 +95,23 @@ class ScheduleController extends Controller
 
         DB::beginTransaction();
         try {
+            // Determine if this is for a variant or parent service
+            $actualServiceId = $request->input('service_id', $serviceId);
+            $subSacramentServiceId = null;
+            
+            if ($request->input('is_variant', false)) {
+                // This is a variant schedule
+                $subSacramentService = SubSacramentService::find($actualServiceId);
+                if ($subSacramentService) {
+                    $subSacramentServiceId = $subSacramentService->SubSacramentServiceID;
+                    $serviceId = $subSacramentService->ParentServiceID; // Link to parent
+                }
+            }
+            
             // Create the main schedule
             $schedule = ServiceSchedule::create([
                 'ServiceID' => $serviceId,
+                'SubSacramentServiceID' => $subSacramentServiceId,
                 'StartDate' => $request->start_date,
                 'EndDate' => $request->end_date,
                 'SlotCapacity' => $request->slot_capacity,
@@ -138,23 +149,10 @@ class ScheduleController extends Controller
                 ]);
             }
 
-            // Create fees if provided
-            if ($request->has('fees') && is_array($request->fees) && count($request->fees) > 0) {
-                foreach ($request->fees as $fee) {
-                    if (isset($fee['fee_type']) && isset($fee['fee']) && !empty($fee['fee_type'])) {
-                        ScheduleFee::create([
-                            'ScheduleID' => $schedule->ScheduleID,
-                            'FeeType' => $fee['fee_type'],
-                            'Fee' => floatval($fee['fee']),
-                        ]);
-                    }
-                }
-            }
-
             DB::commit();
 
             // Load the created schedule with relationships
-            $schedule->load(['recurrences', 'times', 'fees']);
+            $schedule->load(['recurrences', 'times', 'subSacramentService']);
 
             return response()->json([
                 'success' => true,
@@ -191,11 +189,6 @@ class ScheduleController extends Controller
             'times' => 'required|array|min:1',
             'times.*.start_time' => 'required|date_format:H:i',
             'times.*.end_time' => 'required|date_format:H:i|after:times.*.start_time',
-            
-            // Fees (optional)
-            'fees' => 'nullable|array',
-            'fees.*.fee_type' => 'required_with:fees|string',
-            'fees.*.fee' => 'required_with:fees|numeric|min:0|max:9999.99',
         ]);
 
         if ($validator->fails()) {
@@ -220,7 +213,6 @@ class ScheduleController extends Controller
             // Delete existing related records
             $schedule->recurrences()->delete();
             $schedule->times()->delete();
-            $schedule->fees()->delete();
 
             // Recreate recurrence patterns
             foreach ($request->recurrences as $recurrenceData) {
@@ -254,21 +246,10 @@ class ScheduleController extends Controller
                 ]);
             }
 
-            // Recreate fees if provided
-            if ($request->has('fees') && is_array($request->fees) && count($request->fees) > 0) {
-                foreach ($request->fees as $fee) {
-                    ScheduleFee::create([
-                        'ScheduleID' => $schedule->ScheduleID,
-                        'FeeType' => $fee['fee_type'],
-                        'Fee' => $fee['fee'],
-                    ]);
-                }
-            }
-
             DB::commit();
 
             // Load the updated schedule with relationships
-            $schedule->load(['recurrences', 'times', 'fees']);
+            $schedule->load(['recurrences', 'times']);
 
             return response()->json([
                 'success' => true,

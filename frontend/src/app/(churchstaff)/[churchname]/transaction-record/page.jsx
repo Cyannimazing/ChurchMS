@@ -39,7 +39,6 @@ const TransactionRecordPage = () => {
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [refundLoading, setRefundLoading] = useState(false);
   const [refundData, setRefundData] = useState({
-    receipt_code: '',
     refund_reason: null,
     apply_convenience_fee: false
   });
@@ -191,6 +190,7 @@ const TransactionRecordPage = () => {
         transaction.user?.profile?.last_name?.toLowerCase().includes(searchLower) ||
         transaction.user?.email?.toLowerCase().includes(searchLower) ||
         transaction.ChurchTransactionID?.toString().includes(searchLower) ||
+        transaction.receipt_code?.toLowerCase().includes(searchLower) ||
         transaction.paymongo_session_id?.toLowerCase().includes(searchLower)
       ));
     }
@@ -227,10 +227,15 @@ const TransactionRecordPage = () => {
 
   const handleRefundTransaction = (transaction) => {
     setSelectedTransaction(transaction);
+    // Auto-determine convenience fee checkbox based on cancellation category
+    // Green (no_fee) = no convenience fee deduction (unchecked)
+    // Red (with_fee) = apply convenience fee deduction (checked if configured)
+    const isRedCategory = transaction.appointment?.cancellation_category === 'with_fee';
+    const shouldApplyFee = isRedCategory && convenienceFee && convenienceFee.is_active;
+    
     setRefundData({
-      receipt_code: '',
       refund_reason: null,
-      apply_convenience_fee: convenienceFee && convenienceFee.is_active || false
+      apply_convenience_fee: shouldApplyFee
     });
     setShowRefundModal(true);
   };
@@ -239,7 +244,6 @@ const TransactionRecordPage = () => {
     setShowRefundModal(false);
     setSelectedTransaction(null);
     setRefundData({
-      receipt_code: '',
       refund_reason: null,
       apply_convenience_fee: false
     });
@@ -256,7 +260,6 @@ const TransactionRecordPage = () => {
     setRefundLoading(true);
     try {
       const response = await axios.put(`/api/church-transactions/${selectedTransaction.ChurchTransactionID}/refund`, {
-        receipt_code: refundData.receipt_code,
         refund_reason: refundData.refund_reason,
         apply_convenience_fee: refundData.apply_convenience_fee
       });
@@ -688,7 +691,7 @@ const TransactionRecordPage = () => {
                                   </div>
                                   <div className="ml-4">
                                     <div className="text-sm font-medium text-gray-900">
-                                      #{transaction.ChurchTransactionID}
+                                      {transaction.receipt_code || `#${transaction.ChurchTransactionID}`}
                                     </div>
                                     <div className="text-sm text-gray-500">
                                       {transaction.payment_method === 'card' ? 'Card' : 'GCash'}
@@ -1035,18 +1038,6 @@ const TransactionRecordPage = () => {
               )}
               
               <div className="space-y-4">
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <RefreshCw className="h-5 w-5 text-amber-600" />
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-xs text-amber-700">
-                        Customer should provide their reference code to process the refund.
-                      </p>
-                    </div>
-                  </div>
-                </div>
 
                 {/* Cancellation Info */}
                 {selectedTransaction.appointment && selectedTransaction.appointment.cancellation_category && (
@@ -1099,20 +1090,6 @@ const TransactionRecordPage = () => {
                   </div>
                 )}
 
-                <div>
-                  <Label className="block text-sm font-medium text-gray-700 mb-1">
-                    Reference <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    type="text"
-                    value={refundData.receipt_code}
-                    onChange={(e) => setRefundData({...refundData, receipt_code: e.target.value.toUpperCase()})}
-                    placeholder="Enter reference code (e.g., TXN000123)"
-                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
-                    required
-                  />
-                </div>
-
                 {/* Apply convenience fee checkbox */}
                 <div className="border-t border-gray-200 pt-3">
                   <div className="flex items-center">
@@ -1156,7 +1133,7 @@ const TransactionRecordPage = () => {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={refundLoading || !refundData.receipt_code}
+                  disabled={refundLoading}
                   className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
                 >
                   {refundLoading ? (

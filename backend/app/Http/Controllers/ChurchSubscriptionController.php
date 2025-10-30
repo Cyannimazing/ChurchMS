@@ -240,7 +240,7 @@ class ChurchSubscriptionController extends Controller
 
         $result = $paymongoService->createGCashCheckout(
             $plan->Price,
-            "Subscription to {$plan->PlanName} Plan",
+            "[Ref: {$referenceNumber}] Subscription to {$plan->PlanName} Plan",
             $successUrl,
             $cancelUrl,
             $metadata
@@ -333,7 +333,7 @@ class ChurchSubscriptionController extends Controller
         // Always create multi-payment checkout (GCash and Card only)
         $result = $paymongoService->createMultiPaymentCheckout(
             $plan->Price,
-            "Subscription to {$plan->PlanName} Plan",
+            "[Ref: {$referenceNumber}] Subscription to {$plan->PlanName} Plan",
             $successUrl,
             $cancelUrl,
             $metadata

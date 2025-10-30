@@ -85,27 +85,31 @@ class PayMongoService
                 ])
                 ->post($this->baseUrl . '/checkout_sessions', [
                     'data' => [
-                        'attributes' => array_filter([
-                            'send_email_receipt' => true,
-                            'show_description' => true,
-                            'show_line_items' => true,
-                            'description' => $description,
-                            'payment_method_types' => $paymentMethods,
-                            'success_url' => $successUrl,
-                            'cancel_url' => $cancelUrl,
-                            // If provided, this shows up as "Reference" in PayMongo's email receipt
-                            'reference_number' => $metadata['reference_number'] ?? ($metadata['receipt_code'] ?? null),
-                            'metadata' => $metadata,
-                            'line_items' => [
-                                [
-                                    'currency' => 'PHP',
-                                    'amount' => $amount * 100, // Convert to centavos
-                                    'description' => $description,
-                                    'name' => $description,
-                                    'quantity' => 1,
-                                ]
-                            ],
-                        ], function($v) { return $v !== null; })
+                        'attributes' => array_filter((function() use ($amount, $description, $paymentMethods, $successUrl, $cancelUrl, $metadata) {
+                            $ref = $metadata['reference_number'] ?? ($metadata['receipt_code'] ?? null);
+                            $lineItemName = $ref ? ($description . ' (Ref: ' . $ref . ')') : $description;
+                            return [
+                                'send_email_receipt' => true,
+                                'show_description' => true,
+                                'show_line_items' => true,
+                                'description' => $description,
+                                'payment_method_types' => $paymentMethods,
+                                'success_url' => $successUrl,
+                                'cancel_url' => $cancelUrl,
+                                // If provided, this shows up as "Reference Number" in PayMongo checkout/email
+                                'reference_number' => $ref,
+                                'metadata' => $metadata,
+                                'line_items' => [
+                                    [
+                                        'currency' => 'PHP',
+                                        'amount' => $amount * 100, // Convert to centavos
+                                        'description' => $lineItemName,
+                                        'name' => $lineItemName,
+                                        'quantity' => 1,
+                                    ]
+                                ],
+                            ];
+                        })(), function($v) { return $v !== null; })
                     ]
                 ]);
 

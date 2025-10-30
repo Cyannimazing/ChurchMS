@@ -77,6 +77,9 @@ const SacramentPage = () => {
     advanceBookingUnit: "weeks",
     member_discount_type: "",
     member_discount_value: "",
+    fee: 0,
+    isMultipleService: false,
+    sub_sacrament_services: [],
     sub_services: []
   });
   const [editSacramentId, setEditSacramentId] = useState(null);
@@ -167,6 +170,9 @@ const SacramentPage = () => {
       advanceBookingUnit: "weeks",
       member_discount_type: "",
       member_discount_value: "",
+      fee: 0,
+      isMultipleService: false,
+      sub_sacrament_services: [],
       sub_services: []
     });
     setEditSacramentId(null);
@@ -196,6 +202,13 @@ const SacramentPage = () => {
         advanceBookingUnit: localSacrament.advanceBookingUnit || "weeks",
         member_discount_type: localSacrament.member_discount_type || "",
         member_discount_value: localSacrament.member_discount_value || "",
+        fee: localSacrament.fee || 0,
+        isMultipleService: localSacrament.isMultipleService || false,
+        sub_sacrament_services: (localSacrament.sub_sacrament_services || []).map(v => ({
+          id: v.SubSacramentServiceID || v.id,
+          name: v.SubServiceName ?? v.name ?? "",
+          fee: v.fee ?? 0,
+        })),
         sub_services: localSacrament.sub_services || [],
       });
       setEditSacramentId(sacramentId);
@@ -218,6 +231,13 @@ const SacramentPage = () => {
         advanceBookingUnit: sacrament.advanceBookingUnit || "weeks",
         member_discount_type: sacrament.member_discount_type || "",
         member_discount_value: sacrament.member_discount_value || "",
+        fee: sacrament.fee || 0,
+        isMultipleService: sacrament.isMultipleService || false,
+        sub_sacrament_services: (sacrament.sub_sacrament_services || []).map(v => ({
+          id: v.SubSacramentServiceID || v.id,
+          name: v.SubServiceName ?? v.name ?? "",
+          fee: v.fee ?? 0,
+        })),
         sub_services: sacrament.sub_services || [],
       });
       setEditSacramentId(sacramentId);
@@ -289,6 +309,9 @@ const SacramentPage = () => {
         advanceBookingUnit: form.advanceBookingUnit,
         member_discount_type: form.member_discount_type || null,
         member_discount_value: form.member_discount_value ? parseFloat(form.member_discount_value) : null,
+        fee: form.isMultipleService ? 0 : (parseFloat(form.fee) || 0),
+        isMultipleService: form.isMultipleService,
+        sub_sacrament_services: form.isMultipleService ? form.sub_sacrament_services : [],
         sub_services: form.sub_services || [],
       };
       
@@ -434,7 +457,7 @@ const SacramentPage = () => {
                       <thead className="bg-gray-50">
                         <tr>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sacrament Name</th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Variants</th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sub-Services</th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member Discount</th>
                           <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Certificate</th>
@@ -460,7 +483,26 @@ const SacramentPage = () => {
                               </td>
                               <td className="px-6 py-4">
                                 <div className="text-sm text-gray-900">
-                                  {sacrament.Description || 'No description'}
+                                  {sacrament.sub_sacrament_services && sacrament.sub_sacrament_services.length > 0 ? (
+                                    <div className="space-y-1">
+                                      {sacrament.sub_sacrament_services.map((variant, idx) => (
+                                        <div key={idx} className="flex items-center gap-2">
+                                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                            {variant.SubServiceName}
+                                          </span>
+                                          <span className="text-xs text-gray-600">
+                                            ₱{parseFloat(variant.fee).toLocaleString()}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-gray-600">
+                                        ₱{parseFloat(sacrament.fee || 0).toLocaleString()}
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                               </td>
                               <td className="px-6 py-4">
@@ -774,6 +816,140 @@ const SacramentPage = () => {
                     <p className="mt-1 text-xs text-gray-500">
                       Users must book appointments at least {form.advanceBookingNumber} {form.advanceBookingUnit} before the appointment date for preparation and requirements gathering.
                     </p>
+                  </div>
+                  
+                  {/* Fee and Multiple Service Variants */}
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="fee" className="text-sm font-medium text-gray-700">
+                        Fee (₱)
+                      </Label>
+                      <Input
+                        id="fee"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={form.fee}
+                        onChange={(e) => setForm({ ...form, fee: e.target.value })}
+                        disabled={form.isMultipleService}
+                        className="block mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 disabled:bg-gray-100"
+                        placeholder="Enter fee"
+                      />
+                      {form.isMultipleService && (
+                        <p className="mt-1 text-xs text-gray-500">Fee is managed per variant when multiple services are enabled.</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center">
+                        <input
+                          id="isMultipleService"
+                          type="checkbox"
+                          checked={form.isMultipleService}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            const next = { ...form, isMultipleService: checked };
+                            if (checked && (!form.sub_sacrament_services || form.sub_sacrament_services.length < 2)) {
+                              next.sub_sacrament_services = [
+                                { name: `${form.ServiceName || 'Service'} Public`, fee: 0 },
+                                { name: `${form.ServiceName || 'Service'} Private`, fee: 0 }
+                              ];
+                            }
+                            setForm(next);
+                          }}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <Label htmlFor="isMultipleService" className="ml-2 text-sm font-medium text-gray-700">
+                          Multiple Service Variants
+                        </Label>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Enable if this service has variants (e.g., Baptism Public/Private). Variants share the same form, requirements, and field mapping.
+                      </p>
+                    </div>
+
+                    {form.isMultipleService && (
+                      <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
+                        <div className="flex justify-between items-center mb-3">
+                          <Label className="text-sm font-medium text-gray-700">Service Variants</Label>
+                          <Button
+                            type="button"
+                            onClick={() => setForm({
+                              ...form,
+                              sub_sacrament_services: [
+                                ...form.sub_sacrament_services,
+                                { name: "", fee: 0 }
+                              ]
+                            })}
+                            variant="outline"
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 min-h-0 h-auto"
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Add Variant
+                          </Button>
+                        </div>
+
+                        {(!form.sub_sacrament_services || form.sub_sacrament_services.length === 0) ? (
+                          <p className="text-sm text-gray-500">At least 2 variants are required.</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {form.sub_sacrament_services.map((variant, idx) => (
+                              <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                                <div className="col-span-6">
+                                  <Label className="text-xs font-medium text-gray-700">Variant Name</Label>
+                                  <Input
+                                    type="text"
+                                    value={variant.name}
+                                    onChange={(e) => {
+                                      const list = [...form.sub_sacrament_services];
+                                      list[idx].name = e.target.value;
+                                      setForm({ ...form, sub_sacrament_services: list });
+                                    }}
+                                    className="mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                                    placeholder="e.g., Baptism Public"
+                                  />
+                                </div>
+                                <div className="col-span-4">
+                                  <Label className="text-xs font-medium text-gray-700">Fee (₱)</Label>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={variant.fee}
+                                    onChange={(e) => {
+                                      const list = [...form.sub_sacrament_services];
+                                      list[idx].fee = e.target.value;
+                                      setForm({ ...form, sub_sacrament_services: list });
+                                    }}
+                                    className="mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                                    placeholder="0.00"
+                                  />
+                                </div>
+                                <div className="col-span-2 flex justify-end">
+                                  <Button
+                                    type="button"
+                                    onClick={() => {
+                                      if ((form.sub_sacrament_services?.length || 0) <= 2) return;
+                                      const list = form.sub_sacrament_services.filter((_, i) => i !== idx);
+                                      setForm({ ...form, sub_sacrament_services: list });
+                                    }}
+                                    variant="outline"
+                                    disabled={(form.sub_sacrament_services?.length || 0) <= 2}
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    <Trash2 className="h-3 w-3 mr-1" />
+                                    Remove
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                            {form.sub_sacrament_services.length < 2 && (
+                              <p className="text-xs text-red-600">Minimum of 2 variants required.</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   
                   <div>

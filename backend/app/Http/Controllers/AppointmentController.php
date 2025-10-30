@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Validator;
 use App\Models\Church;
 use App\Models\User;
 use App\Models\Appointment;
-use App\Models\ScheduleFee;
 use App\Models\ServiceSchedule;
 use App\Models\ServiceScheduleTime;
 use App\Models\SacramentService;
@@ -133,13 +132,49 @@ class AppointmentController extends Controller
                 ], 409);
             }
             
-            // Check if this service has any payable amount (Fee or Donation)
-            $fees = ScheduleFee::where('ScheduleID', $request->schedule_id)->get();
-            $payableFees = $fees->filter(function ($fee) { return ($fee->Fee ?? 0) > 0; });
-            $originalTotalAmount = $payableFees->sum('Fee');
+            // Check if this service has any payable amount
+            // Fee Logic: If isMultipleService, fee comes from sub_sacrament_services (variant)
+            //           Otherwise, fee comes from sacrament_service (parent)
+            $originalTotalAmount = 0;
+            
+            if ($service->isMultipleService && $schedule->SubSacramentServiceID) {
+                // Service has variants - get fee from sub_sacrament_services
+                $subSacramentService = DB::table('sub_sacrament_services')
+                    ->where('SubSacramentServiceID', $schedule->SubSacramentServiceID)
+                    ->first();
+                    
+                if ($subSacramentService && isset($subSacramentService->fee)) {
+                    $originalTotalAmount = (float) $subSacramentService->fee;
+                    Log::info('Using variant fee', [
+                        'sub_service_id' => $schedule->SubSacramentServiceID,
+                        'fee' => $subSacramentService->fee
+                    ]);
+                }
+            } else {
+                // Service has no variants - get fee from sacrament_service
+                $originalTotalAmount = (float) ($service->fee ?? 0);
+                Log::info('Using parent service fee', [
+                    'service_id' => $service->ServiceID,
+                    'fee' => $service->fee
+                ]);
+            }
             
             // Apply member discount if user is an approved member
             $totalAmount = $this->applyMemberDiscount($originalTotalAmount, $service, $user, $request->church_id);
+            
+            // If service is free (not Mass), require approved membership
+            if ($totalAmount == 0 && !$service->isMass) {
+                $membership = \App\Models\ChurchMember::where('user_id', $user->id)
+                    ->where('church_id', $request->church_id)
+                    ->where('status', 'approved')
+                    ->first();
+                    
+                if (!$membership) {
+                    return response()->json([
+                        'error' => 'This is a free service and requires approved membership at this church. Please apply for membership first.'
+                    ], 403);
+                }
+            }
             
             // If fees are required, create payment checkout session instead of appointment
             if ($totalAmount > 0) {
@@ -147,7 +182,7 @@ class AppointmentController extends Controller
                     'church_id' => $request->church_id,
                     'service_id' => $request->service_id,
                     'total_amount' => $totalAmount,
-                    'payable_fees_count' => $payableFees->count()
+                    'original_amount' => $originalTotalAmount
                 ]);
                 
                 // Check if church has payment configuration
@@ -216,6 +251,9 @@ class AppointmentController extends Controller
                     ->setTimeFromTimeString($scheduleTime->StartTime)
                     ->format('Y-m-d H:i:s');
                 
+                // Generate unique reference number for this appointment payment
+                $receiptCode = 'APT-' . strtoupper(substr(uniqid(), -8));
+                
                 // Prepare metadata for the checkout session
                 $metadata = [
                     'user_id' => $user->id,
@@ -225,12 +263,15 @@ class AppointmentController extends Controller
                     'schedule_time_id' => $request->schedule_time_id,
                     'appointment_date' => $appointmentDateTime,
                     'form_data' => null, // No form data for simple applications
+                    'receipt_code' => $receiptCode,
+                    'reference_number' => $receiptCode,
                     'type' => 'appointment_payment'
                 ];
                 
-                // Build description
+                // Build description with reference number for tracing
                 $description = sprintf(
-                    '%s - %s (Date: %s, Time: %s)',
+                    '[Ref: %s] %s - %s (Date: %s, Time: %s)',
+                    $receiptCode,
                     $church->ChurchName,
                     $service->ServiceName,
                     $appointmentDate,
@@ -239,7 +280,7 @@ class AppointmentController extends Controller
                 
                 // Create success and cancel URLs (dedicated appointment endpoints)
                 $successUrl = url('/appointment-payment/success?session_id={CHECKOUT_SESSION_ID}&church_id=' . $request->church_id);
-                $cancelUrl = url('/appointment-payment/cancel?session_id={CHECKOUT_SESSION_ID}');
+                $cancelUrl = url('/appointment-payment/cancel?session_id={CHECKOUT_SESSION_ID}&church_id=' . $request->church_id);
                 
                 // Create PayMongo checkout session with GCash and Card only
                 $checkoutResult = $paymongoService->createCheckoutSession(
@@ -288,6 +329,7 @@ class AppointmentController extends Controller
                         'metadata' => [
                             'church_name' => $church->ChurchName,
                             'service_name' => $service->ServiceName,
+                            'receipt_code' => $receiptCode,
                             'form_data' => null
                         ],
                         'expires_at' => $expiresAt
@@ -323,13 +365,13 @@ class AppointmentController extends Controller
                         'currency' => 'PHP',
                         'description' => $description,
                         'payment_methods' => ['gcash', 'card'],
-                        'fees' => $payableFees->map(function ($fee) {
-                            return [
-                                'type' => $fee->FeeType,
-                                'amount' => $fee->Fee,
-                                'description' => $fee->getDescription()
-                            ];
-                        })
+                        'fee_breakdown' => [
+                            [
+                                'type' => 'Service Fee',
+                                'amount' => $originalTotalAmount,
+                                'discounted_amount' => $totalAmount
+                            ]
+                        ]
                     ],
                     'appointment_details' => [
                         'church_name' => $church->ChurchName,
@@ -529,27 +571,66 @@ class AppointmentController extends Controller
                 ], 409);
             }
             
-            // Check if this service has any payable amount (Fee or Donation)
-            $fees = ScheduleFee::where('ScheduleID', $request->schedule_id)->get();
-            $payableFees = $fees->filter(function ($fee) { return ($fee->Fee ?? 0) > 0; });
-            $originalTotalAmount = $payableFees->sum('Fee');
+            // Check if this service has any payable amount
+            // Fee Logic: If isMultipleService, fee comes from sub_sacrament_services (variant)
+            //           Otherwise, fee comes from sacrament_service (parent)
+            $originalTotalAmount = 0;
             
-            // For Mass services (isMass = true), check if donation amount was provided
-            if ($service->isMass && $request->has('donation_amount')) {
-                $donationAmount = floatval($request->donation_amount);
-                if ($donationAmount > 0) {
-                    // Add donation amount to the total
-                    $originalTotalAmount += $donationAmount;
-                    Log::info('Mass service donation amount added', [
-                        'service_id' => $service->ServiceID,
-                        'donation_amount' => $donationAmount,
-                        'new_total' => $originalTotalAmount
-                    ]);
+            if ($service->isMultipleService && $schedule->SubSacramentServiceID) {
+                // Service has variants - get fee from sub_sacrament_services
+                $subSacramentService = DB::table('sub_sacrament_services')
+                    ->where('SubSacramentServiceID', $schedule->SubSacramentServiceID)
+                    ->first();
+                    
+                if ($subSacramentService && isset($subSacramentService->fee)) {
+                    $originalTotalAmount = (float) $subSacramentService->fee;
                 }
+            } else {
+                // Service has no variants - get fee from sacrament_service
+                $originalTotalAmount = (float) ($service->fee ?? 0);
+            }
+            
+            // For Mass services (isMass = true), donation is required with minimum ₱50
+            if ($service->isMass) {
+                if (!$request->has('donation_amount')) {
+                    return response()->json([
+                        'error' => 'Donation amount is required for Mass services.'
+                    ], 422);
+                }
+                
+                $donationAmount = floatval($request->donation_amount);
+                
+                if ($donationAmount < 50) {
+                    return response()->json([
+                        'error' => 'Minimum donation amount for Mass services is ₱50.00'
+                    ], 422);
+                }
+                
+                // Add donation amount to the total
+                $originalTotalAmount += $donationAmount;
+                Log::info('Mass service donation amount added', [
+                    'service_id' => $service->ServiceID,
+                    'donation_amount' => $donationAmount,
+                    'new_total' => $originalTotalAmount
+                ]);
             }
             
             // Apply member discount if user is an approved member
             $totalAmount = $this->applyMemberDiscount($originalTotalAmount, $service, $user, $request->church_id);
+            
+            // If service is free (not Mass), require approved membership
+            if ($totalAmount == 0 && !$service->isMass) {
+                $membership = \App\Models\ChurchMember::where('user_id', $user->id)
+                    ->where('church_id', $request->church_id)
+                    ->where('status', 'approved')
+                    ->first();
+                    
+                if (!$membership) {
+                    return response()->json([
+                        'error' => 'This is a free service and requires approved membership at this church. Please apply for membership first.'
+                    ], 403);
+                }
+            }
             
             // If fees are required, create payment checkout session instead of appointment
             if ($totalAmount > 0) {
@@ -557,7 +638,7 @@ class AppointmentController extends Controller
                     'church_id' => $request->church_id,
                     'service_id' => $request->service_id,
                     'total_amount' => $totalAmount,
-                    'payable_fees_count' => $payableFees->count()
+                    'original_amount' => $originalTotalAmount
                 ]);
                 
                 // Check if church has payment configuration
@@ -626,6 +707,9 @@ class AppointmentController extends Controller
                     ->setTimeFromTimeString($scheduleTime->StartTime)
                     ->format('Y-m-d H:i:s');
                 
+                // Generate unique reference number for this appointment payment
+                $receiptCode = 'APT-' . strtoupper(substr(uniqid(), -8));
+                
                 // Prepare metadata for the checkout session
                 $metadata = [
                     'user_id' => $user->id,
@@ -637,12 +721,15 @@ class AppointmentController extends Controller
                     'form_data' => $request->form_data ?? null, // Include form data for custom forms
                     'donation_amount' => $request->donation_amount ?? null, // Include donation amount for Mass services
                     'is_mass' => $service->isMass ?? false, // Flag for Mass services
+                    'receipt_code' => $receiptCode,
+                    'reference_number' => $receiptCode, // This will display in PayMongo checkout
                     'type' => 'appointment_payment'
                 ];
                 
-                // Build description
+                // Build description with reference number for tracing
                 $description = sprintf(
-                    '%s - %s (Date: %s, Time: %s)',
+                    '[Ref: %s] %s - %s (Date: %s, Time: %s)',
+                    $receiptCode,
                     $church->ChurchName,
                     $service->ServiceName,
                     $appointmentDate,
@@ -651,7 +738,7 @@ class AppointmentController extends Controller
                 
                 // Create success and cancel URLs (same as simple appointments)
                 $successUrl = url('/appointment-payment/success?session_id={CHECKOUT_SESSION_ID}&church_id=' . $request->church_id);
-                $cancelUrl = url('/appointment-payment/cancel?session_id={CHECKOUT_SESSION_ID}');
+                $cancelUrl = url('/appointment-payment/cancel?session_id={CHECKOUT_SESSION_ID}&church_id=' . $request->church_id);
                 
                 // Create PayMongo checkout session with GCash and Card only
                 $checkoutResult = $paymongoService->createCheckoutSession(
@@ -697,12 +784,13 @@ class AppointmentController extends Controller
                         'currency' => 'PHP',
                         'status' => 'pending',
                         'checkout_url' => $checkoutData['attributes']['checkout_url'] ?? null,
-                        'form_data' => $request->form_data,
-                        'donation_amount' => $request->donation_amount ?? null,
                         'metadata' => [
                             'church_name' => $church->ChurchName,
                             'service_name' => $service->ServiceName,
-                            'is_mass' => $service->isMass ?? false
+                            'is_mass' => $service->isMass ?? false,
+                            'receipt_code' => $receiptCode,
+                            'form_data' => $request->form_data,
+                            'donation_amount' => $request->donation_amount ?? null
                         ],
                         'expires_at' => $expiresAtRaw ? \Carbon\Carbon::createFromTimestamp($expiresAtRaw) : now()->addMinutes(30),
                         'created_at' => now(),
@@ -746,14 +834,7 @@ class AppointmentController extends Controller
                         'amount' => $totalAmount,
                         'currency' => 'PHP',
                         'description' => $description,
-                        'payment_methods' => ['gcash', 'card'],
-                        'fees' => $payableFees->map(function ($fee) {
-                            return [
-                                'type' => $fee->FeeType,
-                                'amount' => $fee->Fee,
-                                'description' => $fee->getDescription()
-                            ];
-                        })
+                        'payment_methods' => ['gcash', 'card']
                     ],
                     'appointment_details' => [
                         'church_name' => $church->ChurchName,
@@ -1189,8 +1270,10 @@ class AppointmentController extends Controller
                 ->join('user_profiles as p', 'u.id', '=', 'p.user_id')
                 ->join('sacrament_service as s', 'a.ServiceID', '=', 's.ServiceID')
                 ->join('schedule_times as st', 'a.ScheduleTimeID', '=', 'st.ScheduleTimeID')
+                ->join('service_schedules as ss', 'st.ScheduleID', '=', 'ss.ScheduleID')
+                ->leftJoin('sub_sacrament_services as sss', 'ss.SubSacramentServiceID', '=', 'sss.SubSacramentServiceID')
                 ->where('a.ChurchID', $church->ChurchID)
-                ->orderBy('a.AppointmentDate', 'desc')
+                ->orderBy('a.created_at', 'asc')
                 ->select([
                     'a.AppointmentID',
                     'a.AppointmentDate',
@@ -1208,7 +1291,9 @@ class AppointmentController extends Controller
                     's.Description as ServiceDescription',
                     's.isMass',
                     'st.StartTime',
-                    'st.EndTime'
+                    'st.EndTime',
+                    'sss.SubServiceName',
+                    'sss.SubSacramentServiceID'
                 ])
                 ->get();
 
@@ -2445,6 +2530,10 @@ class AppointmentController extends Controller
                     if ($transaction) {
                         return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/payment/success?transaction_id=' . $transaction->ChurchTransactionID . '&type=appointment');
                     }
+                } else {
+                    // Mark session as failed/expired
+                    $newStatus = ($paymentStatus === 'expired') ? 'expired' : 'failed';
+                    $appointmentSession->update(['status' => $newStatus]);
                 }
             }
             
@@ -2466,6 +2555,38 @@ class AppointmentController extends Controller
      */
     public function handleAppointmentPaymentCancel(Request $request)
     {
+        try {
+            $sessionId = $request->query('session_id');
+            $churchId = $request->query('church_id');
+
+            $appointmentSession = null;
+
+            if ($sessionId === '{CHECKOUT_SESSION_ID}') {
+                // Fallback: latest pending session for this church
+                if ($churchId) {
+                    $appointmentSession = AppointmentPaymentSession::where('church_id', $churchId)
+                        ->where('status', 'pending')
+                        ->orderBy('created_at', 'desc')
+                        ->first();
+                }
+            } elseif ($sessionId) {
+                $appointmentSession = AppointmentPaymentSession::where('paymongo_session_id', $sessionId)->first();
+            }
+
+            if ($appointmentSession && $appointmentSession->status !== 'paid') {
+                $appointmentSession->update(['status' => 'cancelled']);
+                \Log::info('Appointment payment session cancelled', [
+                    'session_id' => $appointmentSession->paymongo_session_id,
+                    'church_id' => $appointmentSession->church_id,
+                    'user_id' => $appointmentSession->user_id,
+                ]);
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Error marking appointment payment session as cancelled', [
+                'error' => $e->getMessage()
+            ]);
+        }
+
         return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/dashboard?info=payment_cancelled');
     }
 
@@ -2957,7 +3078,22 @@ class AppointmentController extends Controller
         try {
             DB::beginTransaction();
             
-            // Always create a new appointment (removed duplicate check to allow multiple appointments)
+            // Check if appointment was already created for this payment session
+            $existingTransaction = ChurchTransaction::where('paymongo_session_id', $appointmentSession->paymongo_session_id)
+                ->where('church_id', $appointmentSession->church_id)
+                ->first();
+                
+            if ($existingTransaction) {
+                Log::info('Appointment already exists for this payment session', [
+                    'session_id' => $appointmentSession->paymongo_session_id,
+                    'appointment_id' => $existingTransaction->appointment_id,
+                    'transaction_id' => $existingTransaction->ChurchTransactionID
+                ]);
+                DB::commit();
+                return $existingTransaction;
+            }
+            
+            // Create new appointment
             $appointmentId = DB::table('Appointment')->insertGetId([
                 'UserID' => $appointmentSession->user_id,
                 'ChurchID' => $appointmentSession->church_id,
@@ -2971,6 +3107,35 @@ class AppointmentController extends Controller
                 'updated_at' => now()
             ]);
             
+            // Persist form data answers captured before redirect (if any)
+            $sessionFormData = [];
+            
+            if (isset($appointmentSession->metadata['form_data'])) {
+                $decoded = json_decode($appointmentSession->metadata['form_data'], true);
+                if (is_array($decoded)) { $sessionFormData = $decoded; }
+            }
+            
+            if (!empty($sessionFormData)) {
+                foreach ($sessionFormData as $fieldKey => $answerValue) {
+                    $inputFieldId = $this->extractFieldId($fieldKey);
+                    if (!$inputFieldId || empty($answerValue)) { continue; }
+                    
+                    $fieldExists = \DB::table('service_input_field')
+                        ->where('InputFieldID', $inputFieldId)
+                        ->where('ServiceID', $appointmentSession->service_id)
+                        ->exists();
+                    if (!$fieldExists) { continue; }
+                    
+                    \DB::table('AppointmentInputAnswer')->insert([
+                        'AppointmentID' => $appointmentId,
+                        'InputFieldID' => $inputFieldId,
+                        'AnswerText' => is_array($answerValue) ? json_encode($answerValue) : $answerValue,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                }
+            }
+
             // Reserve slot
             $schedule = ServiceSchedule::find($appointmentSession->schedule_id);
             if ($schedule) {
@@ -2978,28 +3143,21 @@ class AppointmentController extends Controller
                 $this->adjustRemainingSlots($appointmentSession->schedule_time_id, $slotDate, -1, $schedule->SlotCapacity);
             }
             
-            // Check if transaction already exists
-            $existingTransaction = ChurchTransaction::where('appointment_id', $appointmentId)
-                ->where('paymongo_session_id', $appointmentSession->paymongo_session_id)
-                ->first();
-            
-            if ($existingTransaction) {
-                DB::commit();
-                return $existingTransaction;
-            }
-            
-            // Create ChurchTransaction (simplified like SubscriptionTransaction)
+            // Create ChurchTransaction
             $transaction = ChurchTransaction::create([
                 'user_id' => $appointmentSession->user_id,
                 'church_id' => $appointmentSession->church_id,
-                'appointment_id' => $appointmentId,
+'appointment_id' => $appointmentId,
+                'paymongo_session_id' => $appointmentSession->paymongo_session_id,
                 'payment_method' => $appointmentSession->payment_method,
                 'amount_paid' => $appointmentSession->amount,
                 'currency' => $appointmentSession->currency,
                 'transaction_type' => 'appointment_payment',
                 'transaction_date' => now(),
+                'receipt_code' => $appointmentSession->metadata['receipt_code'] ?? null,
                 'notes' => sprintf(
-                    '%s payment for %s - %s appointment on %s',
+                    '[Ref: %s] %s payment for %s - %s appointment on %s',
+                    $appointmentSession->metadata['receipt_code'] ?? 'N/A',
                     $appointmentSession->payment_method === 'card' ? 'Card' : ucfirst($appointmentSession->payment_method),
                     $appointmentSession->metadata['church_name'] ?? $appointmentSession->church->ChurchName,
                     $appointmentSession->metadata['service_name'] ?? $appointmentSession->service->ServiceName,

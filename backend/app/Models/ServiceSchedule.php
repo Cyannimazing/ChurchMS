@@ -14,6 +14,7 @@ class ServiceSchedule extends Model
 
     protected $fillable = [
         'ServiceID',
+        'SubSacramentServiceID',
         'StartDate',
         'EndDate',
         'SlotCapacity',
@@ -32,6 +33,14 @@ class ServiceSchedule extends Model
     {
         return $this->belongsTo(SacramentService::class, 'ServiceID', 'ServiceID');
     }
+    
+    /**
+     * Get the sub sacrament service (variant) if applicable
+     */
+    public function subSacramentService()
+    {
+        return $this->belongsTo(SubSacramentService::class, 'SubSacramentServiceID', 'SubSacramentServiceID');
+    }
 
     /**
      * Get the recurrence patterns for this schedule
@@ -47,14 +56,6 @@ class ServiceSchedule extends Model
     public function times()
     {
         return $this->hasMany(ScheduleTime::class, 'ScheduleID', 'ScheduleID');
-    }
-
-    /**
-     * Get the fees for this schedule
-     */
-    public function fees()
-    {
-        return $this->hasMany(ScheduleFee::class, 'ScheduleID', 'ScheduleID');
     }
 
     /**

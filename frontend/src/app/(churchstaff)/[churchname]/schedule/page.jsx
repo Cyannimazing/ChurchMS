@@ -6,7 +6,6 @@ import {
   Calendar, 
   Clock, 
   Users, 
-  DollarSign, 
   Settings,
   Trash2,
   Edit,
@@ -198,12 +197,6 @@ const SchedulePage = () => {
     }).join(", ");
   };
 
-  const formatFees = (fees) => {
-    if (!fees || fees.length === 0) return "Free";
-    return fees.map(fee => 
-      `${fee.FeeType}: ₱${Math.round(parseFloat(fee.Fee))}`
-    ).join(", ");
-  };
 
   if (!hasAccess) {
     return (
@@ -358,7 +351,6 @@ const SchedulePage = () => {
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recurrence</th>
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Slots</th>
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Capacity</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fees</th>
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                 <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                               </tr>
@@ -366,7 +358,7 @@ const SchedulePage = () => {
                             <tbody className="bg-white divide-y divide-gray-200">
                               {isLoading ? (
                                 <tr>
-                                  <td colSpan={7} className="px-6 py-12">
+                                  <td colSpan={6} className="px-6 py-12">
                                     <div className="flex justify-center">
                                       <DataLoading message="Loading schedules..." />
                                     </div>
@@ -374,7 +366,7 @@ const SchedulePage = () => {
                                 </tr>
                               ) : filteredSchedules.length === 0 ? (
                                 <tr>
-                                  <td colSpan={7} className="px-6 py-12 text-center">
+                                  <td colSpan={6} className="px-6 py-12 text-center">
                                     <div className="text-center">
                                       <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                                       <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -404,7 +396,9 @@ const SchedulePage = () => {
                                   <tr key={schedule.ScheduleID} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 whitespace-nowrap">
                                       <div className="text-sm font-medium text-gray-900">
-                                        {schedule.service?.ServiceName}
+                                        {schedule.sub_sacrament_service 
+                                          ? `${schedule.service?.ServiceName} (${schedule.sub_sacrament_service.SubServiceName})`
+                                          : schedule.service?.ServiceName}
                                       </div>
                                       <div className="text-sm text-gray-500">
                                         Schedule #{schedule.ScheduleID}
@@ -426,12 +420,6 @@ const SchedulePage = () => {
                                       <div className="flex items-center text-sm text-gray-600">
                                         <Users className="h-4 w-4 mr-2 text-gray-400" />
                                         <span>{schedule.SlotCapacity}</span>
-                                      </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                      <div className="flex items-center text-sm text-gray-600">
-                                        <DollarSign className="h-4 w-4 mr-2 text-gray-400" />
-                                        <span>{formatFees(schedule.fees)}</span>
                                       </div>
                                     </td>
                                     <td className="px-6 py-4">

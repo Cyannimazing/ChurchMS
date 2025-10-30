@@ -9,6 +9,28 @@ import CustomDatePicker from "@/components/schedules/CustomDatePicker.jsx";
 import axios from "@/lib/axios";
 
 const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
+  // Flatten services - expand variants for isMultipleService
+  const flattenedServices = services.flatMap(service => {
+    if (service.isMultipleService && service.sub_sacrament_services && service.sub_sacrament_services.length > 0) {
+      return service.sub_sacrament_services.map(variant => ({
+        ServiceID: `variant_${variant.SubSacramentServiceID}`,
+        ServiceName: `${service.ServiceName} (${variant.SubServiceName})`,
+        SubSacramentServiceID: variant.SubSacramentServiceID,
+        ParentServiceID: service.ServiceID,
+        fee: variant.fee,
+        isVariant: true
+      }));
+    } else if (!service.isMultipleService) {
+      return [{
+        ServiceID: service.ServiceID,
+        ServiceName: service.ServiceName,
+        fee: service.fee,
+        isVariant: false
+      }];
+    }
+    return []; // Skip parent services with no variants
+  });
+
   const [formData, setFormData] = useState({
     serviceId: "",
     slotCapacity: "",
@@ -21,10 +43,6 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
     times: [{
       startTime: "",
       endTime: ""
-    }],
-    fees: [{
-      feeType: "Fee",
-      fee: "0.00"
     }]
   });
 
@@ -49,10 +67,6 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
     { value: 5, label: "Fifth" }
   ];
 
-  const feeTypes = [
-    "Fee",
-    "Donation"
-  ];
 
   useEffect(() => {
     if (schedule) {
@@ -81,15 +95,6 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
           : [{
               startTime: "",
               endTime: ""
-            }],
-        fees: schedule.fees && schedule.fees.length > 0
-          ? [{
-              feeType: schedule.fees[0].FeeType,
-              fee: schedule.fees[0].Fee
-            }]
-          : [{
-              feeType: "Fee",
-              fee: "0.00"
             }]
       });
     } else {
@@ -106,10 +111,6 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
         times: [{
           startTime: "",
           endTime: ""
-        }],
-        fees: [{
-          feeType: "Fee",
-          fee: "0.00"
         }]
       });
     }
@@ -147,16 +148,6 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
       }
     });
 
-    // Validate fees
-    formData.fees.forEach((fee, index) => {
-      if (!fee.feeType) {
-        newErrors[`fee_${index}_type`] = "Fee type is required";
-      }
-      if (!fee.fee || fee.fee < 0) {
-        newErrors[`fee_${index}_amount`] = "Fee amount must be 0 or greater";
-      }
-    });
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -174,10 +165,18 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
       // Auto-set start date to today
       const today = new Date().toISOString().split('T')[0];
       
+      // Get actual service ID (handle variants)
+      const selectedServiceData = flattenedServices.find(s => s.ServiceID.toString() === formData.serviceId);
+      const actualServiceId = selectedServiceData?.isVariant 
+        ? selectedServiceData.SubSacramentServiceID 
+        : formData.serviceId;
+      
       const payload = {
         start_date: today,
         end_date: null, // Always null as per requirement
         slot_capacity: parseInt(formData.slotCapacity),
+        service_id: actualServiceId,
+        is_variant: selectedServiceData?.isVariant || false,
         recurrences: formData.recurrences.map(r => ({
           recurrence_type: r.recurrenceType,
           day_of_week: r.recurrenceType !== "OneTime" ? r.dayOfWeek : null,
@@ -187,10 +186,6 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
         times: formData.times.map(t => ({
           start_time: t.startTime,
           end_time: t.endTime
-        })),
-        fees: formData.fees.map(f => ({
-          fee_type: f.feeType,
-          fee: parseFloat(f.fee)
         }))
       };
 
@@ -200,7 +195,10 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
         response = await axios.put(`/api/schedules/${schedule.ScheduleID}`, payload);
       } else {
         // Create new schedule
-        response = await axios.post(`/api/sacrament-services/${formData.serviceId}/schedules`, payload);
+        const endpointServiceId = selectedServiceData?.isVariant 
+          ? selectedServiceData.ParentServiceID 
+          : selectedServiceData?.ServiceID;
+        response = await axios.post(`/api/sacrament-services/${endpointServiceId}/schedules`, payload);
       }
 
       if (response.data.success) {
@@ -333,7 +331,7 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
                         required
                       >
                         <option value="" disabled hidden>Select a service...</option>
-                        {services.map((service) => (
+                        {flattenedServices.map((service) => (
                           <option key={service.ServiceID} value={service.ServiceID}>
                             {service.ServiceName}
                           </option>
@@ -427,52 +425,6 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
                     ))}
                   </div>
 
-                  {/* Fees */}
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700 mb-3 block">
-                      Fees *
-                    </Label>
-                    {formData.fees.map((fee, index) => (
-                      <div key={index} className="space-y-3">
-                        <div>
-                          <Label className="text-xs font-medium text-gray-600">
-                            Fee Type
-                          </Label>
-                          <select
-                            value={fee.feeType}
-                            onChange={(e) => updateFee(index, 'feeType', e.target.value)}
-                            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white text-sm text-gray-900"
-                          >
-                            {feeTypes.map(type => (
-                              <option key={type} value={type}>
-                                {type}
-                              </option>
-                            ))}
-                          </select>
-                          {errors[`fee_${index}_type`] && (
-                            <p className="text-xs text-red-600 mt-1">{errors[`fee_${index}_type`]}</p>
-                          )}
-                        </div>
-                        <div>
-                          <Label className="text-xs font-medium text-gray-600">
-                            Amount (₱)
-                          </Label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="0.00"
-                            value={fee.fee}
-                            onChange={(e) => updateFee(index, 'fee', e.target.value)}
-                            className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm placeholder-gray-400 text-gray-900"
-                          />
-                          {errors[`fee_${index}_amount`] && (
-                            <p className="text-xs text-red-600 mt-1">{errors[`fee_${index}_amount`]}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
 
                   {/* Submit Error */}
                   {errors.submit && (
@@ -539,7 +491,7 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
                         required
                       >
                         <option value="" disabled hidden>Select a service...</option>
-                        {services.map((service) => (
+                        {flattenedServices.map((service) => (
                           <option key={service.ServiceID} value={service.ServiceID}>
                             {service.ServiceName}
                           </option>
@@ -677,48 +629,6 @@ const ScheduleModal = ({ isOpen, onClose, schedule, services, onSuccess }) => {
                     </div>
                   ))}
 
-                  {/* Fees */}
-                  {formData.fees.map((fee, index) => (
-                    <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-sm font-medium text-gray-700">
-                          Fee Type *
-                        </Label>
-                        <select
-                          value={fee.feeType}
-                          onChange={(e) => updateFee(index, 'feeType', e.target.value)}
-                          className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white text-sm text-gray-900"
-                        >
-                          {feeTypes.map(type => (
-                            <option key={type} value={type}>
-                              {type}
-                            </option>
-                          ))}
-                        </select>
-                        {errors[`fee_${index}_type`] && (
-                          <p className="text-sm text-red-600 mt-1">{errors[`fee_${index}_type`]}</p>
-                        )}
-                      </div>
-
-                      <div>
-                        <Label className="text-sm font-medium text-gray-700">
-                          Amount (₱) *
-                        </Label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          value={fee.fee}
-                          onChange={(e) => updateFee(index, 'fee', e.target.value)}
-                          className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm placeholder-gray-400 text-gray-900"
-                        />
-                        {errors[`fee_${index}_amount`] && (
-                          <p className="text-sm text-red-600 mt-1">{errors[`fee_${index}_amount`]}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
 
                   {/* Submit Error */}
                   {errors.submit && (
