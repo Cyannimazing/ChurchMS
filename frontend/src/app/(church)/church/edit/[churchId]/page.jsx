@@ -895,8 +895,8 @@ const ChurchEditPage = () => {
   // Loading state
   if (isLoading) {
     return (
-      <div className="lg:p-6 w-full pt-20">
-        <div className="max-w-7xl mx-auto">
+      <div className="lg:p-6 w-full h-full pt-20">
+        <div className="w-full mx-auto">
           <div className="bg-white overflow-hidden shadow-sm rounded-lg">
             <div className="p-6 bg-white border-b border-gray-200">
               <div className="flex items-center justify-between">
@@ -955,8 +955,8 @@ const ChurchEditPage = () => {
   // Error state
   if (error && !church) {
     return (
-      <div className="lg:p-6 w-full pt-20">
-        <div className="max-w-7xl mx-auto">
+      <div className="lg:p-6 w-full h-full pt-20">
+        <div className="w-full mx-auto">
           <div className="bg-white overflow-hidden shadow-sm rounded-lg">
             <div className="p-6 bg-white border-b border-gray-200">
               <h1 className="text-2xl font-semibold text-gray-900">
@@ -992,8 +992,8 @@ const ChurchEditPage = () => {
   // Success state
   if (success) {
     return (
-      <div className="lg:p-6 w-full pt-20">
-        <div className="max-w-7xl mx-auto">
+      <div className="lg:p-6 w-full h-full pt-20">
+        <div className="w-full mx-auto">
           <div className="bg-white overflow-hidden shadow-sm rounded-lg">
             <div className="p-6 bg-white border-b border-gray-200">
               <h1 className="text-2xl font-semibold text-gray-900">
@@ -1019,8 +1019,8 @@ const ChurchEditPage = () => {
   }
 
   return (
-    <div className="lg:p-6 w-full pt-20">
-      <div className="max-w-7xl mx-auto">
+    <div className="lg:p-6 w-full h-full pt-20">
+      <div className="w-full mx-auto">
         <div className="bg-white overflow-hidden shadow-sm rounded-lg">
           <div className="p-6 bg-white border-b border-gray-200">
             <div className="flex items-center justify-between">
@@ -1070,7 +1070,7 @@ const ChurchEditPage = () => {
                   currentTab === "info"
                     ? "border-blue-500 text-blue-600"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm cursor-pointer`}
               >
                 Basic Information
               </button>
@@ -1080,7 +1080,7 @@ const ChurchEditPage = () => {
                   currentTab === "documents"
                     ? "border-blue-500 text-blue-600"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm cursor-pointer`}
               >
                 Documents
               </button>
@@ -1091,7 +1091,7 @@ const ChurchEditPage = () => {
                   currentTab === "payment"
                     ? "border-blue-500 text-blue-600"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm cursor-pointer`}
               >
                 Payment Gateway
               </button>
@@ -1321,10 +1321,10 @@ const ChurchEditPage = () => {
                   </div>
 
                   <div>
-                    <Label htmlFor="ChurchName">
+                    <Label htmlFor="ChurchName" className="text-sm font-medium text-gray-700">
                       Church Name <span className="text-red-500">*</span>
                     </Label>
-                    <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="mt-1 relative rounded-md">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Church className="h-5 w-5 text-gray-400" />
                       </div>
@@ -1334,117 +1334,107 @@ const ChurchEditPage = () => {
                         name="ChurchName"
                         value={formData.ChurchName}
                         onChange={handleInputChange}
-                        className="mt-2 block w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        className="block mt-1 w-full px-3 py-2 pl-10 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
                         placeholder="St. Mary's Catholic Church"
                       />
                     </div>
-                    <InputError messages={errors.ChurchName} className="mt-2" />
+                    <InputError messages={errors.ChurchName} className="mt-2 text-xs text-red-600" />
                   </div>
 
                   <div>
-                    <Label htmlFor="Description">Description</Label>
-                    <div className="mt-1">
-                      <textarea
-                        id="Description"
-                        name="Description"
-                        rows={4}
-                        value={formData.Description}
-                        onChange={handleInputChange}
-                        className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                        placeholder="Provide a description of your church, including its mission, history, and community..."
-                      />
-                    </div>
+                    <Label htmlFor="Description" className="text-sm font-medium text-gray-700">Description</Label>
+                    <textarea
+                      id="Description"
+                      name="Description"
+                      rows={4}
+                      value={formData.Description}
+                      onChange={handleInputChange}
+                      className="block mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                      placeholder="Provide a description of your church, including its mission, history, and community..."
+                    />
                     <InputError
                       messages={errors.Description}
-                      className="mt-2"
+                      className="mt-2 text-xs text-red-600"
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="ParishDetails">Parish Details</Label>
-                    <div className="mt-1">
-                      <textarea
-                        id="ParishDetails"
-                        name="ParishDetails"
-                        rows={4}
-                        value={formData.ParishDetails}
-                        onChange={handleInputChange}
-                        className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                        placeholder="Provide details about the parish, service schedules, priests, and other relevant information..."
-                      />
-                    </div>
+                    <Label htmlFor="ParishDetails" className="text-sm font-medium text-gray-700">Parish Details</Label>
+                    <textarea
+                      id="ParishDetails"
+                      name="ParishDetails"
+                      rows={4}
+                      value={formData.ParishDetails}
+                      onChange={handleInputChange}
+                      className="block mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                      placeholder="Provide details about the parish, service schedules, priests, and other relevant information..."
+                    />
                     <InputError
                       messages={errors.ParishDetails}
-                      className="mt-2"
+                      className="mt-2 text-xs text-red-600"
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="Diocese">
+                    <Label htmlFor="Diocese" className="text-sm font-medium text-gray-700">
                       Diocese <span className="text-red-500">*</span>
                     </Label>
-                    <div className="mt-1">
-                      <input
-                        type="text"
-                        id="Diocese"
-                        name="Diocese"
-                        value={formData.Diocese || ''}
-                        onChange={handleInputChange}
-                        required
-                        className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                        placeholder="Diocese of Davao"
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      id="Diocese"
+                      name="Diocese"
+                      value={formData.Diocese || ''}
+                      onChange={handleInputChange}
+                      required
+                      className="block mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                      placeholder="Diocese of Davao"
+                    />
                     <InputError
                       messages={errors.Diocese}
-                      className="mt-2"
+                      className="mt-2 text-xs text-red-600"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="ContactNumber">Contact Number</Label>
-                      <div className="mt-1">
-                        <input
-                          type="tel"
-                          id="ContactNumber"
-                          name="ContactNumber"
-                          value={formData.ContactNumber || ''}
-                          onChange={handleInputChange}
-                          className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                          placeholder="+63 912 345 6789"
-                        />
-                      </div>
+                      <Label htmlFor="ContactNumber" className="text-sm font-medium text-gray-700">Contact Number</Label>
+                      <input
+                        type="tel"
+                        id="ContactNumber"
+                        name="ContactNumber"
+                        value={formData.ContactNumber || ''}
+                        onChange={handleInputChange}
+                        className="block mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                        placeholder="+63 912 345 6789"
+                      />
                       <InputError
                         messages={errors.ContactNumber}
-                        className="mt-2"
+                        className="mt-2 text-xs text-red-600"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="Email">Email Address</Label>
-                      <div className="mt-1">
-                        <input
-                          type="email"
-                          id="Email"
-                          name="Email"
-                          value={formData.Email || ''}
-                          onChange={handleInputChange}
-                          className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                          placeholder="church@example.com"
-                        />
-                      </div>
+                      <Label htmlFor="Email" className="text-sm font-medium text-gray-700">Email Address</Label>
+                      <input
+                        type="email"
+                        id="Email"
+                        name="Email"
+                        value={formData.Email || ''}
+                        onChange={handleInputChange}
+                        className="block mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                        placeholder="church@example.com"
+                      />
                       <InputError
                         messages={errors.Email}
-                        className="mt-2"
+                        className="mt-2 text-xs text-red-600"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <Label htmlFor="Street">
+                    <Label htmlFor="Street" className="text-sm font-medium text-gray-700">
                       Street/Address <span className="text-red-500">*</span>
                     </Label>
-                    <div className="mt-1 relative rounded-md shadow-sm">
+                    <div className="mt-1 relative rounded-md">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <MapPin className="h-5 w-5 text-gray-400" />
                       </div>
@@ -1454,19 +1444,19 @@ const ChurchEditPage = () => {
                         name="Street"
                         value={formData.Street}
                         onChange={handleInputChange}
-                        className="mt-2 block w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        className="block mt-1 w-full px-3 py-2 pl-10 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
                         placeholder="123 Main Street, Barangay Name"
                       />
                     </div>
-                    <InputError messages={errors.Street} className="mt-2" />
+                    <InputError messages={errors.Street} className="mt-2 text-xs text-red-600" />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="Province">
+                      <Label htmlFor="Province" className="text-sm font-medium text-gray-700">
                         Province <span className="text-red-500">*</span>
                       </Label>
-                      <div className="mt-1 relative rounded-md shadow-sm">
+                      <div className="mt-1 relative rounded-md">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <MapPin className="h-5 w-5 text-gray-400" />
                         </div>
@@ -1475,7 +1465,7 @@ const ChurchEditPage = () => {
                           name="Province"
                           value={formData.Province}
                           onChange={handleInputChange}
-                          className="mt-2 block w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                          className="block mt-1 w-full px-3 py-2 pl-10 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
                         >
                           <option value="">Select Province</option>
                           {provinces.map((province) => (
@@ -1485,13 +1475,13 @@ const ChurchEditPage = () => {
                           ))}
                         </select>
                       </div>
-                      <InputError messages={errors.Province} className="mt-2" />
+                      <InputError messages={errors.Province} className="mt-2 text-xs text-red-600" />
                     </div>
                     <div>
-                      <Label htmlFor="City">
+                      <Label htmlFor="City" className="text-sm font-medium text-gray-700">
                         City/Municipality <span className="text-red-500">*</span>
                       </Label>
-                      <div className="mt-1 relative rounded-md shadow-sm">
+                      <div className="mt-1 relative rounded-md">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <MapPin className="h-5 w-5 text-gray-400" />
                         </div>
@@ -1501,7 +1491,7 @@ const ChurchEditPage = () => {
                           value={formData.City}
                           onChange={handleInputChange}
                           disabled={!formData.Province}
-                          className="mt-2 block w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          className="block mt-1 w-full px-3 py-2 pl-10 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
                         >
                           <option value="">{formData.Province ? "Select City/Municipality" : "Select Province First"}</option>
                           {cities.map((city) => (
@@ -1509,15 +1499,15 @@ const ChurchEditPage = () => {
                           ))}
                         </select>
                       </div>
-                      <InputError messages={errors.City} className="mt-2" />
+                      <InputError messages={errors.City} className="mt-2 text-xs text-red-600" />
                     </div>
                   </div>
 
                   <div>
-                    <Label>
+                    <Label className="text-sm font-medium text-gray-700">
                       Church Location <span className="text-red-500">*</span>
                     </Label>
-                    <p className="text-sm text-gray-500 mb-4">
+                    <p className="text-xs text-gray-500 mt-1 mb-4">
                       Click on the map to set your church's location or use the
                       "Use My Current Location" button.
                     </p>
@@ -1539,30 +1529,30 @@ const ChurchEditPage = () => {
                         <p>Loading map...</p>
                       </div>
                     )}
-                    <InputError messages={errors.location} className="mt-2" />
+                    <InputError messages={errors.location} className="mt-2 text-xs text-red-600" />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="Latitude">Latitude</Label>
+                      <Label htmlFor="Latitude" className="text-sm font-medium text-gray-700">Latitude</Label>
                       <input
                         type="text"
                         id="Latitude"
                         name="Latitude"
                         value={formData.Latitude}
                         readOnly
-                        className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm text-gray-900"
+                        className="block mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="Longitude">Longitude</Label>
+                      <Label htmlFor="Longitude" className="text-sm font-medium text-gray-700">Longitude</Label>
                       <input
                         type="text"
                         id="Longitude"
                         name="Longitude"
                         value={formData.Longitude}
                         readOnly
-                        className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm text-gray-900"
+                        className="block mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
                       />
                     </div>
                   </div>
@@ -1590,7 +1580,7 @@ const ChurchEditPage = () => {
                       key={docType}
                       className="border border-gray-200 rounded-lg p-4"
                     >
-                      <Label htmlFor={docType}>
+                      <Label htmlFor={docType} className="text-sm font-medium text-gray-700">
                         {docType.replace(/([A-Z])/g, " $1").trim()}
                         {docType !== "AuthorizationLetter" && (
                           <span className="text-red-500">*</span>
@@ -1647,7 +1637,7 @@ const ChurchEditPage = () => {
                           </div>
                         )}
                       </div>
-                      <InputError messages={errors[docType]} className="mt-2" />
+                      <InputError messages={errors[docType]} className="mt-2 text-xs text-red-600" />
                     </div>
                   ))}
                 </div>
@@ -1792,35 +1782,35 @@ const ChurchEditPage = () => {
                     <div className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <Label htmlFor="public_key">Public key</Label>
+                        <Label htmlFor="public_key" className="text-sm font-medium text-gray-700">Public key</Label>
                         <input
                           type="text"
                           id="public_key"
                           name="public_key"
                           value={paymentFormData.public_key}
                           onChange={handlePaymentInputChange}
-                          className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                          placeholder="pk_test_... or pk_live_..."
+                          className="block mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                          placeholder="pk_test_JPz1xr:ErFi7XxdiQEf38XmuR"
                           required
                         />
                         <p className="mt-2 text-xs text-gray-500">Found in PayMongo Dashboard → Developers → API Keys.</p>
-                        <InputError messages={errors.public_key} className="mt-2" />
+                        <InputError messages={errors.public_key} className="mt-2 text-xs text-red-600" />
                       </div>
 
                       <div>
-                        <Label htmlFor="secret_key">Secret key</Label>
+                        <Label htmlFor="secret_key" className="text-sm font-medium text-gray-700">Secret key</Label>
                         <input
                           type="password"
                           id="secret_key"
                           name="secret_key"
                           value={paymentFormData.secret_key}
                           onChange={handlePaymentInputChange}
-                          className="mt-2 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
-                          placeholder={hasPaymentConfig ? 'Enter new secret to rotate' : 'sk_test_... or sk_live_...'}
+                          className="block mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                          placeholder={hasPaymentConfig ? 'Enter new secret to rotate' : 'sk_test_...'}
                           required={!hasPaymentConfig}
                         />
                         <p className="mt-2 text-xs text-gray-500">Stored encrypted. We never expose the secret in the browser.</p>
-                        <InputError messages={errors.secret_key} className="mt-2" />
+                        <InputError messages={errors.secret_key} className="mt-2 text-xs text-red-600" />
                       </div>
                     </div>
 

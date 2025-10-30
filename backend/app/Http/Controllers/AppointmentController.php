@@ -3460,7 +3460,6 @@ class AppointmentController extends Controller
     {
         try {
             $validated = $request->validate([
-                'receipt_code' => 'required|string',
                 'refund_reason' => 'nullable|string|max:500',
                 'apply_convenience_fee' => 'boolean'
             ]);
@@ -3482,14 +3481,6 @@ class AppointmentController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'Refund is only allowed for cancelled or rejected appointments'
-                ], 400);
-            }
-            
-            // Verify receipt code matches the stored receipt code
-            if (strtoupper($validated['receipt_code']) !== strtoupper($transaction->receipt_code)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid receipt code'
                 ], 400);
             }
             
@@ -3531,8 +3522,7 @@ class AppointmentController extends Controller
             
             Log::info('Transaction marked as refunded', [
                 'transaction_id' => $transactionId,
-                'receipt_code' => $validated['receipt_code'],
-                'refund_reason' => $validated['refund_reason']
+                'refund_reason' => $validated['refund_reason'] ?? 'N/A'
             ]);
             
             return response()->json([
