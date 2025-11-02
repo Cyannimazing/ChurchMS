@@ -48,8 +48,10 @@ const saveSacramentService = async ({ editServiceId, churchName, form, setErrors
     mutate();
   } catch (error) {
     if (error.response?.status === 422) {
+      console.error('Validation errors:', error.response.data);
       setErrors(error.response.data.errors || ["Validation failed."]);
     } else {
+      console.error('Save error:', error.response?.data || error.message);
       setErrors([
         error.response?.data?.error || `Failed to save sacrament service: ${error.message}`,
       ]);
@@ -209,7 +211,33 @@ const SacramentPage = () => {
           name: v.SubServiceName ?? v.name ?? "",
           fee: v.fee ?? 0,
         })),
-        sub_services: localSacrament.sub_services || [],
+        sub_services: (localSacrament.sub_services || []).map(ss => ({
+          SubServiceName: ss.SubServiceName || "",
+          Description: ss.Description || "",
+          IsActive: ss.IsActive !== undefined ? ss.IsActive : true,
+          schedules: (ss.schedules || []).map(sch => {
+            // Convert time to HH:MM format if needed
+            const formatTime = (time) => {
+              if (!time) return "14:00";
+              // If already in HH:MM format, return as is
+              if (/^\d{2}:\d{2}$/.test(time)) return time;
+              // If in HH:MM:SS format, strip seconds
+              if (/^\d{2}:\d{2}:\d{2}$/.test(time)) return time.substring(0, 5);
+              return time;
+            };
+            return {
+              DayOfWeek: sch.DayOfWeek || "Thursday",
+              StartTime: formatTime(sch.StartTime),
+              EndTime: formatTime(sch.EndTime),
+              OccurrenceType: sch.OccurrenceType || "weekly",
+              OccurrenceValue: sch.OccurrenceValue || null,
+            };
+          }),
+          requirements: (ss.requirements || []).map(req => ({
+            RequirementName: req.RequirementName || "",
+            isNeeded: req.isNeeded !== undefined ? req.isNeeded : true,
+          })),
+        })),
       });
       setEditSacramentId(sacramentId);
       setOpen(true);
@@ -238,7 +266,33 @@ const SacramentPage = () => {
           name: v.SubServiceName ?? v.name ?? "",
           fee: v.fee ?? 0,
         })),
-        sub_services: sacrament.sub_services || [],
+        sub_services: (sacrament.sub_services || []).map(ss => ({
+          SubServiceName: ss.SubServiceName || "",
+          Description: ss.Description || "",
+          IsActive: ss.IsActive !== undefined ? ss.IsActive : true,
+          schedules: (ss.schedules || []).map(sch => {
+            // Convert time to HH:MM format if needed
+            const formatTime = (time) => {
+              if (!time) return "14:00";
+              // If already in HH:MM format, return as is
+              if (/^\d{2}:\d{2}$/.test(time)) return time;
+              // If in HH:MM:SS format, strip seconds
+              if (/^\d{2}:\d{2}:\d{2}$/.test(time)) return time.substring(0, 5);
+              return time;
+            };
+            return {
+              DayOfWeek: sch.DayOfWeek || "Thursday",
+              StartTime: formatTime(sch.StartTime),
+              EndTime: formatTime(sch.EndTime),
+              OccurrenceType: sch.OccurrenceType || "weekly",
+              OccurrenceValue: sch.OccurrenceValue || null,
+            };
+          }),
+          requirements: (ss.requirements || []).map(req => ({
+            RequirementName: req.RequirementName || "",
+            isNeeded: req.isNeeded !== undefined ? req.isNeeded : true,
+          })),
+        })),
       });
       setEditSacramentId(sacramentId);
       setOpen(true);

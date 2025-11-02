@@ -241,6 +241,9 @@ const AppointmentPage = () => {
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="text-lg font-semibold text-gray-900">
                               {appointment.ServiceName}
+                              {appointment.SubServiceName && (
+                                <span className="text-base font-normal text-gray-600"> - {appointment.SubServiceName}</span>
+                              )}
                             </h3>
                             <span className={getStatusBadge(appointment.Status)}>
                               {appointment.Status}

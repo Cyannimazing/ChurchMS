@@ -15,23 +15,35 @@ class ChurchTransaction extends Model
     protected $fillable = [
         'user_id',
         'church_id',
+        'service_id',
+        'schedule_id',
+        'schedule_time_id',
         'appointment_id',
+        'paymongo_session_id',
         'receipt_code',
         'payment_method',
         'amount_paid',
         'currency',
         'transaction_type',
+        'status',
+        'checkout_url',
+        'appointment_date',
+        'expires_at',
         'refund_status',
         'refund_date',
         'refund_reason',
         'transaction_date',
         'notes',
+        'metadata',
     ];
     
     protected $casts = [
         'amount_paid' => 'decimal:2',
         'transaction_date' => 'datetime',
+        'appointment_date' => 'datetime',
+        'expires_at' => 'datetime',
         'refund_date' => 'datetime',
+        'metadata' => 'array',
     ];
 
     // Always ensure a receipt code is present on create
@@ -60,5 +72,30 @@ class ChurchTransaction extends Model
     public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class, 'appointment_id', 'AppointmentID');
+    }
+    
+    public function service(): BelongsTo
+    {
+        return $this->belongsTo(SacramentService::class, 'service_id', 'ServiceID');
+    }
+    
+    public function schedule(): BelongsTo
+    {
+        return $this->belongsTo(ServiceSchedule::class, 'schedule_id', 'ScheduleID');
+    }
+    
+    public function isExpired(): bool
+    {
+        return $this->expires_at && $this->expires_at->isPast();
+    }
+    
+    public function isPending(): bool
+    {
+        return $this->status === 'pending';
+    }
+    
+    public function isPaid(): bool
+    {
+        return $this->status === 'paid';
     }
 }

@@ -66,7 +66,7 @@ class RegisteredUserController extends Controller
             }
             
             $startDate = now();
-            $endDate = now()->addMonths($freePlan->DurationInMonths); // 1 month from now
+            $endDate = now()->addMinutes(3); // 3 minutes for testing
 
             // Create church subscription with Free Plan
             ChurchSubscription::create([

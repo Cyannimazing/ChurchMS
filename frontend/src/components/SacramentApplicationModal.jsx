@@ -1864,6 +1864,43 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
                     </div>
                   )}
 
+                  {/* Sub-Services (Additional Requirements/Steps) */}
+                  {formConfig.sub_services && formConfig.sub_services.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="font-medium text-gray-900 mb-3">Additional Requirements & Steps</h4>
+                      <div className="space-y-4">
+                        {formConfig.sub_services.map((subService, subIndex) => (
+                          <div key={subIndex} className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-start gap-3">
+                              <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center flex-shrink-0 text-sm font-medium mt-0.5">
+                                {subIndex + 1}
+                              </div>
+                              <div className="flex-1">
+                                <h5 className="font-semibold text-blue-900 mb-1">{subService.name}</h5>
+                                {subService.description && (
+                                  <p className="text-sm text-blue-700 mb-3">{subService.description}</p>
+                                )}
+                                {subService.requirements && subService.requirements.length > 0 && (
+                                  <div>
+                                    <p className="text-xs font-medium text-blue-800 mb-2">Requirements:</p>
+                                    <ul className="list-disc list-inside space-y-1">
+                                      {subService.requirements.map((req, reqIndex) => (
+                                        <li key={reqIndex} className="text-sm text-blue-700">
+                                          {req.name}
+                                          {req.is_needed && <span className="font-medium"> (Required)</span>}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Custom Form Fields - Only render if not a staff form */}
                   {selectedService && !selectedService.isStaffForm && formConfig.form_elements && formConfig.form_elements.length > 0 && (
                     <div className="mb-6">

@@ -13,7 +13,6 @@ use App\Models\Appointment;
 use App\Models\ServiceSchedule;
 use App\Models\ServiceScheduleTime;
 use App\Models\SacramentService;
-use App\Models\AppointmentPaymentSession;
 use App\Models\PaymentSession;
 use App\Models\ChurchTransaction;
 use App\Models\ChurchConvenienceFee;
@@ -317,19 +316,24 @@ class AppointmentController extends Controller
                 $expiresAt = $expiresAtRaw ? \Carbon\Carbon::createFromTimestamp($expiresAtRaw) : now()->addMinutes(30);
                 
                 try {
-                    AppointmentPaymentSession::create([
+                    ChurchTransaction::create([
                         'user_id' => $user->id,
                         'church_id' => $request->church_id,
                         'service_id' => $request->service_id,
                         'schedule_id' => $request->schedule_id,
                         'schedule_time_id' => $request->schedule_time_id,
+                        'appointment_id' => null, // Will be set after payment success
                         'paymongo_session_id' => $checkoutData['id'],
+                        'receipt_code' => $receiptCode,
                         'payment_method' => 'multi',
-                        'amount' => $totalAmount,
+                        'amount_paid' => $totalAmount,
                         'currency' => 'PHP',
+                        'transaction_type' => 'appointment_payment',
                         'status' => 'pending',
                         'checkout_url' => $checkoutData['attributes']['checkout_url'] ?? null,
                         'appointment_date' => $appointmentDateTime,
+                        'transaction_date' => now(),
+                        'notes' => sprintf('Pending payment for %s at %s', $service->ServiceName, $church->ChurchName),
                         'metadata' => [
                             'church_name' => $church->ChurchName,
                             'service_name' => $service->ServiceName,
@@ -339,7 +343,7 @@ class AppointmentController extends Controller
                         'expires_at' => $expiresAt
                     ]);
                 } catch (\Exception $e) {
-                    Log::warning('Failed to persist appointment payment session', [
+                    Log::warning('Failed to persist payment transaction', [
                         'error' => $e->getMessage()
                     ]);
                 }
@@ -788,21 +792,26 @@ class AppointmentController extends Controller
                 // Get expiration time from checkout data
                 $expiresAtRaw = $checkoutData['attributes']['expires_at'] ?? null;
                 
-                // Create AppointmentPaymentSession to track this payment
+                // Create ChurchTransaction to track this payment
                 try {
-                    AppointmentPaymentSession::create([
+                    ChurchTransaction::create([
                         'user_id' => $user->id,
                         'church_id' => $request->church_id,
                         'service_id' => $request->service_id,
                         'schedule_id' => $request->schedule_id,
                         'schedule_time_id' => $request->schedule_time_id,
-                        'appointment_date' => $appointmentDateTime,
+                        'appointment_id' => null, // Will be set after payment success
                         'paymongo_session_id' => $checkoutData['id'],
+                        'receipt_code' => $receiptCode,
                         'payment_method' => 'multi', // Multi-payment (GCash/Card) - will be updated after payment
-                        'amount' => $totalAmount,
+                        'amount_paid' => $totalAmount,
                         'currency' => 'PHP',
+                        'transaction_type' => 'appointment_payment',
                         'status' => 'pending',
                         'checkout_url' => $checkoutData['attributes']['checkout_url'] ?? null,
+                        'appointment_date' => $appointmentDateTime,
+                        'transaction_date' => now(),
+                        'notes' => sprintf('Pending payment for %s at %s', $service->ServiceName, $church->ChurchName),
                         'metadata' => [
                             'church_name' => $church->ChurchName,
                             'service_name' => $service->ServiceName,
@@ -811,18 +820,16 @@ class AppointmentController extends Controller
                             'form_data' => $request->form_data,
                             'donation_amount' => $request->donation_amount ?? null
                         ],
-                        'expires_at' => $expiresAtRaw ? \Carbon\Carbon::createFromTimestamp($expiresAtRaw) : now()->addMinutes(30),
-                        'created_at' => now(),
-                        'updated_at' => now()
+                        'expires_at' => $expiresAtRaw ? \Carbon\Carbon::createFromTimestamp($expiresAtRaw) : now()->addMinutes(30)
                     ]);
                     
-                    Log::info('AppointmentPaymentSession created', [
+                    Log::info('ChurchTransaction created for payment', [
                         'session_id' => $checkoutData['id'],
                         'user_id' => $user->id,
                         'church_id' => $request->church_id
                     ]);
                 } catch (\Exception $e) {
-                    Log::error('Failed to create AppointmentPaymentSession', [
+                    Log::error('Failed to create ChurchTransaction', [
                         'error' => $e->getMessage(),
                         'session_id' => $checkoutData['id']
                     ]);
@@ -981,9 +988,11 @@ class AppointmentController extends Controller
             }
 
             $appointments = DB::table('Appointment as a')
-                             ->join('Church as c', 'a.ChurchID', '=', 'c.ChurchID')
-                             ->join('sacrament_service as s', 'a.ServiceID', '=', 's.ServiceID')
-                             ->join('schedule_times as st', 'a.ScheduleTimeID', '=', 'st.ScheduleTimeID')
+                             ->leftJoin('Church as c', 'a.ChurchID', '=', 'c.ChurchID')
+                             ->leftJoin('sacrament_service as s', 'a.ServiceID', '=', 's.ServiceID')
+                             ->leftJoin('schedule_times as st', 'a.ScheduleTimeID', '=', 'st.ScheduleTimeID')
+                             ->leftJoin('service_schedules as ss', 'st.ScheduleID', '=', 'ss.ScheduleID')
+                             ->leftJoin('sub_sacrament_services as sss', 'ss.SubSacramentServiceID', '=', 'sss.SubSacramentServiceID')
                              ->where('a.UserID', $user->id)
                              ->orderBy('a.created_at', 'desc')
                              ->select([
@@ -995,8 +1004,11 @@ class AppointmentController extends Controller
                                  'c.ChurchName',
                                  's.ServiceName',
                                  's.Description as ServiceDescription',
+                                 's.isMultipleService',
                                  'st.StartTime',
-                                 'st.EndTime'
+                                 'st.EndTime',
+                                 'sss.SubServiceName',
+                                 'sss.SubSacramentServiceID'
                              ])
                              ->get();
 
@@ -2480,43 +2492,45 @@ class AppointmentController extends Controller
             return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/dashboard?error=missing_church_id');
         }
 
-        // Handle PayMongo template placeholder - find recent AppointmentPaymentSession
+        // Handle PayMongo template placeholder - find recent transaction
         if ($sessionId === '{CHECKOUT_SESSION_ID}') {
-            Log::warning('PayMongo placeholder received, finding AppointmentPaymentSession', ['church_id' => $churchId]);
+            Log::warning('PayMongo placeholder received, finding ChurchTransaction', ['church_id' => $churchId]);
             
-            // Find most recent pending AppointmentPaymentSession
-            $appointmentSession = AppointmentPaymentSession::where('status', 'pending')
+            // Find most recent pending transaction
+            $transaction = ChurchTransaction::where('status', 'pending')
                 ->where('church_id', $churchId)
+                ->where('transaction_type', 'appointment_payment')
                 ->orderBy('created_at', 'desc')
                 ->first();
             
-            Log::info('AppointmentPaymentSession search results', [
-                'pending_session_found' => $appointmentSession ? true : false,
-                'session_id' => $appointmentSession ? $appointmentSession->paymongo_session_id : null,
+            Log::info('ChurchTransaction search results', [
+                'pending_transaction_found' => $transaction ? true : false,
+                'session_id' => $transaction ? $transaction->paymongo_session_id : null,
                 'church_id' => $churchId
             ]);
             
-            if (!$appointmentSession) {
-                // Try paid sessions from last 10 minutes
-                $appointmentSession = AppointmentPaymentSession::where('status', 'paid')
+            if (!$transaction) {
+                // Try paid transactions from last 10 minutes
+                $transaction = ChurchTransaction::where('status', 'paid')
                     ->where('church_id', $churchId)
+                    ->where('transaction_type', 'appointment_payment')
                     ->where('updated_at', '>', now()->subMinutes(10))
                     ->orderBy('updated_at', 'desc')
                     ->first();
                     
-                Log::info('Fallback paid session search', [
-                    'paid_session_found' => $appointmentSession ? true : false,
-                    'session_id' => $appointmentSession ? $appointmentSession->paymongo_session_id : null
+                Log::info('Fallback paid transaction search', [
+                    'paid_transaction_found' => $transaction ? true : false,
+                    'session_id' => $transaction ? $transaction->paymongo_session_id : null
                 ]);
             }
             
-            if ($appointmentSession) {
+            if ($transaction) {
                 // For placeholder sessions, try to determine actual payment method from PayMongo
                 $paymentMethod = 'gcash'; // Default to gcash as fallback
                 
                 try {
                     $paymongoService = new PayMongoService($churchId);
-                    $sessionResult = $paymongoService->getCheckoutSession($appointmentSession->paymongo_session_id);
+                    $sessionResult = $paymongoService->getCheckoutSession($transaction->paymongo_session_id);
                     
                     if ($sessionResult['success']) {
                         $sessionData = $sessionResult['data'];
@@ -2525,16 +2539,16 @@ class AppointmentController extends Controller
                     }
                 } catch (\Exception $e) {
                     Log::warning('Could not fetch PayMongo session for payment method detection', [
-                        'session_id' => $appointmentSession->paymongo_session_id,
+                        'session_id' => $transaction->paymongo_session_id,
                         'error' => $e->getMessage()
                     ]);
                 }
                 
-                $appointmentSession->update(['payment_method' => $paymentMethod]);
+                $transaction->update(['payment_method' => $paymentMethod]);
                 
-                $transaction = $this->createAppointmentAndTransaction($appointmentSession);
-                if ($transaction) {
-                    return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/payment/success?transaction_id=' . $transaction->ChurchTransactionID . '&type=appointment');
+                $finalTransaction = $this->createAppointmentAndTransaction($transaction);
+                if ($finalTransaction) {
+                    return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/payment/success?transaction_id=' . $finalTransaction->ChurchTransactionID . '&type=appointment');
                 }
             }
             
@@ -2542,13 +2556,13 @@ class AppointmentController extends Controller
         }
 
         try {
-            // Find AppointmentPaymentSession by session ID
-            $appointmentSession = AppointmentPaymentSession::where('paymongo_session_id', $sessionId)
+            // Find ChurchTransaction by session ID
+            $transaction = ChurchTransaction::where('paymongo_session_id', $sessionId)
                 ->where('church_id', $churchId)
                 ->first();
             
-            if (!$appointmentSession) {
-                Log::warning('AppointmentPaymentSession not found', ['session_id' => $sessionId]);
+            if (!$transaction) {
+                Log::warning('ChurchTransaction not found', ['session_id' => $sessionId]);
                 return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/dashboard?error=session_not_found');
             }
             
@@ -2565,17 +2579,17 @@ class AppointmentController extends Controller
                     // Get actual payment method used
                     $paymentMethodUsed = $this->getActualPaymentMethod($attributes);
                     
-                    // Update appointment session with actual payment method
-                    $appointmentSession->update(['payment_method' => $paymentMethodUsed]);
+                    // Update transaction with actual payment method
+                    $transaction->update(['payment_method' => $paymentMethodUsed, 'status' => 'paid']);
                     
-                    $transaction = $this->createAppointmentAndTransaction($appointmentSession);
-                    if ($transaction) {
-                        return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/payment/success?transaction_id=' . $transaction->ChurchTransactionID . '&type=appointment');
+                    $finalTransaction = $this->createAppointmentAndTransaction($transaction);
+                    if ($finalTransaction) {
+                        return redirect(env('FRONTEND_URL', 'http://localhost:3000') . '/payment/success?transaction_id=' . $finalTransaction->ChurchTransactionID . '&type=appointment');
                     }
                 } else {
-                    // Mark session as failed/expired
+                    // Mark transaction as failed/expired
                     $newStatus = ($paymentStatus === 'expired') ? 'expired' : 'failed';
-                    $appointmentSession->update(['status' => $newStatus]);
+                    $transaction->update(['status' => $newStatus]);
                 }
             }
             
@@ -2977,7 +2991,14 @@ class AppointmentController extends Controller
                 'all_transactions' => ChurchTransaction::pluck('ChurchTransactionID', 'user_id')->toArray()
             ]);
             
-            $transaction = ChurchTransaction::with(['church', 'user', 'appointment.service'])
+            $transaction = ChurchTransaction::with([
+                'church',
+                'user.profile',
+                'user.contact',
+                'appointment.service',
+                'service',
+                'schedule'
+            ])
                 ->where('ChurchTransactionID', $transactionId)
                 ->where('transaction_type', 'appointment_payment')
                 ->first();
@@ -2989,6 +3010,22 @@ class AppointmentController extends Controller
                 ], 404);
             }
 
+            // Get schedule time info if available
+            $scheduleTime = null;
+            if ($transaction->schedule_time_id) {
+                $scheduleTime = DB::table('schedule_times')
+                    ->where('ScheduleTimeID', $transaction->schedule_time_id)
+                    ->first();
+            }
+            
+            // Get sub-sacrament service info if applicable
+            $subSacramentService = null;
+            if ($transaction->schedule && $transaction->schedule->SubSacramentServiceID) {
+                $subSacramentService = DB::table('sub_sacrament_services')
+                    ->where('SubSacramentServiceID', $transaction->schedule->SubSacramentServiceID)
+                    ->first();
+            }
+
             $isMass = false;
             if ($transaction->appointment && $transaction->appointment->service) {
                 $isMass = $transaction->appointment->service->isMass ?? false;
@@ -2996,17 +3033,77 @@ class AppointmentController extends Controller
                 $isMass = $transaction->metadata['is_mass'];
             }
             
+            // Format user details
+            $userDetails = null;
+            if ($transaction->user) {
+                $userDetails = [
+                    'name' => optional($transaction->user->profile)->first_name . ' ' . optional($transaction->user->profile)->last_name,
+                    'email' => $transaction->user->email,
+                    'phone' => optional($transaction->user->contact)->phone_number,
+                ];
+            }
+            
+            // Format appointment details
+            $appointmentDetails = null;
+            if ($transaction->appointment) {
+                $appointmentDetails = [
+                    'id' => $transaction->appointment->AppointmentID,
+                    'date' => $transaction->appointment->AppointmentDate ? \Carbon\Carbon::parse($transaction->appointment->AppointmentDate)->format('F j, Y') : null,
+                    'time' => $scheduleTime ? (date('g:i A', strtotime($scheduleTime->StartTime)) . ' - ' . date('g:i A', strtotime($scheduleTime->EndTime))) : null,
+                    'status' => $transaction->appointment->Status,
+                    'notes' => $transaction->appointment->Notes,
+                ];
+            }
+            
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'transaction' => $transaction,
+                    // Transaction basics
+                    'id' => $transaction->ChurchTransactionID,
+                    'receipt_code' => $transaction->receipt_code,
                     'receipt_number' => (string) $transaction->ChurchTransactionID,
-                    'receipt_code' => $transaction->receipt_code, // expose directly for frontend
+                    'transaction_date' => $transaction->transaction_date->toISOString(),
                     'formatted_date' => $transaction->transaction_date->format('F j, Y g:i A'),
-                    'church_name' => $transaction->church->ChurchName,
-                    'service_name' => $transaction->appointment ? $transaction->appointment->service->ServiceName : 'N/A',
+                    
+                    // Payment details
+                    'amount_paid' => (float) $transaction->amount_paid,
+                    'currency' => $transaction->currency,
+                    'payment_method' => $transaction->payment_method,
                     'payment_method_display' => $transaction->payment_method === 'card' ? 'Card' : ucfirst($transaction->payment_method),
-                    'is_mass' => $isMass,
+                    'status' => $transaction->status,
+                    'paymongo_session_id' => $transaction->paymongo_session_id,
+                    
+                    // Church details
+                    'church' => [
+                        'id' => $transaction->church->ChurchID,
+                        'name' => $transaction->church->ChurchName,
+                        'address' => trim(implode(', ', array_filter([
+                            $transaction->church->Street,
+                            $transaction->church->City,
+                            $transaction->church->Province
+                        ]))),
+                    ],
+                    
+                    // Service details
+                    'service' => [
+                        'id' => $transaction->service_id,
+                        'name' => $transaction->service ? $transaction->service->ServiceName : ($transaction->appointment ? $transaction->appointment->service->ServiceName : 'N/A'),
+                        'variant' => $subSacramentService ? $subSacramentService->SubServiceName : null,
+                        'is_mass' => $isMass,
+                    ],
+                    
+                    // User details
+                    'user' => $userDetails,
+                    
+                    // Appointment details
+                    'appointment' => $appointmentDetails,
+                    
+                    // Additional metadata
+                    'metadata' => $transaction->metadata,
+                    'notes' => $transaction->notes,
+                    
+                    // Full transaction object for backward compatibility
+                    'transaction' => $transaction,
                 ]
             ]);
         } catch (\Exception $e) {
@@ -3113,36 +3210,31 @@ class AppointmentController extends Controller
     }
 
     /**
-     * Create appointment and ChurchTransaction from AppointmentPaymentSession
+     * Create appointment and update ChurchTransaction
      */
-    private function createAppointmentAndTransaction(AppointmentPaymentSession $appointmentSession)
+    private function createAppointmentAndTransaction(ChurchTransaction $transaction)
     {
         try {
             DB::beginTransaction();
             
-            // Check if appointment was already created for this payment session
-            $existingTransaction = ChurchTransaction::where('paymongo_session_id', $appointmentSession->paymongo_session_id)
-                ->where('church_id', $appointmentSession->church_id)
-                ->first();
-                
-            if ($existingTransaction) {
-                Log::info('Appointment already exists for this payment session', [
-                    'session_id' => $appointmentSession->paymongo_session_id,
-                    'appointment_id' => $existingTransaction->appointment_id,
-                    'transaction_id' => $existingTransaction->ChurchTransactionID
+            // Check if appointment was already created
+            if ($transaction->appointment_id) {
+                Log::info('Appointment already exists for this transaction', [
+                    'appointment_id' => $transaction->appointment_id,
+                    'transaction_id' => $transaction->ChurchTransactionID
                 ]);
                 DB::commit();
-                return $existingTransaction;
+                return $transaction;
             }
             
             // Create new appointment
             $appointmentId = DB::table('Appointment')->insertGetId([
-                'UserID' => $appointmentSession->user_id,
-                'ChurchID' => $appointmentSession->church_id,
-                'ServiceID' => $appointmentSession->service_id,
-                'ScheduleID' => $appointmentSession->schedule_id,
-                'ScheduleTimeID' => $appointmentSession->schedule_time_id,
-                'AppointmentDate' => $appointmentSession->appointment_date,
+                'UserID' => $transaction->user_id,
+                'ChurchID' => $transaction->church_id,
+                'ServiceID' => $transaction->service_id,
+                'ScheduleID' => $transaction->schedule_id,
+                'ScheduleTimeID' => $transaction->schedule_time_id,
+                'AppointmentDate' => $transaction->appointment_date,
                 'Status' => 'Pending',
                 'Notes' => '',
                 'created_at' => now(),
@@ -3152,8 +3244,8 @@ class AppointmentController extends Controller
             // Persist form data answers captured before redirect (if any)
             $sessionFormData = [];
             
-            if (isset($appointmentSession->metadata['form_data'])) {
-                $decoded = json_decode($appointmentSession->metadata['form_data'], true);
+            if (isset($transaction->metadata['form_data'])) {
+                $decoded = json_decode($transaction->metadata['form_data'], true);
                 if (is_array($decoded)) { $sessionFormData = $decoded; }
             }
             
@@ -3164,7 +3256,7 @@ class AppointmentController extends Controller
                     
                     $fieldExists = \DB::table('service_input_field')
                         ->where('InputFieldID', $inputFieldId)
-                        ->where('ServiceID', $appointmentSession->service_id)
+                        ->where('ServiceID', $transaction->service_id)
                         ->exists();
                     if (!$fieldExists) { continue; }
                     
@@ -3179,48 +3271,38 @@ class AppointmentController extends Controller
             }
 
             // Reserve slot
-            $schedule = ServiceSchedule::find($appointmentSession->schedule_id);
+            $schedule = ServiceSchedule::find($transaction->schedule_id);
             if ($schedule) {
-                $slotDate = $appointmentSession->appointment_date->format('Y-m-d');
-                $this->adjustRemainingSlots($appointmentSession->schedule_time_id, $slotDate, -1, $schedule->SlotCapacity);
+                $slotDate = \Carbon\Carbon::parse($transaction->appointment_date)->format('Y-m-d');
+                $this->adjustRemainingSlots($transaction->schedule_time_id, $slotDate, -1, $schedule->SlotCapacity);
             }
             
-            // Create ChurchTransaction
-            $transaction = ChurchTransaction::create([
-                'user_id' => $appointmentSession->user_id,
-                'church_id' => $appointmentSession->church_id,
-'appointment_id' => $appointmentId,
-                'paymongo_session_id' => $appointmentSession->paymongo_session_id,
-                'payment_method' => $appointmentSession->payment_method,
-                'amount_paid' => $appointmentSession->amount,
-                'currency' => $appointmentSession->currency,
-                'transaction_type' => 'appointment_payment',
+            // Update transaction with appointment ID and mark as paid
+            $transaction->update([
+                'appointment_id' => $appointmentId,
+                'status' => 'paid',
                 'transaction_date' => now(),
-                'receipt_code' => $appointmentSession->metadata['receipt_code'] ?? null,
                 'notes' => sprintf(
                     '[Ref: %s] %s payment for %s - %s appointment on %s',
-                    $appointmentSession->metadata['receipt_code'] ?? 'N/A',
-                    $appointmentSession->payment_method === 'card' ? 'Card' : ucfirst($appointmentSession->payment_method),
-                    $appointmentSession->metadata['church_name'] ?? $appointmentSession->church->ChurchName,
-                    $appointmentSession->metadata['service_name'] ?? $appointmentSession->service->ServiceName,
-                    $appointmentSession->appointment_date->format('Y-m-d')
+                    $transaction->receipt_code ?? 'N/A',
+                    $transaction->payment_method === 'card' ? 'Card' : ucfirst($transaction->payment_method),
+                    $transaction->metadata['church_name'] ?? optional($transaction->church)->ChurchName,
+                    $transaction->metadata['service_name'] ?? optional($transaction->service)->ServiceName,
+                    \Carbon\Carbon::parse($transaction->appointment_date)->format('Y-m-d')
                 )
             ]);
             
-            // Update session status
-            $appointmentSession->update(['status' => 'paid']);
-            
             // Create notification for church staff
-            $user = User::find($appointmentSession->user_id);
-            $service = SacramentService::find($appointmentSession->service_id);
+            $user = User::find($transaction->user_id);
+            $service = SacramentService::find($transaction->service_id);
             
             if ($user && $service) {
                 $notification = $this->createAppointmentNotification(
-                    $appointmentSession->church_id,
+                    $transaction->church_id,
                     $appointmentId,
                     $user,
                     $service,
-                    $appointmentSession->appointment_date
+                    $transaction->appointment_date
                 );
                 
                 // Load the full appointment to broadcast
@@ -3228,7 +3310,7 @@ class AppointmentController extends Controller
                 
                 // Broadcast event to church staff
                 if ($appointment && $notification) {
-                    event(new AppointmentCreated($appointment, $appointmentSession->church_id, $notification));
+                    event(new AppointmentCreated($appointment, $transaction->church_id, $notification));
                 }
             }
             
@@ -3237,7 +3319,7 @@ class AppointmentController extends Controller
             Log::info('Appointment and transaction created successfully', [
                 'appointment_id' => $appointmentId,
                 'transaction_id' => $transaction->ChurchTransactionID,
-                'session_id' => $appointmentSession->id
+                'paymongo_session_id' => $transaction->paymongo_session_id
             ]);
             
             return $transaction;
@@ -3527,6 +3609,47 @@ class AppointmentController extends Controller
                 $userName = $user->email;
             }
             
+            // Get sub-services for this sacrament service
+            $subServices = DB::table('sub_service')
+                ->where('ServiceID', $service->ServiceID)
+                ->where('IsActive', true)
+                ->get();
+            
+            $subServiceData = [];
+            foreach ($subServices as $subService) {
+                // Get schedules for this sub-service
+                $schedules = DB::table('sub_service_schedule')
+                    ->where('SubServiceID', $subService->SubServiceID)
+                    ->get();
+                
+                // Get requirements for this sub-service
+                $requirements = DB::table('sub_service_requirements')
+                    ->where('SubServiceID', $subService->SubServiceID)
+                    ->orderBy('SortOrder')
+                    ->get();
+                
+                $subServiceData[] = [
+                    'id' => $subService->SubServiceID,
+                    'name' => $subService->SubServiceName,
+                    'description' => $subService->Description,
+                    'schedules' => $schedules->map(function($schedule) {
+                        return [
+                            'day' => $schedule->DayOfWeek,
+                            'time' => date('g:i A', strtotime($schedule->StartTime)) . ' - ' . date('g:i A', strtotime($schedule->EndTime)),
+                            'occurrence' => $schedule->OccurrenceType,
+                            'occurrence_value' => $schedule->OccurrenceValue
+                        ];
+                    })->toArray(),
+                    'requirements' => $requirements->map(function($req) {
+                        return [
+                            'id' => $req->RequirementID,
+                            'name' => $req->RequirementName,
+                            'needed' => $req->isNeeded
+                        ];
+                    })->toArray()
+                ];
+            }
+            
             // Create notification for church owner
             $notification = Notification::create([
                 'user_id' => $church->user_id,
@@ -3546,6 +3669,7 @@ class AppointmentController extends Controller
                     'user_name' => $userName,
                     'service_name' => $service->ServiceName,
                     'appointment_date' => $appointmentDateTime,
+                    'sub_services' => $subServiceData,
                 ],
             ]);
             // Broadcast to owner
@@ -3567,6 +3691,7 @@ class AppointmentController extends Controller
                     'service_id' => $service->ServiceID,
                     'service_name' => $service->ServiceName,
                     'appointment_date' => $appointmentDateTime,
+                    'sub_services' => $subServiceData,
                 ],
             ]);
             event(new NotificationCreated($user->id, $userNotification));
@@ -3599,6 +3724,7 @@ class AppointmentController extends Controller
                         'user_name' => $userName,
                         'service_name' => $service->ServiceName,
                         'appointment_date' => $appointmentDateTime,
+                        'sub_services' => $subServiceData,
                     ],
                 ]);
                 event(new NotificationCreated($staffRole->user_id, $staffNotif));
@@ -3639,6 +3765,54 @@ class AppointmentController extends Controller
             $church = $appointmentData->church;
             $appointmentDateTime = Carbon::parse($appointment->AppointmentDate)->format('F j, Y g:i A');
             
+            // Get sub-services for this sacrament service
+            $subServices = DB::table('sub_service')
+                ->where('ServiceID', $service->ServiceID)
+                ->where('IsActive', true)
+                ->get();
+            
+            $subServiceData = [];
+            foreach ($subServices as $subService) {
+                // Get schedules for this sub-service
+                $schedules = DB::table('sub_service_schedule')
+                    ->where('SubServiceID', $subService->SubServiceID)
+                    ->get();
+                
+                // Get requirements for this sub-service
+                $requirements = DB::table('sub_service_requirements')
+                    ->where('SubServiceID', $subService->SubServiceID)
+                    ->orderBy('SortOrder')
+                    ->get();
+                
+                // Get completion status for this appointment's sub-service
+                $status = DB::table('appointment_sub_service_status')
+                    ->where('AppointmentID', $appointmentId)
+                    ->where('SubServiceID', $subService->SubServiceID)
+                    ->first();
+                
+                $subServiceData[] = [
+                    'id' => $subService->SubServiceID,
+                    'name' => $subService->SubServiceName,
+                    'description' => $subService->Description,
+                    'is_completed' => $status ? $status->isCompleted : false,
+                    'schedules' => $schedules->map(function($schedule) {
+                        return [
+                            'day' => $schedule->DayOfWeek,
+                            'time' => date('g:i A', strtotime($schedule->StartTime)) . ' - ' . date('g:i A', strtotime($schedule->EndTime)),
+                            'occurrence' => $schedule->OccurrenceType,
+                            'occurrence_value' => $schedule->OccurrenceValue
+                        ];
+                    })->toArray(),
+                    'requirements' => $requirements->map(function($req) {
+                        return [
+                            'id' => $req->RequirementID,
+                            'name' => $req->RequirementName,
+                            'needed' => $req->isNeeded
+                        ];
+                    })->toArray()
+                ];
+            }
+            
             // Prepare notification data based on status
             $notificationData = $this->prepareStatusNotificationData($newStatus, $service, $appointmentDateTime);
             
@@ -3661,6 +3835,7 @@ class AppointmentController extends Controller
                     'appointment_date' => $appointment->AppointmentDate,
                     'old_status' => $oldStatus,
                     'new_status' => $newStatus,
+                    'sub_services' => $subServiceData,
                 ],
             ]);
             event(new NotificationCreated($user->id, $userNotification));
@@ -3685,6 +3860,7 @@ class AppointmentController extends Controller
                     'appointment_date' => $appointment->AppointmentDate,
                     'old_status' => $oldStatus,
                     'new_status' => $newStatus,
+                    'sub_services' => $subServiceData,
                 ],
             ]);
             event(new NotificationCreated($church->user_id, $ownerNotification));
@@ -3718,6 +3894,7 @@ class AppointmentController extends Controller
                         'appointment_date' => $appointment->AppointmentDate,
                         'old_status' => $oldStatus,
                         'new_status' => $newStatus,
+                        'sub_services' => $subServiceData,
                     ],
                 ]);
                 event(new NotificationCreated($staffRole->user_id, $staffNotification));

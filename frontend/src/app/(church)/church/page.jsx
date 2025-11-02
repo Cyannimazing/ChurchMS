@@ -212,6 +212,11 @@ const Dashboard = () => {
         textColor = "text-red-800";
         icon = <XCircle className="h-4 w-4 mr-1" />;
         break;
+      case "Disabled":
+        bgColor = "bg-gray-100";
+        textColor = "text-gray-800";
+        icon = <XCircle className="h-4 w-4 mr-1" />;
+        break;
       default:
         bgColor = "bg-gray-100";
         textColor = "text-gray-800";
@@ -398,7 +403,7 @@ const Dashboard = () => {
                                         active
                                           ? "bg-gray-100 text-gray-900"
                                           : "text-gray-700"
-                                      } group flex items-center px-4 py-2 text-sm w-full text-left`}
+                                      } group flex items-center px-4 py-2 text-sm w-full text-left disabled:opacity-50 disabled:cursor-not-allowed`}
                                       disabled={
                                         church.ChurchStatus !== "Active"
                                       }
@@ -443,7 +448,7 @@ const Dashboard = () => {
                                         active
                                           ? "bg-gray-100 text-gray-900"
                                           : "text-gray-700"
-                                      } group flex items-center px-4 py-2 text-sm w-full text-left`}
+                                      } group flex items-center px-4 py-2 text-sm w-full text-left disabled:opacity-50 disabled:cursor-not-allowed`}
                                       disabled={
                                         church.ChurchStatus !== "Active"
                                       }
@@ -466,7 +471,7 @@ const Dashboard = () => {
                                         active
                                           ? "bg-gray-100 text-gray-900"
                                           : "text-gray-700"
-                                      } group flex items-center px-4 py-2 text-sm w-full text-left`}
+                                      } group flex items-center px-4 py-2 text-sm w-full text-left disabled:opacity-50 disabled:cursor-not-allowed`}
                                       disabled={
                                         church.ChurchStatus !== "Active"
                                       }
@@ -489,7 +494,7 @@ const Dashboard = () => {
                                         active
                                           ? "bg-gray-100 text-gray-900"
                                           : "text-gray-700"
-                                      } group flex items-center px-4 py-2 text-sm w-full text-left`}
+                                      } group flex items-center px-4 py-2 text-sm w-full text-left disabled:opacity-50 disabled:cursor-not-allowed`}
                                       disabled={
                                         church.ChurchStatus !== "Active"
                                       }
@@ -601,6 +606,13 @@ const Dashboard = () => {
                           <div className="text-xs text-red-600 flex items-center mt-1">
                             <AlertCircle className="h-3 w-3 mr-1" />
                             Application rejected - Contact admin
+                          </div>
+                        )}
+
+                        {church.ChurchStatus === "Disabled" && (
+                          <div className="text-xs text-gray-600 flex items-center mt-1">
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Church disabled - Subscription expired
                           </div>
                         )}
                       </div>

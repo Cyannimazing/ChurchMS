@@ -315,19 +315,40 @@ class SacramentServiceController extends Controller
                     'isCertificateGeneration' => $request->isCertificateGeneration ?? false,
                 ]);
 
-                // Delete existing sub-sacrament services
-                SubSacramentService::where('ParentServiceID', $serviceId)->delete();
-
-                // Create new sub-sacrament services if provided
+                // Only update variants if explicitly provided in request
+                // Otherwise, keep existing variants unchanged
                 if ($request->has('sub_sacrament_services') && is_array($request->sub_sacrament_services) && $request->isMultipleService) {
+                    $existingVariants = SubSacramentService::where('ParentServiceID', $serviceId)->get()->keyBy('SubSacramentServiceID');
+                    $processedVariantIds = [];
+
                     foreach ($request->sub_sacrament_services as $variant) {
-                        SubSacramentService::create([
+                        $variantData = [
                             'ParentServiceID' => $sacramentService->ServiceID,
                             'SubServiceName' => $variant['name'],
                             'fee' => $variant['fee'] ?? 0,
-                        ]);
+                        ];
+
+                        if (isset($variant['id']) && isset($existingVariants[$variant['id']])) {
+                            // Update existing variant
+                            $existingVariants[$variant['id']]->update($variantData);
+                            $processedVariantIds[] = $variant['id'];
+                        } else {
+                            // Create new variant
+                            $newVariant = SubSacramentService::create($variantData);
+                            $processedVariantIds[] = $newVariant->SubSacramentServiceID;
+                        }
                     }
+
+                    // Only delete variants that were explicitly removed
+                    $variantsToDelete = $existingVariants->keys()->diff($processedVariantIds);
+                    if ($variantsToDelete->isNotEmpty()) {
+                        SubSacramentService::whereIn('SubSacramentServiceID', $variantsToDelete)->delete();
+                    }
+                } elseif (!$request->isMultipleService) {
+                    // If service changed from multiple to single, delete all variants
+                    SubSacramentService::where('ParentServiceID', $serviceId)->delete();
                 }
+                // If isMultipleService but no sub_sacrament_services in request, keep existing variants
 
                 // Delete existing sub-services (cascade will delete schedules)
                 SubService::where('ServiceID', $serviceId)->delete();
@@ -823,9 +844,35 @@ class SacramentServiceController extends Controller
                                                  ];
                                              });
 
+            // Get sub-services with their requirements
+            $subServices = SubService::where('ServiceID', $serviceId)
+                                    ->where('IsActive', true)
+                                    ->orderBy('SubServiceID')
+                                    ->get()
+                                    ->map(function ($subService) {
+                                        // Get requirements for this sub-service
+                                        $subServiceRequirements = SubServiceRequirement::where('SubServiceID', $subService->SubServiceID)
+                                            ->orderBy('SortOrder')
+                                            ->get()
+                                            ->map(function ($req) {
+                                                return [
+                                                    'name' => $req->RequirementName,
+                                                    'is_needed' => $req->isNeeded ?? true,
+                                                ];
+                                            });
+
+                                        return [
+                                            'id' => $subService->SubServiceID,
+                                            'name' => $subService->SubServiceName,
+                                            'description' => $subService->Description,
+                                            'requirements' => $subServiceRequirements
+                                        ];
+                                    });
+
             return response()->json([
                 'form_elements' => $formElements,
-                'requirements' => $requirements
+                'requirements' => $requirements,
+                'sub_services' => $subServices
             ]);
 
         } catch (\Exception $e) {

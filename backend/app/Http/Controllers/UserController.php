@@ -75,12 +75,11 @@ class UserController extends Controller
     public function updateActiveStatus(Request $request, $id)
     {
         $request->validate([
-            'is_active' => ['required', 'in:1,0,true,false'],
+            'is_active' => ['required', 'boolean'],
         ]);
 
         $user = User::findOrFail($id);
-        $isActive = filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-        $user->update(['is_active' => $isActive]);
+        $user->update(['is_active' => $request->is_active]);
 
         return response()->json([
             'message' => 'User status updated successfully.',

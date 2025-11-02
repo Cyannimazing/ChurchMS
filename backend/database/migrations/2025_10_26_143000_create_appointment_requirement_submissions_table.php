@@ -27,7 +27,7 @@ return new class extends Migration
             $table->foreign('reviewed_by')->references('id')->on('users')->onDelete('set null');
             
             // Unique constraint to prevent duplicate entries
-            $table->unique(['AppointmentID', 'RequirementID']);
+            $table->unique(['AppointmentID', 'RequirementID'], 'appt_req_submission_unique');
             
             // Indexes for better performance
             $table->index('AppointmentID');

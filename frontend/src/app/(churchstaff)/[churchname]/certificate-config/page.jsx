@@ -134,7 +134,12 @@ const CertificateConfig = () => {
       try {
         const response = await axios.get(`/api/sacrament-services/${selectedServiceId}/form-config`);
         // The response returns form_elements array
-        setServiceInputFields(response.data.form_elements || []);
+        // Filter out non-fillable elements (heading, paragraph, container)
+        const fillableTypes = ['text', 'textarea', 'email', 'tel', 'phone', 'number', 'date', 'datetime', 'select', 'checkbox', 'radio', 'file', 'url'];
+        const fillableFields = (response.data.form_elements || []).filter(
+          field => fillableTypes.includes(field.type)
+        );
+        setServiceInputFields(fillableFields);
       } catch (error) {
         console.error('Failed to fetch input fields:', error);
         setServiceInputFields([]);

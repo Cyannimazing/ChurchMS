@@ -960,4 +960,35 @@ class ChurchController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Disable a church
+     */
+    public function disableChurch($churchId)
+    {
+        try {
+            $church = Church::findOrFail($churchId);
+            
+            $church->update([
+                'ChurchStatus' => Church::STATUS_DISABLED,
+                'IsPublic' => false
+            ]);
+            
+            return response()->json([
+                'message' => 'Church disabled successfully',
+                'church' => [
+                    'ChurchID' => $church->ChurchID,
+                    'ChurchName' => $church->ChurchName,
+                    'ChurchStatus' => $church->ChurchStatus,
+                    'IsPublic' => $church->IsPublic
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Church disable error: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Failed to disable church',
+                'message' => config('app.debug') ? $e->getMessage() : 'An unexpected error occurred'
+            ], 500);
+        }
+    }
 }

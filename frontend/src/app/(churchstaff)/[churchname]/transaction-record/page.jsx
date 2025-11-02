@@ -215,9 +215,30 @@ const TransactionRecordPage = () => {
     setCurrentPage(page);
   };
 
-  const handleViewTransaction = (transaction) => {
-    setSelectedTransaction(transaction);
-    setShowDetailsModal(true);
+  const handleViewTransaction = async (transaction) => {
+    try {
+      // Fetch detailed transaction data from API
+      const response = await axios.get(`/api/appointment-transactions/${transaction.ChurchTransactionID}`);
+      if (response.data.success) {
+        setSelectedTransaction(response.data.data);
+        setShowDetailsModal(true);
+      } else {
+        setAlert({
+          show: true,
+          type: 'error',
+          title: 'Error',
+          message: 'Failed to load transaction details.'
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching transaction details:', err);
+      setAlert({
+        show: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to load transaction details.'
+      });
+    }
   };
 
   const handleCloseDetailsModal = () => {
@@ -810,98 +831,166 @@ const TransactionRecordPage = () => {
 
       {/* Transaction Details Modal */}
       {showDetailsModal && selectedTransaction && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl mx-auto relative w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             {/* Header */}
-            <div className="relative bg-gray-100 px-6 py-4 rounded-t-lg border-b">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-gray-900">Transaction Details</h2>
               <button
                 onClick={handleCloseDetailsModal}
-                className="absolute top-4 right-4 text-gray-700 hover:text-gray-900 transition-colors"
-                aria-label="Close modal"
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
               >
-                <X className="h-6 w-6" />
+                ×
               </button>
-              <div className="pr-10">
-                <h2 className="text-xl font-bold text-gray-800">
-                  Transaction Details
-                </h2>
-                <p className="text-gray-600 text-sm mt-1">
-                  Transaction #{selectedTransaction.ChurchTransactionID}
-                </p>
-              </div>
             </div>
-
-            {/* Content */}
-            <div className="px-6 py-6 space-y-6">
+            
+            <div className="px-6 py-4 space-y-6">
               {/* Transaction Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Transaction Information</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Transaction ID</label>
-                    <p className="text-gray-900 font-mono">#{selectedTransaction.ChurchTransactionID}</p>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Transaction Information</h3>
+                <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Reference:</span>
+                    <span className="text-sm font-mono font-medium text-gray-900">{selectedTransaction.receipt_code || 'N/A'}</span>
                   </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Amount</label>
-                    <p className="text-lg font-semibold text-gray-900">{formatCurrency(selectedTransaction.amount_paid)}</p>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Transaction ID:</span>
+                    <span className="text-sm font-mono text-gray-900">{selectedTransaction.id || selectedTransaction.ChurchTransactionID}</span>
                   </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Payment Method</label>
-                    <p className="text-gray-900">{selectedTransaction.payment_method === 'card' ? 'Card Payment' : 'GCash'}</p>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Amount:</span>
+                    <span className="text-sm font-semibold text-gray-900">{formatCurrency(selectedTransaction.amount_paid || selectedTransaction.transaction?.amount_paid)}</span>
                   </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Transaction Date</label>
-                    <p className="text-gray-900">{formatTime(selectedTransaction.transaction_date)}</p>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Date:</span>
+                    <span className="text-sm text-gray-900">{selectedTransaction.formatted_date}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Service:</span>
+                    <span className="text-sm text-gray-900">{selectedTransaction.service?.name || 'N/A'}</span>
+                  </div>
+                  {selectedTransaction.service?.variant && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Variant:</span>
+                      <span className="text-sm text-gray-900">{selectedTransaction.service.variant}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Customer Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Customer Information</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Name</label>
-                    <p className="text-gray-900">{getUserDisplayName(selectedTransaction.user)}</p>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Customer Information</h3>
+                <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Name:</span>
+                    <span className="text-sm text-gray-900">{selectedTransaction.user?.name || getUserDisplayName(selectedTransaction.transaction?.user)}</span>
                   </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">Email</label>
-                    <p className="text-gray-900">{selectedTransaction.user?.email || 'N/A'}</p>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Email:</span>
+                    <span className="text-sm text-gray-900">{selectedTransaction.user?.email || selectedTransaction.transaction?.user?.email || 'N/A'}</span>
                   </div>
+                  {selectedTransaction.user?.phone && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Phone:</span>
+                      <span className="text-sm text-gray-900">{selectedTransaction.user.phone}</span>
+                    </div>
+                  )}
                 </div>
               </div>
+              
+              {/* Church Information */}
+              {selectedTransaction.church && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Church Information</h3>
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Church Name:</span>
+                      <span className="text-sm text-gray-900">{selectedTransaction.church.name}</span>
+                    </div>
+                    {selectedTransaction.church.address && (
+                      <div className="flex justify-between items-start">
+                        <span className="text-sm text-gray-600">Address:</span>
+                        <span className="text-sm text-gray-900 text-right max-w-xs">{selectedTransaction.church.address}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
-              {/* Appointment Information */}
+              {/* Appointment Details */}
               {selectedTransaction.appointment && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Appointment Information</h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Service</label>
-                      <p className="text-gray-900">{selectedTransaction.appointment.service?.ServiceName || 'N/A'}</p>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Appointment Details</h3>
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                    {selectedTransaction.appointment.date && (
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Date:</span>
+                        <span className="text-sm text-gray-900">{selectedTransaction.appointment.date}</span>
+                      </div>
+                    )}
+                    {selectedTransaction.appointment.time && (
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Time:</span>
+                        <span className="text-sm text-gray-900">{selectedTransaction.appointment.time}</span>
+                      </div>
+                    )}
+                    {selectedTransaction.appointment.status && (
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Status:</span>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          selectedTransaction.appointment.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                          selectedTransaction.appointment.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                          selectedTransaction.appointment.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {selectedTransaction.appointment.status}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Payment Details */}
+              <div>
+                <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Payment Details</h3>
+                <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Payment Method:</span>
+                    <span className="text-sm font-medium text-gray-900">{selectedTransaction.payment_method_display || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Payment Status:</span>
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      selectedTransaction.status === 'paid' ? 'bg-green-100 text-green-800' :
+                      selectedTransaction.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {selectedTransaction.status || 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Currency:</span>
+                    <span className="text-sm text-gray-900">{selectedTransaction.currency || 'PHP'}</span>
+                  </div>
+                  {selectedTransaction.paymongo_session_id && (
+                    <div className="flex justify-between items-start">
+                      <span className="text-sm text-gray-600">Session ID:</span>
+                      <span className="text-xs font-mono text-gray-900 break-all text-right max-w-xs">{selectedTransaction.paymongo_session_id}</span>
                     </div>
-                    
-                    <div>
-                      <label className="text-sm font-medium text-gray-600">Appointment Date</label>
-                      <p className="text-gray-900">
-                        {selectedTransaction.appointment.AppointmentDate 
-                          ? new Date(selectedTransaction.appointment.AppointmentDate).toLocaleDateString('en-PH', {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })
-                          : 'N/A'
-                        }
-                      </p>
-                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Metadata */}
+              {selectedTransaction.metadata && Object.keys(selectedTransaction.metadata).length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Metadata</h3>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <pre className="text-xs text-gray-700 overflow-x-auto">
+                      {JSON.stringify(selectedTransaction.metadata, null, 2)}
+                    </pre>
                   </div>
                 </div>
               )}
@@ -984,24 +1073,23 @@ const TransactionRecordPage = () => {
 
               {/* Notes */}
               {selectedTransaction.notes && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Notes</h3>
-                  <p className="text-gray-700 bg-gray-50 p-4 rounded-lg">{selectedTransaction.notes}</p>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Notes</h3>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm text-gray-700">{selectedTransaction.notes}</p>
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 bg-gray-50 border-t rounded-b-lg">
-              <div className="flex justify-end">
-                <Button
-                  onClick={handleCloseDetailsModal}
-                  variant="outline"
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 border border-gray-300"
-                >
-                  Close
-                </Button>
-              </div>
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end">
+              <Button
+                onClick={handleCloseDetailsModal}
+                className="px-4 py-2 bg-gray-600 text-white hover:bg-gray-700"
+              >
+                Close
+              </Button>
             </div>
           </div>
         </div>

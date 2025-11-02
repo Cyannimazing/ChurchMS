@@ -401,7 +401,6 @@ const Dashboard = () => {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Church</th>
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -411,7 +410,6 @@ const Dashboard = () => {
                       {recent_transactions.map((transaction) => (
                         <tr key={transaction.id}>
                           <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{transaction.reference_number}</td>
-                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{transaction.church_name}</td>
                           <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{transaction.plan_name}</td>
                           <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">₱{transaction.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
                           <td className="px-4 py-2 whitespace-nowrap">
@@ -442,7 +440,6 @@ const Dashboard = () => {
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Church</th>
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owner</th>
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Published</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -458,13 +455,6 @@ const Dashboard = () => {
                             }`}>
                               {application.status}
                             </span>
-                          </td>
-                          <td className="px-4 py-2 whitespace-nowrap text-center">
-                            {application.is_published === 1 || application.is_published === true ? (
-                              <CheckCircle className="h-5 w-5 text-green-500 inline" />
-                            ) : (
-                              <XCircle className="h-5 w-5 text-gray-400 inline" />
-                            )}
                           </td>
                         </tr>
                       ))}

@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Eye, CheckCircle, XCircle, Edit } from "lucide-react";
+import { Eye, CheckCircle, XCircle, Ban } from "lucide-react";
 import DataLoading from "@/components/DataLoading";
 import Alert from "@/components/Alert";
 import SearchAndPagination from "@/components/SearchAndPagination";
@@ -8,6 +8,7 @@ import { filterAndPaginateData } from "@/utils/tableUtils";
 import axios from "@/lib/axios";
 import Link from "next/link";
 import Button from "@/components/Button";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -17,6 +18,8 @@ export default function Users() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, userId: null, userName: "", action: "disable" });
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // Define search fields
   const searchFields = ['full_name', 'email', 'system_role_name'];
@@ -47,29 +50,43 @@ export default function Users() {
     fetchUsers();
   }, []);
 
-  const handleActiveStatusChange = async (userId, newStatus) => {
+  const handleDisableClick = (userId, userName) => {
+    setConfirmDialog({ isOpen: true, userId, userName, action: "disable" });
+  };
+
+  const handleEnableClick = (userId, userName) => {
+    setConfirmDialog({ isOpen: true, userId, userName, action: "enable" });
+  };
+
+  const confirmAction = async () => {
+    const { userId, userName, action } = confirmDialog;
+    const isDisabling = action === "disable";
+    setIsProcessing(true);
     setLoadingUserId(userId);
+
     try {
-      const response = await axios.put(`/api/users/${userId}/status`, {
-        is_active: newStatus
+      await axios.put(`/api/users/${userId}/update-active`, {
+        is_active: !isDisabling
       });
       setUsers(users.map(user => 
-        user.id === userId ? { ...user, is_active: newStatus } : user
+        user.id === userId ? { ...user, is_active: !isDisabling } : user
       ));
       setAlert({
         type: 'success',
-        title: 'Status Updated',
-        message: `User status has been ${newStatus ? 'activated' : 'deactivated'} successfully.`
+        title: isDisabling ? 'User Disabled' : 'User Enabled',
+        message: `"${userName}" has been ${isDisabling ? 'disabled' : 'enabled'} successfully.`
       });
     } catch (error) {
-      const errorMessage = error.response?.data?.error || "Failed to update user status";
+      const errorMessage = error.response?.data?.error || `Failed to ${action} user`;
       setAlert({
         type: 'error',
-        title: 'Update Failed',
+        title: `${action.charAt(0).toUpperCase() + action.slice(1)} Failed`,
         message: errorMessage
       });
     } finally {
       setLoadingUserId(null);
+      setIsProcessing(false);
+      setConfirmDialog({ isOpen: false, userId: null, userName: "", action: "disable" });
     }
   };
 
@@ -222,12 +239,27 @@ export default function Users() {
                                     View
                                   </Button>
                                 </Link>
-                                <Link href={`/users/${user.id}/edit`}>
-                                  <Button variant="outline" className="inline-flex items-center px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 min-h-0 h-auto">
-                                    <Edit className="h-3 w-3 mr-1" />
-                                    Edit
+                                {user.is_active ? (
+                                  <Button 
+                                    onClick={() => handleDisableClick(user.id, user.full_name)}
+                                    variant="outline" 
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto"
+                                    disabled={loadingUserId === user.id}
+                                  >
+                                    <Ban className="h-3 w-3 mr-1" />
+                                    {loadingUserId === user.id ? 'Processing...' : 'Disable'}
                                   </Button>
-                                </Link>
+                                ) : (
+                                  <Button 
+                                    onClick={() => handleEnableClick(user.id, user.full_name)}
+                                    variant="outline" 
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border-green-200 min-h-0 h-auto"
+                                    disabled={loadingUserId === user.id}
+                                  >
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    {loadingUserId === user.id ? 'Processing...' : 'Enable'}
+                                  </Button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -241,6 +273,22 @@ export default function Users() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, userId: null, userName: "", action: "disable" })}
+        onConfirm={confirmAction}
+        title={confirmDialog.action === "disable" ? "Disable User" : "Enable User"}
+        message={
+          confirmDialog.action === "disable"
+            ? `Are you sure you want to disable "${confirmDialog.userName}"? They will not be able to log in.`
+            : `Are you sure you want to enable "${confirmDialog.userName}"? They will be able to log in again.`
+        }
+        confirmText="OK"
+        cancelText="Cancel"
+        type="warning"
+        isLoading={isProcessing}
+      />
     </div>
   );
 }

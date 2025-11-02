@@ -19,8 +19,7 @@ class ScheduleTime extends Model
     ];
 
     protected $casts = [
-        'StartTime' => 'datetime:H:i',
-        'EndTime' => 'datetime:H:i',
+        // TIME fields should not be cast as datetime - leave as strings
     ];
 
     /**

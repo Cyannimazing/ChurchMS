@@ -25,7 +25,7 @@ return new class extends Migration
             
             $table->index(['ScheduleTimeID']);
             $table->index(['SlotDate']);
-            $table->index(['ScheduleTimeID', 'SlotDate', 'RemainingSlots']);
+            $table->index(['ScheduleTimeID', 'SlotDate', 'RemainingSlots'], 'idx_schedule_time_slots');
         });
     }
 

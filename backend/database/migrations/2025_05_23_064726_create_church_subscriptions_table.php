@@ -12,8 +12,8 @@ return new class extends Migration
             $table->id('SubscriptionID');
             $table->unsignedBigInteger('UserID');
             $table->unsignedBigInteger('PlanID');
-            $table->date('StartDate');
-            $table->date('EndDate');
+            $table->datetime('StartDate');
+            $table->datetime('EndDate');
             $table->string('Status', 20)->default('Active')->checkIn(['Active', 'Expired', 'Pending']);
             $table->foreign('UserID')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('PlanID')->references('PlanID')->on('SubscriptionPlan')->onDelete('restrict');

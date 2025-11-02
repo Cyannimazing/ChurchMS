@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react";
 import axios from "@/lib/axios";
 import {
-  Eye,
-  Edit,
   MapPin,
   Users,
   Calendar,
@@ -13,12 +11,14 @@ import {
   Globe,
   CheckCircle,
   XCircle,
+  Ban,
 } from "lucide-react";
 import DataLoading from "@/components/DataLoading";
 import Alert from "@/components/Alert";
 import SearchAndPagination from "@/components/SearchAndPagination";
 import { filterAndPaginateData } from "@/utils/tableUtils";
 import Button from "@/components/Button";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 const ActiveChurches = () => {
   const [churches, setChurches] = useState([]);
@@ -27,6 +27,8 @@ const ActiveChurches = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, churchId: null, churchName: "" });
+  const [isDisabling, setIsDisabling] = useState(false);
 
   // Define search fields
   const searchFields = [
@@ -88,26 +90,38 @@ const ActiveChurches = () => {
     fetchChurches();
   }, []);
 
-  // View church details
-  const viewChurchDetails = async (churchId) => {
-    // TODO: Implement view church details functionality
-    console.log("View church details for church ID:", churchId);
-    setAlert({
-      type: "info",
-      title: "View Church",
-      message: "View functionality - Coming soon!",
-    });
+  // Disable church
+  const handleDisableClick = (churchId, churchName) => {
+    setConfirmDialog({ isOpen: true, churchId, churchName });
   };
 
-  // Edit church details
-  const editChurchDetails = async (churchId) => {
-    // TODO: Implement edit church details functionality
-    console.log("Edit church details for church ID:", churchId);
-    setAlert({
-      type: "info",
-      title: "Edit Church",
-      message: "Edit functionality - Coming soon!",
-    });
+  const confirmDisableChurch = async () => {
+    const { churchId, churchName } = confirmDialog;
+    setIsDisabling(true);
+
+    try {
+      await axios.put(`/api/churches/${churchId}/disable`);
+      setAlert({
+        type: "success",
+        title: "Church Disabled",
+        message: `"${churchName}" has been disabled successfully.`,
+      });
+      
+      // Refresh the churches list
+      const response = await axios.get("/api/churches");
+      setChurches(response.data.churches);
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || "Failed to disable church";
+      setAlert({
+        type: "error",
+        title: "Error",
+        message: errorMessage,
+      });
+      console.error("Disable church error:", error);
+    } finally {
+      setIsDisabling(false);
+      setConfirmDialog({ isOpen: false, churchId: null, churchName: "" });
+    }
   };
 
   return (
@@ -241,9 +255,16 @@ const ActiveChurches = () => {
                                         {church.ChurchProfile.Location}
                                       </span>
                                     )}
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                      <CheckCircle className="h-3 w-3 mr-1" />
-                                      Active
+                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                                      church.ChurchStatus === 'Disabled' 
+                                        ? 'bg-gray-100 text-gray-800'
+                                        : 'bg-green-100 text-green-800'
+                                    }`}>
+                                      {church.ChurchStatus === 'Disabled' ? (
+                                        <><Ban className="h-3 w-3 mr-1" />Disabled</>
+                                      ) : (
+                                        <><CheckCircle className="h-3 w-3 mr-1" />Active</>
+                                      )}
                                     </span>
                                   </div>
                                 </div>
@@ -285,28 +306,21 @@ const ActiveChurches = () => {
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex justify-center items-center space-x-2">
-                                <Button
-                                  onClick={() =>
-                                    viewChurchDetails(church.ChurchID)
-                                  }
-                                  variant="outline"
-                                  className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 min-h-0 h-auto"
-                                  aria-label={`View details for ${church.ChurchName}`}
-                                >
-                                  <Eye className="h-3 w-3 mr-1" />
-                                  View
-                                </Button>
-                                <Button
-                                  onClick={() =>
-                                    editChurchDetails(church.ChurchID)
-                                  }
-                                  variant="outline"
-                                  className="inline-flex items-center px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 min-h-0 h-auto"
-                                  aria-label={`Edit details for ${church.ChurchName}`}
-                                >
-                                  <Edit className="h-3 w-3 mr-1" />
-                                  Edit
-                                </Button>
+                                {church.ChurchStatus !== 'Disabled' ? (
+                                  <Button
+                                    onClick={() =>
+                                      handleDisableClick(church.ChurchID, church.ChurchName)
+                                    }
+                                    variant="outline"
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 min-h-0 h-auto"
+                                    aria-label={`Disable ${church.ChurchName}`}
+                                  >
+                                    <Ban className="h-3 w-3 mr-1" />
+                                    Disable
+                                  </Button>
+                                ) : (
+                                  <span className="text-xs text-gray-500 italic">Disabled</span>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -320,6 +334,18 @@ const ActiveChurches = () => {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, churchId: null, churchName: "" })}
+        onConfirm={confirmDisableChurch}
+        title="Disable Church"
+        message={`Are you sure you want to disable "${confirmDialog.churchName}"? This will make the church invisible to users.`}
+        confirmText="OK"
+        cancelText="Cancel"
+        type="warning"
+        isLoading={isDisabling}
+      />
     </div>
   );
 };

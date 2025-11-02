@@ -6,6 +6,7 @@ use App\Models\Church;
 use App\Models\ChurchRole;
 use App\Models\Permission;
 use App\Models\UserChurchRole;
+use App\Models\ChurchSubscription;
 use Illuminate\Http\Request;
 
 class RolePermissionController extends Controller
@@ -34,10 +35,19 @@ class RolePermissionController extends Controller
             ->with(['user.profile', 'role'])
             ->get();
 
+        // Determine if church owner has an active subscription
+        $hasActiveSubscription = ChurchSubscription::where('UserID', $church->user_id)
+            ->where('Status', 'Active')
+            ->where('EndDate', '>', now())
+            ->exists();
+
         // Return combined response
         return response()->json([
             'ChurchID' => $church->ChurchID,
             'ChurchName' => $church->ChurchName,
+            'ChurchStatus' => $church->ChurchStatus,
+            'IsPublic' => (bool)$church->IsPublic,
+            'has_active_subscription' => $hasActiveSubscription,
             'roles' => $roles,
             'staff' => $staff
         ]);

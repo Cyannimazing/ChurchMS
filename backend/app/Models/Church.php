@@ -29,6 +29,7 @@ class Church extends Model
     const STATUS_PENDING = 'Pending';
     const STATUS_ACTIVE = 'Active';
     const STATUS_REJECTED = 'Rejected';
+    const STATUS_DISABLED = 'Disabled';
 
     protected $attributes = [
         'ChurchStatus' => self::STATUS_PENDING,
@@ -38,6 +39,7 @@ class Church extends Model
         self::STATUS_PENDING,
         self::STATUS_ACTIVE,
         self::STATUS_REJECTED,
+        self::STATUS_DISABLED,
     ];
 
     public function setChurchStatusAttribute($value)

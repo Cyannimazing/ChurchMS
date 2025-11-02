@@ -24,6 +24,9 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Seed provinces and cities
+        $this->call(ProvincesCitiesSeeder::class);
+
         // Insert system roles
         DB::table('system_roles')->insertOrIgnore([
             ['role_name' => 'Regular'],
@@ -102,7 +105,7 @@ class DatabaseSeeder extends Seeder
             'PlanID' => $plan->PlanID,
         ], [
             'StartDate' => now(),
-            'EndDate' => now()->addMonths(1),
+            'EndDate' => now()->addMinutes(3), // 3 minutes for testing
             'Status' => 'Active',
         ]);
         // Seed permissions

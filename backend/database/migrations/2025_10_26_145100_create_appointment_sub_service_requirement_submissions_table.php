@@ -18,12 +18,12 @@ return new class extends Migration
             $table->unsignedBigInteger('reviewed_by')->nullable();
             $table->timestamps();
 
-            $table->foreign('AppointmentID')->references('AppointmentID')->on('Appointment')->onDelete('cascade');
-            $table->foreign('SubServiceRequirementID')->references('RequirementID')->on('sub_service_requirements')->onDelete('cascade');
-            $table->foreign('reviewed_by')->references('id')->on('users')->onDelete('set null');
+            $table->foreign('AppointmentID', 'appt_sub_svc_req_sub_appt_fk')->references('AppointmentID')->on('Appointment')->onDelete('cascade');
+            $table->foreign('SubServiceRequirementID', 'appt_sub_svc_req_sub_req_fk')->references('RequirementID')->on('sub_service_requirements')->onDelete('cascade');
+            $table->foreign('reviewed_by', 'appt_sub_svc_req_sub_reviewer_fk')->references('id')->on('users')->onDelete('set null');
 
-            $table->unique(['AppointmentID','SubServiceRequirementID']);
-            $table->index(['AppointmentID','SubServiceRequirementID']);
+            $table->unique(['AppointmentID','SubServiceRequirementID'], 'appt_sub_svc_req_sub_unique');
+            $table->index(['AppointmentID','SubServiceRequirementID'], 'appt_sub_svc_req_sub_idx');
         });
     }
 

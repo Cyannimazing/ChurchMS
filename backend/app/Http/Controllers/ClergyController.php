@@ -30,8 +30,8 @@ class ClergyController extends Controller
         }
 
         $clergy = Clergy::where('ChurchID', $church->ChurchID)
-            ->orderBy('Active', 'desc')
-            ->orderBy('FirstName')
+            ->orderBy('is_active', 'desc')
+            ->orderBy('first_name')
             ->get();
 
         return response()->json($clergy);
@@ -96,7 +96,7 @@ class ClergyController extends Controller
             return response()->json(['error' => 'Clergy member not found'], 404);
         }
 
-        $clergy->update(['Active' => false]);
+        $clergy->update(['is_active' => false]);
 
         return response()->json(['message' => 'Clergy member deactivated successfully']);
     }
@@ -109,7 +109,7 @@ class ClergyController extends Controller
             return response()->json(['error' => 'Clergy member not found'], 404);
         }
 
-        $clergy->update(['Active' => !$clergy->Active]);
+        $clergy->update(['is_active' => !$clergy->is_active]);
 
         return response()->json([
             'message' => 'Clergy status updated successfully',

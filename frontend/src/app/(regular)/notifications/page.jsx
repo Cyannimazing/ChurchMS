@@ -226,6 +226,77 @@ export default function NotificationsPage() {
                           </div>
                         </div>
 
+                        {/* Sub-services information */}
+                        {notification.data?.sub_services && notification.data.sub_services.length > 0 && (
+                          <div className="mt-3 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                            <h4 className="text-sm font-semibold text-purple-900 mb-2">Required:</h4>
+                            <div className="space-y-3">
+                              {notification.data.sub_services.map((subService) => (
+                                <div key={subService.id} className="bg-white rounded p-3 border border-purple-100">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <h5 className="text-sm font-medium text-gray-900">{subService.name}</h5>
+                                      {subService.description && (
+                                        <p className="text-xs text-gray-600 mt-1">{subService.description}</p>
+                                      )}
+                                    </div>
+                                    {subService.is_completed !== undefined && (
+                                      <span className={`ml-2 px-2 py-0.5 text-xs font-medium rounded-full ${
+                                        subService.is_completed
+                                          ? 'bg-green-100 text-green-800'
+                                          : 'bg-yellow-100 text-yellow-800'
+                                      }`}>
+                                        {subService.is_completed ? 'Completed' : 'Pending'}
+                                      </span>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Schedules */}
+                                  {subService.schedules && subService.schedules.length > 0 && (
+                                    <div className="mt-2">
+                                      <p className="text-xs font-medium text-gray-700 mb-1">Schedule:</p>
+                                      <div className="space-y-1">
+                                        {subService.schedules.map((schedule, idx) => (
+                                          <div key={idx} className="text-xs text-gray-600 flex items-center gap-2">
+                                            <Calendar className="w-3 h-3" />
+                                            <span>
+                                              {schedule.day} • {schedule.time}
+                                              {schedule.occurrence === 'nth_day_of_month' && schedule.occurrence_value && (
+                                                <span className="ml-1 text-gray-500">
+                                                  ({schedule.occurrence_value === -1 ? 'Last' : 
+                                                    schedule.occurrence_value === 1 ? '1st' :
+                                                    schedule.occurrence_value === 2 ? '2nd' :
+                                                    schedule.occurrence_value === 3 ? '3rd' : 
+                                                    schedule.occurrence_value + 'th'} of month)
+                                                </span>
+                                              )}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Requirements */}
+                                  {subService.requirements && subService.requirements.length > 0 && (
+                                    <div className="mt-2">
+                                      <p className="text-xs font-medium text-gray-700 mb-1">Requirements:</p>
+                                      <ul className="space-y-0.5">
+                                        {subService.requirements.map((req) => (
+                                          <li key={req.id} className="text-xs text-gray-600 flex items-start gap-1">
+                                            <span className="text-purple-600 mt-0.5">•</span>
+                                            <span>{req.name}{req.needed ? ' (Required)' : ' (Optional)'}</span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Additional info/action based on notification type */}
                         {notification.type === "requirement_reminder" &&
                           notification.data?.appointment_id && (

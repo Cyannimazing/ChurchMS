@@ -48,24 +48,6 @@ return new class extends Migration
             // Unique constraint to ensure one answer per field per appointment
             $table->unique(['AppointmentID', 'InputFieldID']);
         });
-
-        // Create AppointmentDocument table
-        Schema::create('AppointmentDocument', function (Blueprint $table) {
-            $table->id('DocumentID');
-            $table->unsignedBigInteger('AppointmentID');
-            $table->string('FilePath', 500);
-            $table->string('OriginalFileName', 255)->nullable();
-            $table->string('StoredFileName', 255)->nullable();
-            $table->bigInteger('FileSize')->nullable();
-            $table->string('MimeType', 100)->nullable();
-            $table->timestamps();
-
-            // Foreign key constraint
-            $table->foreign('AppointmentID')->references('AppointmentID')->on('Appointment')->onDelete('cascade');
-
-            // Index for better performance
-            $table->index(['AppointmentID']);
-        });
     }
 
     /**
@@ -73,7 +55,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('AppointmentDocument');
         Schema::dropIfExists('AppointmentInputAnswer');
         Schema::dropIfExists('Appointment');
     }

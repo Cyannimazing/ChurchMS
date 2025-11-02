@@ -8,8 +8,12 @@ class UserChurchRole extends Model
 {
     protected $table = 'UserChurchRole';
     protected $primaryKey = 'UserChurchRoleID';
-    protected $fillable = ['user_id', 'ChurchID', 'RoleID'];
+    protected $fillable = ['user_id', 'ChurchID', 'RoleID', 'is_active'];
     public $timestamps = false;
+
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
 
     public function user()
     {
