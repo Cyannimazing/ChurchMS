@@ -1,15 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "@/lib/axios";
-import { Calendar, Clock, MapPin, FileText, AlertTriangle } from "lucide-react";
+import { Calendar, Clock, MapPin, FileText, AlertTriangle, X } from "lucide-react";
 import { useAuth } from "@/hooks/auth.jsx";
+import { useSearchParams } from "next/navigation";
 
 const AppointmentPage = () => {
   const { user } = useAuth({ middleware: "auth" });
+  const searchParams = useSearchParams();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [highlightedAppointmentId, setHighlightedAppointmentId] = useState(null);
+  const highlightedRef = useRef(null);
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -30,6 +34,31 @@ const AppointmentPage = () => {
       fetchAppointments();
     }
   }, [user]);
+
+  // Handle highlighting from notification link
+  useEffect(() => {
+    if (!appointments.length) return;
+    
+    const appointmentId = searchParams.get('appointmentId');
+    if (appointmentId) {
+      const parsedId = parseInt(appointmentId, 10);
+      setHighlightedAppointmentId(parsedId);
+      
+      // Scroll to highlighted appointment
+      setTimeout(() => {
+        if (highlightedRef.current) {
+          highlightedRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+      
+      // Clear highlight after 3 seconds
+      const timer = setTimeout(() => {
+        setHighlightedAppointmentId(null);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [appointments, searchParams]);
 
   const getStatusBadge = (status) => {
     const baseClasses = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
@@ -153,14 +182,28 @@ const AppointmentPage = () => {
               </div>
             ) : (
               <div className="space-y-4">
+                {highlightedAppointmentId && (
+                  <button
+                    onClick={() => setHighlightedAppointmentId(null)}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gray-700 hover:bg-gray-800 rounded-md transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                    Clear Highlight
+                  </button>
+                )}
                 {appointments.map((appointment) => {
                   const isExpiring = isExpiringSoon(appointment);
                   const remainingHours = getRemainingHours(getCreatedAt(appointment));
                   
                   return (
-                    <div key={appointment.AppointmentID} className={`border rounded-lg p-6 transition-colors ${
-                      isExpiring ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:border-gray-300'
-                    }`}>
+                    <div
+                      key={appointment.AppointmentID}
+                      ref={highlightedAppointmentId === appointment.AppointmentID ? highlightedRef : null}
+                      className={`border rounded-lg p-6 transition-colors duration-300 ${
+                        highlightedAppointmentId === appointment.AppointmentID
+                          ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-300 animate-pulse'
+                          : (isExpiring ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:border-gray-300')
+                      }`}>
                       {/* Expiration Warning Banner */}
                       {isExpiring && (
                         <div className="mb-4 bg-red-100 border border-red-300 rounded-lg p-4">

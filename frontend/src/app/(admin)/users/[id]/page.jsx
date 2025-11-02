@@ -343,6 +343,38 @@ const UserDetail = () => {
                     </div>
                   )}
 
+                  {user.profile?.system_role?.role_name === "Regular" && (
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <Church className="h-5 w-5 mr-2 text-gray-400" />
+                        Church Membership
+                      </h4>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Member Of
+                          </label>
+                          <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-md">
+                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                              <Church className="h-4 w-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {user.church_membership?.ChurchName ||
+                                  "No church membership"}
+                              </p>
+                              {user.church_membership && (
+                                <p className="text-xs text-gray-500">
+                                  Member
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {user.profile?.system_role?.role_name === "ChurchStaff" && (
                     <div className="bg-white border border-gray-200 rounded-lg p-6">
                       <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">

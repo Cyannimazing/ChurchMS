@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { CheckCircle, XCircle, Eye, Calendar, User, Mail, Phone, MapPin, MessageSquare, Users } from "lucide-react";
 import { useAuth } from "@/hooks/auth.jsx";
 import axios from "@/lib/axios";
@@ -12,6 +12,7 @@ import Label from "@/components/Label.jsx";
 
 const MemberApplicationsPage = () => {
   const { churchname } = useParams();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +24,8 @@ const MemberApplicationsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredApplications, setFilteredApplications] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [highlightedApplicationId, setHighlightedApplicationId] = useState(null);
+  const highlightedRowRef = useRef(null);
   const itemsPerPage = 6;
 
   // Permission helper function
@@ -39,6 +42,31 @@ const MemberApplicationsPage = () => {
   useEffect(() => {
     fetchApplications();
   }, []);
+
+  // Handle deep-linking from notifications
+  useEffect(() => {
+    if (!applications.length) return;
+    
+    const applicationId = searchParams.get('applicationId');
+    if (applicationId) {
+      const parsedId = parseInt(applicationId, 10);
+      setHighlightedApplicationId(parsedId);
+      
+      // Scroll to highlighted row
+      setTimeout(() => {
+        if (highlightedRowRef.current) {
+          highlightedRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+      
+      // Clear highlight after 3 seconds
+      const timer = setTimeout(() => {
+        setHighlightedApplicationId(null);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [applications, searchParams]);
 
   // Filter applications based on search term
   useEffect(() => {
@@ -532,7 +560,7 @@ const MemberApplicationsPage = () => {
             <Button
               onClick={() => handleAction(app, "reject")}
               variant="outline"
-              className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200"
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 border-red-200 cursor-pointer"
               disabled={actionLoading || !canReviewApplication}
               title={!canReviewApplication ? 'You do not have permission to review applications' : ''}
             >
@@ -541,7 +569,7 @@ const MemberApplicationsPage = () => {
             </Button>
             <Button
               onClick={() => handleAction(app, "approve")}
-              className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 cursor-pointer"
               disabled={actionLoading || !canReviewApplication}
               title={!canReviewApplication ? 'You do not have permission to review applications' : ''}
             >
@@ -635,7 +663,15 @@ const MemberApplicationsPage = () => {
                             </tr>
                           ) : currentApplications.length > 0 ? (
                             currentApplications.map((application) => (
-                              <tr key={application.id} className="hover:bg-gray-50">
+                              <tr 
+                                key={application.id} 
+                                ref={application.id === highlightedApplicationId ? highlightedRowRef : null}
+                                className={`hover:bg-gray-50 transition-colors duration-300 ${
+                                  application.id === highlightedApplicationId
+                                    ? "bg-blue-100 animate-pulse"
+                                    : ""
+                                }`}
+                              >
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
                                   <div className="flex-shrink-0 h-10 w-10">
@@ -696,7 +732,7 @@ const MemberApplicationsPage = () => {
                                   <Button
                                     onClick={() => handleViewApplication(application)}
                                     variant="outline"
-                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 min-h-0 h-auto"
+                                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 min-h-0 h-auto cursor-pointer"
                                   >
                                     <Eye className="h-3 w-3 mr-1" />
                                     Review

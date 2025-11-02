@@ -5,10 +5,15 @@ namespace App\Http\Controllers;
 use App\Models\ChurchMember;
 use App\Models\Church;
 use App\Models\MemberChild;
+use App\Models\Notification;
+use App\Models\UserChurchRole;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use App\Events\MemberApplicationCreated;
+use App\Events\MemberApplicationStatusUpdated;
+use App\Events\NotificationCreated;
 
 class ChurchMemberController extends Controller
 {
@@ -143,6 +148,45 @@ class ChurchMemberController extends Controller
                     $member->children()->create($childData);
                 }
             }
+
+            // Notify all church staff + owner
+            $church = Church::find($validated['church_id']);
+            $staffUserIds = UserChurchRole::where('ChurchID', $validated['church_id'])
+                ->pluck('user_id');
+            
+            // Add church owner
+            if ($church && $church->user_id) {
+                $staffUserIds->push($church->user_id);
+            }
+            $staffUserIds = $staffUserIds->unique();
+            
+            $applicantName = trim($validated['first_name'] . ' ' . $validated['last_name']);
+            $churchName = $church ? $church->ChurchName : 'your church';
+            $churchNameSlug = $church ? strtolower(str_replace(' ', '-', $church->ChurchName)) : 'church';
+            
+            foreach ($staffUserIds as $staffUserId) {
+                $notification = Notification::create([
+                    'user_id' => $staffUserId,
+                    'type' => 'member_application',
+                    'title' => 'New Member Application',
+                    'message' => "{$applicantName} has submitted a membership application to {$churchName}.",
+                    'data' => [
+                        'application_id' => $member->id,
+                        'applicant_name' => $applicantName,
+                        'church_id' => $validated['church_id'],
+                        'church_name' => $churchName,
+                        'status' => 'pending',
+                        'link' => "/{$churchNameSlug}/member-applications?applicationId={$member->id}&status=pending",
+                    ],
+                    'is_read' => false,
+                ]);
+                
+                // Broadcast to each staff member's private channel
+                broadcast(new NotificationCreated($staffUserId, $notification));
+            }
+            
+            // Broadcast to church channel for real-time updates
+            broadcast(new MemberApplicationCreated($member, $validated['church_id'], null));
 
             DB::commit();
 
@@ -348,6 +392,35 @@ class ChurchMemberController extends Controller
             'notes' => $request->notes
         ]);
 
+        // Notify the applicant
+        if ($churchMember->user_id) {
+            $applicantName = trim($churchMember->first_name . ' ' . $churchMember->last_name);
+            $church = Church::find($churchMember->church_id);
+            $churchName = $church ? $church->ChurchName : 'the church';
+            
+            $notification = Notification::create([
+                'user_id' => $churchMember->user_id,
+                'type' => 'member_application_approved',
+                'title' => 'Membership Application Approved',
+                'message' => "Your membership application to {$churchName} has been approved!",
+                'data' => [
+                    'application_id' => $churchMember->id,
+                    'applicant_name' => $applicantName,
+                    'church_id' => $churchMember->church_id,
+                    'church_name' => $churchName,
+                    'status' => 'approved',
+                    'link' => "/profile/memberships",
+                ],
+                'is_read' => false,
+            ]);
+            
+            // Broadcast to applicant's private channel
+            broadcast(new NotificationCreated($churchMember->user_id, $notification));
+        }
+        
+        // Broadcast to church channel for real-time updates
+        broadcast(new MemberApplicationStatusUpdated($churchMember, $churchMember->church_id, 'approved', null));
+
         return response()->json([
             'message' => 'Member application approved successfully',
             'member' => $churchMember->fresh()
@@ -356,6 +429,35 @@ class ChurchMemberController extends Controller
 
     public function rejectApplication(Request $request, ChurchMember $churchMember)
     {
+        // Notify the applicant before deletion
+        if ($churchMember->user_id) {
+            $applicantName = trim($churchMember->first_name . ' ' . $churchMember->last_name);
+            $church = Church::find($churchMember->church_id);
+            $churchName = $church ? $church->ChurchName : 'the church';
+            
+            $notification = Notification::create([
+                'user_id' => $churchMember->user_id,
+                'type' => 'member_application_rejected',
+                'title' => 'Membership Application Rejected',
+                'message' => "Your membership application to {$churchName} has been rejected. Please contact the church for more information.",
+                'data' => [
+                    'application_id' => $churchMember->id,
+                    'applicant_name' => $applicantName,
+                    'church_id' => $churchMember->church_id,
+                    'church_name' => $churchName,
+                    'status' => 'rejected',
+                    'link' => "/profile/memberships",
+                ],
+                'is_read' => false,
+            ]);
+            
+            // Broadcast to applicant's private channel
+            broadcast(new NotificationCreated($churchMember->user_id, $notification));
+        }
+        
+        // Broadcast to church channel for real-time updates before deletion
+        broadcast(new MemberApplicationStatusUpdated($churchMember, $churchMember->church_id, 'rejected', null));
+        
         $churchMember->delete();
 
         return response()->json([

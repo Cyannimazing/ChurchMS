@@ -3,7 +3,7 @@
 import { useAuth } from "@/hooks/auth.jsx";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useParams } from "next/navigation";
-import { Bell, Check, CheckCheck, Trash2, Calendar, CheckCircle2, XCircle, Info } from "lucide-react";
+import { Bell, Check, CheckCheck, Trash2, Calendar, CheckCircle2, XCircle, Info, Users, Eye } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -58,6 +58,12 @@ export default function ChurchStaffNotificationsPage() {
         return "bg-amber-50";
       case "appointment_created":
         return "bg-blue-50";
+      case "member_application":
+        return "bg-purple-50";
+      case "member_application_approved":
+        return "bg-green-50";
+      case "member_application_rejected":
+        return "bg-gray-50";
       default:
         return "bg-gray-50";
     }
@@ -75,6 +81,12 @@ export default function ChurchStaffNotificationsPage() {
         return <Info className="w-5 h-5 text-blue-600" />;
       case "requirement_reminder":
         return <Bell className="w-5 h-5 text-amber-600" />;
+      case "member_application":
+        return <Users className="w-5 h-5 text-purple-600" />;
+      case "member_application_approved":
+        return <CheckCircle2 className="w-5 h-5 text-green-600" />;
+      case "member_application_rejected":
+        return <Info className="w-5 h-5 text-gray-600" />;
       default:
         return <Bell className="w-5 h-5 text-gray-600" />;
     }
@@ -252,9 +264,24 @@ export default function ChurchStaffNotificationsPage() {
                             <div className="mt-3">
                               <Link
                                 href={`/${churchname}/appointment?appointmentId=${notification.data.appointment_id}`}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+                                onClick={() => !notification.is_read && markAsRead(notification.id)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors shadow-sm"
                               >
-                                View
+                                <Eye size={14} />
+                                View Appointment
+                              </Link>
+                            </div>
+                          )}
+                        {(notification.type === "member_application" || notification.type === "member_application_approved" || notification.type === "member_application_rejected") &&
+                          notification.data?.application_id && (
+                            <div className="mt-3">
+                              <Link
+                                href={`/${churchname}/member-applications?applicationId=${notification.data.application_id}`}
+                                onClick={() => !notification.is_read && markAsRead(notification.id)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors shadow-sm"
+                              >
+                                <Eye size={14} />
+                                View Application
                               </Link>
                             </div>
                           )}

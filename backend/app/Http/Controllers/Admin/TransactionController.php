@@ -21,7 +21,7 @@ class TransactionController extends Controller
         $perPage = $request->input('per_page', 15);
         $search = $request->input('search');
         
-        $query = SubscriptionTransaction::with(['user.profile', 'newPlan', 'oldPlan'])
+        $query = SubscriptionTransaction::with(['user.profile', 'newPlan', 'oldPlan', 'paymentSession'])
             ->orderBy('TransactionDate', 'desc');
         
         if ($search) {
@@ -49,7 +49,7 @@ class TransactionController extends Controller
      */
     public function show($id)
     {
-        $transaction = SubscriptionTransaction::with(['user.profile', 'newPlan', 'oldPlan'])
+        $transaction = SubscriptionTransaction::with(['user.profile', 'newPlan', 'oldPlan', 'paymentSession'])
             ->where('SubTransactionID', $id)
             ->first();
 
@@ -88,7 +88,7 @@ class TransactionController extends Controller
         DB::beginTransaction();
 
         try {
-            $transaction = SubscriptionTransaction::with(['user.profile', 'newPlan'])
+            $transaction = SubscriptionTransaction::with(['user.profile', 'newPlan', 'paymentSession'])
                 ->where('SubTransactionID', $id)
                 ->first();
 
@@ -188,7 +188,7 @@ class TransactionController extends Controller
             'reference' => 'required|string|max:50'
         ]);
 
-        $transaction = SubscriptionTransaction::with(['user.profile', 'newPlan', 'oldPlan'])
+        $transaction = SubscriptionTransaction::with(['user.profile', 'newPlan', 'oldPlan', 'paymentSession'])
             ->where('receipt_code', $validated['reference'])
             ->first();
 

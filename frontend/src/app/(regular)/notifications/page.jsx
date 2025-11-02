@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/hooks/auth.jsx";
 import { useNotifications } from "@/hooks/useNotifications";
-import { Bell, Check, CheckCheck, Trash2, Calendar, CheckCircle2, XCircle, Info } from "lucide-react";
+import { Bell, Check, CheckCheck, Trash2, Calendar, CheckCircle2, XCircle, Info, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -56,6 +56,10 @@ export default function NotificationsPage() {
         return "bg-amber-50";
       case "appointment_created":
         return "bg-blue-50";
+      case "member_application_approved":
+        return "bg-green-50";
+      case "member_application_rejected":
+        return "bg-gray-50";
       default:
         return "bg-gray-50";
     }
@@ -73,6 +77,10 @@ export default function NotificationsPage() {
         return <Info className="w-5 h-5 text-blue-600" />;
       case "requirement_reminder":
         return <Bell className="w-5 h-5 text-amber-600" />;
+      case "member_application_approved":
+        return <CheckCircle2 className="w-5 h-5 text-green-600" />;
+      case "member_application_rejected":
+        return <Info className="w-5 h-5 text-gray-600" />;
       default:
         return <Bell className="w-5 h-5 text-gray-600" />;
     }
@@ -228,10 +236,11 @@ export default function NotificationsPage() {
                                 appointment.
                               </p>
                               <Link
-                                href="/appointment"
+                                href={`/appointment?appointmentId=${notification.data.appointment_id}`}
+                                onClick={() => !notification.is_read && markAsRead(notification.id)}
                                 className="inline-flex items-center gap-1 mt-2 px-3 py-1.5 text-xs font-medium text-white bg-yellow-600 hover:bg-yellow-700 rounded-md transition-colors"
                               >
-                                View
+                                View Appointment
                               </Link>
                             </div>
                           )}
@@ -242,10 +251,11 @@ export default function NotificationsPage() {
                                 <strong>Status Update:</strong> Your appointment status has been updated.
                               </p>
                               <Link
-                                href="/appointment"
+                                href={`/appointment?appointmentId=${notification.data.appointment_id}`}
+                                onClick={() => !notification.is_read && markAsRead(notification.id)}
                                 className="inline-flex items-center gap-1 mt-2 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
                               >
-                                View
+                                View Appointment
                               </Link>
                             </div>
                           )}

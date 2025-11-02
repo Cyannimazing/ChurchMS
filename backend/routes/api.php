@@ -23,6 +23,7 @@ use App\Http\Controllers\CertificateConfigurationController;
 use App\Http\Controllers\ClergyController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Admin\AdminDashboardController;
 
 // Locations (public routes)
 Route::get('/provinces', [LocationController::class, 'getProvinces']);
@@ -52,6 +53,8 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
 Route::get('/users_list', [UserController::class, 'index'])->middleware('auth:sanctum');
 Route::put('/users/{id}/update-active', [UserController::class, 'updateActiveStatus'])->middleware('auth:sanctum');
 Route::get('/users/{id}', [UserController::class, 'show'])->middleware('auth:sanctum');
+Route::put('/users/{id}/profile', [UserController::class, 'updateProfile'])->middleware('auth:sanctum');
+Route::put('/users/{id}/password', [UserController::class, 'updatePassword'])->middleware('auth:sanctum');
 
 //NOTIFICATIONS
 Route::middleware('auth:sanctum')->group(function () {
@@ -64,6 +67,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 //DASHBOARD ANALYTICS
 Route::middleware('auth:sanctum')->get('/dashboard/analytics', [DashboardController::class, 'getAnalytics'])->name('dashboard.analytics');
+Route::middleware('auth:sanctum')->get('/admin/dashboard/analytics', [AdminDashboardController::class, 'getAnalytics'])->name('admin.dashboard.analytics');
 
 //SUBSCRIPTION PLANS
 Route::get('/subscription-plans', [SubscriptionPlanController::class, 'index']);

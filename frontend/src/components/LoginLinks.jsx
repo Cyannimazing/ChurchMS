@@ -30,7 +30,7 @@ const LoginLinks = ({ mobile = false, handleLinkClick }) => {
         <>
           {user.profile.system_role.role_name === "Admin" && (
             <Link
-              href="/admin"
+              href="/admin-dashboard"
               className={dashboardLinkClasses}
               onClick={mobile ? handleLinkClick : undefined}
             >

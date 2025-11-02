@@ -42,4 +42,9 @@ class SubscriptionTransaction extends Model
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
+
+    public function paymentSession()
+    {
+        return $this->hasOne(PaymentSession::class, 'paymongo_session_id', 'paymongo_session_id');
+    }
 }
