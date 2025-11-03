@@ -28,7 +28,7 @@ return new class extends Migration
             
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('church_id')->references('ChurchID')->on('Church')->onDelete('cascade');
-            $table->foreign('appointment_id')->references('AppointmentID')->on('appointment')->onDelete('set null');
+            $table->foreign('appointment_id')->references('AppointmentID')->on('Appointment')->onDelete('set null');
             
             $table->index(['user_id', 'church_id']);
             $table->index('paymongo_session_id');
