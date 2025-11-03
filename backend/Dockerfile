@@ -9,8 +9,7 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     zip \
     unzip \
-    nginx \
-    gettext-base
+    supervisor
 
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -35,40 +34,14 @@ RUN chown -R www-data:www-data /var/www \
     && chmod -R 755 /var/www/storage \
     && chmod -R 755 /var/www/bootstrap/cache
 
-# Copy nginx config
-RUN echo 'server { \n\
-    listen 0.0.0.0:$PORT; \n\
-    root /var/www/public; \n\
-    index index.php; \n\
-    location / { \n\
-        try_files $uri $uri/ /index.php?$query_string; \n\
-    } \n\
-    location ~ \.php$ { \n\
-        fastcgi_pass 127.0.0.1:9000; \n\
-        fastcgi_index index.php; \n\
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name; \n\
-        include fastcgi_params; \n\
-    } \n\
-}' > /etc/nginx/sites-available/default
-
-# Install supervisor for process management
-RUN apt-get update && apt-get install -y supervisor
+# No nginx; we'll use PHP's built-in server for simplicity on free tier
 
 # Create supervisor config
 RUN echo '[supervisord]\n\
 nodaemon=true\n\
 \n\
-[program:php-fpm]\n\
-command=php-fpm --nodaemonize\n\
-autostart=true\n\
-autorestart=true\n\
-stdout_logfile=/dev/stdout\n\
-stdout_logfile_maxbytes=0\n\
-stderr_logfile=/dev/stderr\n\
-stderr_logfile_maxbytes=0\n\
-\n\
-[program:nginx]\n\
-command=nginx -g "daemon off;"\n\
+[program:web]\n\
+command=php /var/www/artisan serve --host=0.0.0.0 --port=$PORT\n\
 autostart=true\n\
 autorestart=true\n\
 stdout_logfile=/dev/stdout\n\
@@ -96,10 +69,9 @@ stderr_logfile_maxbytes=0' > /etc/supervisor/conf.d/laravel.conf
 
 # Create startup script
 RUN echo '#!/bin/bash\n\
-php artisan key:generate --force\n\
+php artisan key:generate --force || true\n\
 php artisan config:cache\n\
-php artisan migrate --force\n\
-envsubst < /etc/nginx/sites-available/default > /etc/nginx/sites-enabled/default\n\
+php artisan migrate --force || true\n\
 supervisord -c /etc/supervisor/supervisord.conf' > /start.sh && chmod +x /start.sh
 
 EXPOSE $PORT
