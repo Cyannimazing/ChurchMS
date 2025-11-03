@@ -20,7 +20,7 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             
-            $table->foreign('church_id')->references('ChurchID')->on('church')->onDelete('cascade');
+            $table->foreign('church_id')->references('ChurchID')->on('Church')->onDelete('cascade');
             $table->index(['church_id', 'is_active']);
         });
     }
