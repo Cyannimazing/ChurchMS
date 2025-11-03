@@ -71,7 +71,11 @@ stderr_logfile_maxbytes=0' > /etc/supervisor/conf.d/laravel.conf
 RUN echo '#!/bin/bash\n\
 php artisan key:generate --force || true\n\
 php artisan config:cache\n\
-php artisan migrate --force || true\n\
+if [ "$MIGRATE_FRESH" = "true" ]; then\n\
+  php artisan migrate:fresh --force || true\n\
+else\n\
+  php artisan migrate --force || true\n\
+fi\n\
 supervisord -c /etc/supervisor/supervisord.conf' > /start.sh && chmod +x /start.sh
 
 EXPOSE $PORT
