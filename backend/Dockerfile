@@ -41,7 +41,7 @@ RUN echo '[supervisord]\n\
 nodaemon=true\n\
 \n\
 [program:web]\n\
-command=php /var/www/artisan serve --host=0.0.0.0 --port=$PORT\n\
+command=php /var/www/artisan serve --host=0.0.0.0 --port=${PORT:-8000}\n\
 autostart=true\n\
 autorestart=true\n\
 stdout_logfile=/dev/stdout\n\
