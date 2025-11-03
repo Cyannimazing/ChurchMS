@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { CheckCircle, XCircle, Eye, Calendar, User, Mail, Phone, MapPin, MessageSquare, Users } from "lucide-react";
 import { useAuth } from "@/hooks/auth.jsx";
@@ -10,7 +10,7 @@ import SearchAndPagination from "@/components/SearchAndPagination";
 import { Button } from "@/components/Button.jsx";
 import Label from "@/components/Label.jsx";
 
-const MemberApplicationsPage = () => {
+const MemberApplicationsContent = () => {
   const { churchname } = useParams();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -763,6 +763,14 @@ const MemberApplicationsPage = () => {
 
       {showModal && <ApplicationModal />}
     </div>
+  );
+};
+
+const MemberApplicationsPage = () => {
+  return (
+    <Suspense fallback={<DataLoading message="Loading applications..." />}>
+      <MemberApplicationsContent />
+    </Suspense>
   );
 };
 

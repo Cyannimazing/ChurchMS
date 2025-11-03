@@ -7,12 +7,12 @@ import Label from "@/components/Label.jsx";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/hooks/auth.jsx";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AuthSessionStatus from "../AuthSessionStatus";
 import { Mail, Lock, Facebook, Twitter, Instagram, Youtube } from "lucide-react";
 
-const Login = () => {
+const LoginForm = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -214,6 +214,14 @@ const Login = () => {
         }
       `}</style>
     </div>
+  );
+};
+
+const Login = () => {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import axios from "@/lib/axios";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { Calendar, Clock, MapPin, Users, Eye, Check, X, AlertTriangle, Search, FileText, User, Mail, Phone, MapPin as Location, FileText as CertificateIcon, Download } from "lucide-react";
@@ -2099,4 +2099,12 @@ const AppointmentPage = () => {
   );
 };
 
-export default AppointmentPage;
+const AppointmentPageWrapper = () => {
+  return (
+    <Suspense fallback={<DataLoading message="Loading appointments..." />}>
+      <AppointmentPage />
+    </Suspense>
+  );
+};
+
+export default AppointmentPageWrapper;

@@ -5,12 +5,12 @@ import Input from "@/components/Input";
 import InputError from "@/components/InputError";
 import Label from "@/components/Label.jsx";
 import { useAuth } from "@/hooks/auth.jsx";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import AuthSessionStatus from "@/app/(auth)/AuthSessionStatus.jsx";
 import AuthCard from "../../AuthCard";
 
-const PasswordReset = () => {
+const PasswordResetForm = () => {
   const searchParams = useSearchParams();
 
   const { resetPassword } = useAuth({ middleware: "guest" });
@@ -99,6 +99,14 @@ const PasswordReset = () => {
         </div>
       </form>
     </AuthCard>
+  );
+};
+
+const PasswordReset = () => {
+  return (
+    <Suspense fallback={<AuthCard><div>Loading...</div></AuthCard>}>
+      <PasswordResetForm />
+    </Suspense>
   );
 };
 

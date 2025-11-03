@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/Button.jsx';
 import DataLoading from '@/components/DataLoading';
 import axios from '@/lib/axios';
 
-const PaymentSuccess = () => {
+const PaymentSuccessContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
@@ -190,6 +190,18 @@ const PaymentSuccess = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+const PaymentSuccess = () => {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <DataLoading message="Loading..." />
+      </div>
+    }>
+      <PaymentSuccessContent />
+    </Suspense>
   );
 };
 

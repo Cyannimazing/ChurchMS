@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import axios from "@/lib/axios";
 import { Calendar, Clock, MapPin, FileText, AlertTriangle, X } from "lucide-react";
 import { useAuth } from "@/hooks/auth.jsx";
 import { useSearchParams } from "next/navigation";
 
-const AppointmentPage = () => {
+const AppointmentContent = () => {
   const { user } = useAuth({ middleware: "auth" });
   const searchParams = useSearchParams();
   const [appointments, setAppointments] = useState([]);
@@ -295,6 +295,20 @@ const AppointmentPage = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+const AppointmentPage = () => {
+  return (
+    <Suspense fallback={
+      <div className="lg:p-6 w-full h-screen pt-20">
+        <div className="flex items-center justify-center h-full">
+          <div>Loading...</div>
+        </div>
+      </div>
+    }>
+      <AppointmentContent />
+    </Suspense>
   );
 };
 

@@ -4,12 +4,12 @@ import { useAuth } from "@/hooks/auth";
 import axios from "@/lib/axios";
 import Button from "@/components/Button.jsx";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import DataLoading from "@/components/DataLoading";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
-const SubscriptionStatus = () => {
+const SubscriptionContent = () => {
   const searchParams = useSearchParams();
   const [currentSub, setCurrentSub] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -245,6 +245,14 @@ const SubscriptionStatus = () => {
       </div>
       
     </div>
+  );
+};
+
+const SubscriptionStatus = () => {
+  return (
+    <Suspense fallback={<DataLoading message="Loading subscriptions..." />}>
+      <SubscriptionContent />
+    </Suspense>
   );
 };
 
