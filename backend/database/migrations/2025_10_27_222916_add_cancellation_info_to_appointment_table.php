@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('appointment', function (Blueprint $table) {
+        Schema::table('Appointment', function (Blueprint $table) {
             $table->enum('cancellation_category', ['no_fee', 'with_fee'])->nullable()->after('Status');
             $table->text('cancellation_note')->nullable()->after('cancellation_category');
             $table->timestamp('cancelled_at')->nullable()->after('cancellation_note');
@@ -23,7 +23,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('appointment', function (Blueprint $table) {
+        Schema::table('Appointment', function (Blueprint $table) {
             $table->dropColumn(['cancellation_category', 'cancellation_note', 'cancelled_at']);
         });
     }
