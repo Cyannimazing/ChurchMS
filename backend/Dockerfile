@@ -72,9 +72,10 @@ RUN echo '#!/bin/bash\n\
 php artisan key:generate --force || true\n\
 php artisan config:cache\n\
 if [ "$MIGRATE_FRESH" = "true" ]; then\n\
-  php artisan migrate:fresh --force || true\n\
+  php artisan migrate:fresh --seed --force || true\n\
 else\n\
   php artisan migrate --force || true\n\
+  php artisan db:seed --force || true\n\
 fi\n\
 supervisord -c /etc/supervisor/supervisord.conf' > /start.sh && chmod +x /start.sh
 
