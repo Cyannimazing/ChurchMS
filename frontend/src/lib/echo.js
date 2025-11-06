@@ -7,17 +7,10 @@ if (typeof window !== "undefined") {
   window.Pusher = Pusher;
 }
 
-// Get auth token from cookies (browser only)
+// Get auth token from localStorage (browser only)
 const getAuthToken = () => {
-  if (typeof document === "undefined") return null;
-  const cookies = document.cookie.split(";");
-  for (let cookie of cookies) {
-    const [name, value] = cookie.trim().split("=");
-    if (name === "XSRF-TOKEN") {
-      return decodeURIComponent(value);
-    }
-  }
-  return null;
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("auth_token");
 };
 
 let echoInstance = null;
@@ -30,10 +23,7 @@ export const initializeEcho = (authToken) => {
     return echoInstance;
   }
 
-  // Ensure we have Sanctum cookies before attempting to authorize private channels
-  try {
-    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/sanctum/csrf-cookie`, { credentials: 'include' });
-  } catch (_) {}
+  // No need to fetch CSRF cookie for token-based auth
 
   echoInstance = new Echo({
     broadcaster: "reverb",
@@ -47,23 +37,22 @@ export const initializeEcho = (authToken) => {
     auth: {
       headers: {
         Accept: "application/json",
-        "X-Requested-With": "XMLHttpRequest",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getAuthToken()}`,
       },
     },
-    // Enable credentials (cookies) for Sanctum authentication
+    // Use Bearer token authentication
     authorizer: (channel, options) => {
       return {
         authorize: (socketId, callback) => {
+          const token = getAuthToken();
           fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/broadcasting/auth`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Accept: "application/json",
-              "X-Requested-With": "XMLHttpRequest",
-              // Include CSRF token for Sanctum session auth if present
-              "X-XSRF-TOKEN": getAuthToken() || undefined,
+              Authorization: `Bearer ${token}`,
             },
-            credentials: "include", // Include cookies (laravel_session, XSRF-TOKEN)
             body: JSON.stringify({
               socket_id: socketId,
               channel_name: channel.name,

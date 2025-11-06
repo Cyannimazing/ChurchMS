@@ -90,8 +90,12 @@ class RegisteredUserController extends Controller
 
         event(new Registered($user));
 
-        Auth::login($user);
+        // Create token for the newly registered user
+        $token = $user->createToken('auth-token')->plainTextToken;
 
-        return response()->noContent();
+        return response()->json([
+            'token' => $token,
+            'user' => $user->load(['profile.systemRole', 'contact'])
+        ], 201);
     }
 }

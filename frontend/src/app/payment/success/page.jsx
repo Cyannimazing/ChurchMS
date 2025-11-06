@@ -34,7 +34,6 @@ const PaymentSuccessContent = () => {
       }
 
       try {
-        await axios.get('/sanctum/csrf-cookie');
         let apiUrl;
         
         if (type === 'appointment') {

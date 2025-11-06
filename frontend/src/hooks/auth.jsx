@@ -7,31 +7,42 @@ export const useAuth = ({ middleware, redirectIfAuthenticated } = {}) => {
   const router = useRouter();
   const params = useParams();
 
+  // Check token presence once on the client
+  const hasToken = typeof window !== "undefined" && !!localStorage.getItem("auth_token");
+
   const {
     data: user,
     error,
     mutate,
-  } = useSWR("/api/user", () =>
-    axios
-      .get("/api/user")
-      .then((res) => res.data)
-      .catch((error) => {
-        if (error.response.status !== 409) throw error;
+  } = useSWR(
+    hasToken ? "/api/user" : null,
+    () =>
+      axios
+        .get("/api/user")
+        .then((res) => res.data)
+        .catch((error) => {
+          if (error.response?.status === 401) {
+            localStorage.removeItem("auth_token");
+            return null;
+          }
+          if (error.response?.status !== 409) throw error;
 
-        router.push("/api/verify-email");
-      })
+          router.push("/api/verify-email");
+        })
   );
 
-  const csrf = () => axios.get("/sanctum/csrf-cookie");
-
   const register = async ({ setErrors, ...props }) => {
-    await csrf();
-
     setErrors([]);
 
     axios
-      .post("/register", props)
-      .then(() => mutate())
+      .post("/api/register", props)
+      .then(async (response) => {
+        // Store token in localStorage
+        localStorage.setItem("auth_token", response.data.token);
+        await mutate();
+        // Redirect after successful registration
+        window.location.href = "/";
+      })
       .catch((error) => {
         if (error.response.status !== 422) throw error;
 
@@ -40,14 +51,18 @@ export const useAuth = ({ middleware, redirectIfAuthenticated } = {}) => {
   };
 
   const login = async ({ setErrors, setStatus, ...props }) => {
-    await csrf();
-
     setErrors([]);
     setStatus(null);
 
     axios
-      .post("/login", props)
-      .then(() => mutate())
+      .post("/api/login", props)
+      .then(async (response) => {
+        // Store token in localStorage
+        localStorage.setItem("auth_token", response.data.token);
+        await mutate();
+        // Redirect after successful login
+        window.location.href = "/";
+      })
       .catch((error) => {
         if (error.response.status !== 422) throw error;
 
@@ -56,13 +71,11 @@ export const useAuth = ({ middleware, redirectIfAuthenticated } = {}) => {
   };
 
   const forgotPassword = async ({ setErrors, setStatus, email }) => {
-    await csrf();
-
     setErrors([]);
     setStatus(null);
 
     axios
-      .post("/forgot-password", { email })
+      .post("/api/forgot-password", { email })
       .then((response) => setStatus(response.data.status))
       .catch((error) => {
         if (error.response.status !== 422) throw error;
@@ -72,13 +85,11 @@ export const useAuth = ({ middleware, redirectIfAuthenticated } = {}) => {
   };
 
   const resetPassword = async ({ setErrors, setStatus, ...props }) => {
-    await csrf();
-
     setErrors([]);
     setStatus(null);
 
     axios
-      .post("/reset-password", { token: params.token, ...props })
+      .post("/api/reset-password", { token: params.token, ...props })
       .then((response) =>
         router.push("/login?reset=" + btoa(response.data.status))
       )
@@ -91,13 +102,18 @@ export const useAuth = ({ middleware, redirectIfAuthenticated } = {}) => {
 
   const resendEmailVerification = ({ setStatus }) => {
     axios
-      .post("/email/verification-notification")
+      .post("/api/email/verification-notification")
       .then((response) => setStatus(response.data.status));
   };
 
   const logout = async () => {
     if (!error) {
-      await axios.post("/logout").then(() => mutate());
+      await axios.post("/api/logout").then(() => {
+        localStorage.removeItem("auth_token");
+        mutate();
+      });
+    } else {
+      localStorage.removeItem("auth_token");
     }
 
     window.location.pathname = "/";
@@ -108,13 +124,26 @@ export const useAuth = ({ middleware, redirectIfAuthenticated } = {}) => {
       router.push(redirectIfAuthenticated);
     }
 
-    if (middleware === "auth" && user && !user.email_verified_at)
-      router.push("/verify-email");
+    // If a page requires auth but there is no token, go home
+    if (middleware === "auth" && !hasToken) {
+      router.replace("/");
+      return;
+    }
 
-    if (window.location.pathname === "/verify-email" && user?.email_verified_at)
-      router.push(redirectIfAuthenticated);
-    if (middleware === "auth" && error) logout();
-  }, [user, error]);
+    if (middleware === "auth" && error) {
+      // If auth is required but we have an error (likely 401), redirect to login
+      localStorage.removeItem("auth_token");
+      router.push("/login");
+    }
+
+    if (middleware === "auth" && user && !user.email_verified_at) {
+      router.push("/verify-email");
+    }
+
+    if (typeof window !== "undefined" && window.location.pathname === "/verify-email" && user?.email_verified_at) {
+      router.push(redirectIfAuthenticated || "/");
+    }
+  }, [user, error, middleware, redirectIfAuthenticated, router]);
 
   return {
     user,

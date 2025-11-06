@@ -53,7 +53,6 @@ const SubscriptionContent = () => {
   const fetchSubscription = async () => {
     setLoading(true);
     try {
-      await axios.get("/sanctum/csrf-cookie");
       const response = await axios.get("/api/church-subscriptions");
       console.log("Fetched subscription:", response.data);
       setCurrentSub(response.data);

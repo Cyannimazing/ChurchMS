@@ -28,7 +28,6 @@ const TransactionsPage = () => {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      await axios.get('/sanctum/csrf-cookie');
       
       // Fetch a larger page size and paginate on the client using SearchAndPagination
       const response = await axios.get('/api/admin/transactions', { params: { per_page: 500, page: 1 } });

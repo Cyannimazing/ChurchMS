@@ -18,7 +18,5 @@ Route::get('/appointment-payment/success', [AppointmentController::class, 'handl
 Route::get('/appointment-payment/cancel', [AppointmentController::class, 'handleAppointmentPaymentCancel'])->name('appointment.payment.cancel');
 
 // Broadcasting authentication route  
-Broadcast::routes(['middleware' => ['web', 'auth:sanctum']]);
-
-require __DIR__.'/auth.php';
+Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
