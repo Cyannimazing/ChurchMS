@@ -1110,7 +1110,7 @@ const ChurchEditPage = () => {
 
           {/* Alert display */}
           {alertMessage && (
-            <div className="mx-6 mb-6">
+            <div className="mx-6 mt-6 mb-6">
               <Alert
                 type={alertType}
                 message={alertMessage}

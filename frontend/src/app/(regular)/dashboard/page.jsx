@@ -140,7 +140,7 @@ const Dashboard = () => {
     <div className="lg:p-6 w-full h-screen pt-20">
       <div className="w-full h-full">
         
-        <div className="bg-white overflow-hidden shadow-sm rounded-lg h-full flex flex-col">
+        <div className="bg-white overflow-y-auto shadow-sm rounded-lg flex flex-col h-full">
           <div className="p-6 bg-white border-b border-gray-200">
             <h1 className="text-2xl font-semibold text-gray-900">
               Dashboard
@@ -165,9 +165,9 @@ const Dashboard = () => {
             </div>
             
             {/* Main Content: 30% Nearest Churches + 70% Map */}
-            <div className="flex flex-col lg:flex-row gap-6 h-full">
+            <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
               {/* Left: Nearest Churches (30%) */}
-              <div className="lg:w-[30%] space-y-4">
+              <div className="lg:w-[30%] space-y-4 flex-shrink-0">
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-100">
                   <div className="mb-4">
                     <h3 className="text-base font-semibold text-gray-900">Join a Parish Community</h3>
@@ -226,8 +226,8 @@ const Dashboard = () => {
               </div>
               
               {/* Right: Map (70%) */}
-              <div className="lg:w-[70%] flex-1">
-                <div className="h-full min-h-[500px]">
+              <div className="lg:w-[70%] flex-1 min-h-[400px]">
+                <div className="h-full w-full">
                   <MapWrapper />
                 </div>
               </div>

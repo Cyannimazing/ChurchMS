@@ -10,10 +10,11 @@ use App\Models\ChurchPaymentConfig;
 use App\Models\ChurchRole;
 use App\Models\Permission;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use App\Services\SupabaseStorageService;
 
 class ChurchController extends Controller
 {
@@ -125,11 +126,20 @@ class ChurchController extends Controller
                     $file = $request->file('ProfilePicture');
                     $filename = $church->ChurchID . '_ProfilePicture_' . time() . '.' . $file->getClientOriginalExtension();
                     
-                    // Store the file
-                    Storage::disk('church_documents')->put($filename, file_get_contents($file->path()));
+                    // Store the file in Supabase
+                    $supabase = new SupabaseStorageService();
+                    $uploadResult = $supabase->upload(
+                        'profile-pictures/' . $filename,
+                        file_get_contents($file->path()),
+                        $file->getMimeType()
+                    );
                     
-                    // Update profile with path
-                    $profileData['ProfilePicturePath'] = $filename;
+                    if ($uploadResult['success']) {
+                        // Update profile with path
+                        $profileData['ProfilePicturePath'] = 'profile-pictures/' . $filename;
+                    } else {
+                        Log::error('Failed to upload profile picture to Supabase: ' . ($uploadResult['error'] ?? 'Unknown error'));
+                    }
                 }
 
                 // Create the church profile
@@ -154,6 +164,7 @@ class ChurchController extends Controller
                 $uploadedDocuments = [];
 
                 // Process each document
+                $supabase = new SupabaseStorageService();
                 foreach ($documentTypes as $inputName => $documentType) {
                     if ($request->hasFile($inputName)) {
                         $file = $request->file($inputName);
@@ -162,24 +173,33 @@ class ChurchController extends Controller
                         
                         // Create a unique filename that preserves the original name
                         $filename = $church->ChurchID . '_' . str_replace(' ', '_', $documentType) . '_' . time() . '.' . $extension;
+                        $storagePath = 'documents/' . $filename;
                         
-                        // Store the file
-                        Storage::disk('church_documents')->put($filename, file_get_contents($file->path()));
+                        // Store the file in Supabase
+                        $uploadResult = $supabase->upload(
+                            $storagePath,
+                            file_get_contents($file->path()),
+                            $file->getMimeType()
+                        );
                         
-                        // Create document record
-                        $document = ChurchOwnerDocument::create([
-                            'ChurchID' => $church->ChurchID,
-                            'DocumentType' => $documentType,
-                            'DocumentPath' => $filename,
-                            'SubmissionDate' => now(),
-                        ]);
-                        
-                        $uploadedDocuments[] = [
-                            'DocumentID' => $document->DocumentID,
-                            'DocumentType' => $documentType,
-                            'OriginalFilename' => $originalName,
-                            'SubmissionDate' => $document->SubmissionDate->format('Y-m-d H:i:s')
-                        ];
+                        if ($uploadResult['success']) {
+                            // Create document record
+                            $document = ChurchOwnerDocument::create([
+                                'ChurchID' => $church->ChurchID,
+                                'DocumentType' => $documentType,
+                                'DocumentPath' => $storagePath,
+                                'SubmissionDate' => now(),
+                            ]);
+                            
+                            $uploadedDocuments[] = [
+                                'DocumentID' => $document->DocumentID,
+                                'DocumentType' => $documentType,
+                                'OriginalFilename' => $originalName,
+                                'SubmissionDate' => $document->SubmissionDate->format('Y-m-d H:i:s')
+                            ];
+                        } else {
+                            Log::error('Failed to upload document to Supabase: ' . ($uploadResult['error'] ?? 'Unknown error'));
+                        }
                     }
                 }
 
@@ -342,16 +362,17 @@ class ChurchController extends Controller
             // Get documents
             $documents = ChurchOwnerDocument::where('ChurchID', $churchId)->get();
 
-            $documentData = $documents->map(function ($document) {
+            $supabase = new SupabaseStorageService();
+            $documentData = $documents->map(function ($document) use ($supabase) {
                 $filePath = $document->DocumentPath ?? '';
-                $fileExists = $filePath && Storage::disk('church_documents')->exists($filePath);
+                $fileUrl = $filePath ? $supabase->getPublicUrl($filePath) : null;
 
                 return [
                     'DocumentID' => $document->DocumentID,
                     'DocumentType' => $document->DocumentType,
                     'DocumentPath' => $document->DocumentPath,
                     'SubmissionDate' => $document->SubmissionDate,
-                    'FileExists' => $fileExists,
+                    'FileExists' => !empty($filePath),
                     'DocumentUrl' => url('/api/documents/' . $document->DocumentID)
                 ];
             })->toArray();
@@ -408,12 +429,17 @@ class ChurchController extends Controller
             
             // Get the correct file path
             $filePath = $document->DocumentPath ?? '';
-            if (!$filePath || !Storage::disk('church_documents')->exists($filePath)) {
+            if (!$filePath) {
                 return response()->json(['error' => 'Document file not found'], 404);
             }
 
-            // Get the full path and stream the file
-            $fullPath = Storage::disk('church_documents')->path($filePath);
+            // Download from Supabase
+            $supabase = new SupabaseStorageService();
+            $downloadResult = $supabase->download($filePath);
+            
+            if (!$downloadResult['success']) {
+                return response()->json(['error' => 'Document file not found in storage'], 404);
+            }
             
             // Get the correct MIME type based on actual file extension
             $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
@@ -422,13 +448,13 @@ class ChurchController extends Controller
                 'jpg', 'jpeg' => 'image/jpeg',
                 'png' => 'image/png',
                 'gif' => 'image/gif',
-                default => mime_content_type($fullPath)
+                default => $downloadResult['content_type'] ?? 'application/octet-stream'
             };
             
             $fileName = rawurlencode($document->DocumentType . '.' . $extension);
 
-            // Stream the file directly
-            return response()->file($fullPath, [
+            // Return the file
+            return response($downloadResult['contents'], 200, [
                 'Content-Type' => $mimeType,
                 'Content-Disposition' => 'inline; filename="' . $fileName . '"',
             ]);
@@ -621,11 +647,14 @@ class ChurchController extends Controller
             }
 
             $filePath = $church->profile->ProfilePicturePath;
-            if (!Storage::disk('church_documents')->exists($filePath)) {
-                return response()->json(['error' => 'Profile picture file not found'], 404);
+            
+            // Download from Supabase
+            $supabase = new SupabaseStorageService();
+            $downloadResult = $supabase->download($filePath);
+            
+            if (!$downloadResult['success']) {
+                return response()->json(['error' => 'Profile picture file not found in storage'], 404);
             }
-
-            $fullPath = Storage::disk('church_documents')->path($filePath);
             
             // Get file extension and determine MIME type more explicitly
             $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
@@ -633,34 +662,24 @@ class ChurchController extends Controller
                 'jpg', 'jpeg' => 'image/jpeg',
                 'png' => 'image/png',
                 'gif' => 'image/gif',
-                default => mime_content_type($fullPath)
+                default => $downloadResult['content_type'] ?? 'image/jpeg'
             };
 
             // Generate an ETag for caching purposes
-            $lastModified = filemtime($fullPath);
-            $eTag = md5($lastModified . $filePath);
+            $eTag = md5($filePath . time());
 
-            // Stream the file with proper headers
-            return response()->stream(
-                function() use ($fullPath) {
-                    $stream = fopen($fullPath, 'rb');
-                    fpassthru($stream);
-                    fclose($stream);
-                },
-                200,
-                [
-                    'Content-Type' => $mimeType,
-                    'Content-Disposition' => 'inline',
-                    'Cache-Control' => 'public, max-age=86400', // Cache for 24 hours
-                    'Pragma' => 'public',
-                    'ETag' => $eTag,
-                    'Last-Modified' => gmdate('D, d M Y H:i:s', $lastModified) . ' GMT',
-                    'Access-Control-Allow-Origin' => '*', // Allow cross-origin requests
-                    'Access-Control-Allow-Methods' => 'GET, OPTIONS',
-                    'Access-Control-Allow-Headers' => 'Origin, Content-Type, Accept, Authorization, X-Request-With',
-                    'Access-Control-Allow-Credentials' => 'true',
-                ]
-            );
+            // Return the file with proper headers
+            return response($downloadResult['contents'], 200, [
+                'Content-Type' => $mimeType,
+                'Content-Disposition' => 'inline',
+                'Cache-Control' => 'public, max-age=86400', // Cache for 24 hours
+                'Pragma' => 'public',
+                'ETag' => $eTag,
+                'Access-Control-Allow-Origin' => '*', // Allow cross-origin requests
+                'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+                'Access-Control-Allow-Headers' => 'Origin, Content-Type, Accept, Authorization, X-Request-With',
+                'Access-Control-Allow-Credentials' => 'true',
+            ]);
         } catch (\Exception $e) {
             Log::error('Profile picture error: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to retrieve profile picture'], 500);
@@ -758,16 +777,28 @@ class ChurchController extends Controller
         if (!$file) return null;
         
         $filename = $church->ChurchID . '_ProfilePicture_' . time() . '.' . $file->getClientOriginalExtension();
+        $storagePath = 'profile-pictures/' . $filename;
+        
+        $supabase = new SupabaseStorageService();
         
         // Delete old profile picture if exists
         if ($church->profile && $church->profile->ProfilePicturePath) {
-            Storage::disk('church_documents')->delete($church->profile->ProfilePicturePath);
+            $supabase->delete($church->profile->ProfilePicturePath);
         }
         
-        // Store new file
-        Storage::disk('church_documents')->put($filename, file_get_contents($file->path()));
+        // Store new file in Supabase
+        $uploadResult = $supabase->upload(
+            $storagePath,
+            file_get_contents($file->path()),
+            $file->getMimeType()
+        );
         
-        return $filename;
+        if ($uploadResult['success']) {
+            return $storagePath;
+        }
+        
+        Log::error('Failed to upload profile picture to Supabase: ' . ($uploadResult['error'] ?? 'Unknown error'));
+        return null;
     }
 
     public function update(Request $request, $churchId)
@@ -880,10 +911,12 @@ class ChurchController extends Controller
                 ];
 
                 // Process documents
+                $supabase = new SupabaseStorageService();
                 foreach ($documentTypes as $inputName => $documentType) {
                     if ($request->hasFile($inputName)) {
                         $file = $request->file($inputName);
                         $filename = $church->ChurchID . '_' . str_replace(' ', '_', $documentType) . '_' . time() . '.' . $file->getClientOriginalExtension();
+                        $storagePath = 'documents/' . $filename;
                         
                         // Find existing document if any
                         $existingDoc = ChurchOwnerDocument::where('ChurchID', $church->ChurchID)
@@ -892,25 +925,31 @@ class ChurchController extends Controller
                             
                         // Delete old file if exists
                         if ($existingDoc && $existingDoc->DocumentPath) {
-                            if (Storage::disk('church_documents')->exists($existingDoc->DocumentPath)) {
-                                Storage::disk('church_documents')->delete($existingDoc->DocumentPath);
-                            }
+                            $supabase->delete($existingDoc->DocumentPath);
                         }
                         
-                        // Store new file
-                        Storage::disk('church_documents')->put($filename, file_get_contents($file->path()));
-                        
-                        // Update or create document record
-                        ChurchOwnerDocument::updateOrCreate(
-                            [
-                                'ChurchID' => $church->ChurchID,
-                                'DocumentType' => $documentType
-                            ],
-                            [
-                                'DocumentPath' => $filename,
-                                'SubmissionDate' => now(),
-                            ]
+                        // Store new file in Supabase
+                        $uploadResult = $supabase->upload(
+                            $storagePath,
+                            file_get_contents($file->path()),
+                            $file->getMimeType()
                         );
+                        
+                        if ($uploadResult['success']) {
+                            // Update or create document record
+                            ChurchOwnerDocument::updateOrCreate(
+                                [
+                                    'ChurchID' => $church->ChurchID,
+                                    'DocumentType' => $documentType
+                                ],
+                                [
+                                    'DocumentPath' => $storagePath,
+                                    'SubmissionDate' => now(),
+                                ]
+                            );
+                        } else {
+                            Log::error('Failed to upload document to Supabase: ' . ($uploadResult['error'] ?? 'Unknown error'));
+                        }
                     }
                 }
 

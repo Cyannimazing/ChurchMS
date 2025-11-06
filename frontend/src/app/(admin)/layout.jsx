@@ -14,6 +14,12 @@ const AppLayout = ({ children }) => {
 
   useEffect(() => {
     if (user) {
+      // Check email verification first
+      if (!user.email_verified_at) {
+        router.push("/verify-email");
+        return;
+      }
+      
       const role = user.profile.system_role.role_name;
 
       if (role === "Admin") {

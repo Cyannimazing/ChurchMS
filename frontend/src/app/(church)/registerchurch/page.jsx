@@ -705,7 +705,7 @@ const ChurchRegistrationPage = () => {
 
                       <div>
                         <Label htmlFor="Diocese">
-                          Diocese <span className="text-red-500">*</span>
+                          Diocese Of <span className="text-red-500">*</span>
                         </Label>
                         <div className="mt-1">
                           <input
@@ -716,7 +716,7 @@ const ChurchRegistrationPage = () => {
                             onChange={handleChange}
                             required
                             className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                            placeholder="Diocese of Davao"
+                            placeholder="Davao"
                           />
                         </div>
                         <InputError messages={errors.Diocese} className="mt-2" />

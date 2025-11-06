@@ -74,6 +74,12 @@ const AppLayout = ({ children }) => {
 
   useEffect(() => {
     if (user) {
+      // Check email verification first
+      if (!user.email_verified_at) {
+        router.push("/verify-email");
+        return;
+      }
+      
       // Initialize Echo for real-time notifications
       initializeEcho();
       

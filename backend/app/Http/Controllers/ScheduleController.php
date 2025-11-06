@@ -109,23 +109,6 @@ class ScheduleController extends Controller
                 }
             }
             
-            // Validate time conflicts for the same service
-            $conflictCheck = $this->checkTimeConflicts(
-                $serviceId, 
-                $request->recurrences, 
-                $request->times,
-                null // No schedule ID for new schedules
-            );
-            
-            if ($conflictCheck['has_conflict']) {
-                DB::rollback();
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Time conflict detected',
-                    'error' => $conflictCheck['message']
-                ], 422);
-            }
-            
             // Create the main schedule
             $schedule = ServiceSchedule::create([
                 'ServiceID' => $serviceId,
