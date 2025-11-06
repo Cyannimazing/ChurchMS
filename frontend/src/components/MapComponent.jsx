@@ -98,10 +98,9 @@ const MapComponent = () => {
   const [error, setError] = useState(null)
   const [userLocation, setUserLocation] = useState(null)
   const [locationError, setLocationError] = useState(null)
-  
-  // Sacrament modal state
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedChurch, setSelectedChurch] = useState(null)
+  const [churchImages, setChurchImages] = useState({})
 
   // Get user's current location
   useEffect(() => {
@@ -145,9 +144,33 @@ const MapComponent = () => {
   useEffect(() => {
     const fetchChurches = async () => {
       try {
-        setLoading(true)
         const response = await axios.get('/api/churches/public')
-        setChurches(response.data.churches)
+        const allChurches = response.data.churches || []
+        setChurches(allChurches)
+        
+        // Fetch profile pictures for churches with authentication
+        const imagePromises = allChurches
+          .filter(church => church.ProfilePictureUrl)
+          .map(async (church) => {
+            try {
+              const imageResponse = await axios.get(`/api/churches/${church.ChurchID}/profile-picture`, {
+                responseType: 'blob'
+              })
+              const blob = new Blob([imageResponse.data], { type: imageResponse.headers['content-type'] || 'image/jpeg' })
+              const blobUrl = URL.createObjectURL(blob)
+              return { id: church.ChurchID, url: blobUrl }
+            } catch (error) {
+              console.error(`Failed to load image for church ${church.ChurchID}:`, error)
+              return { id: church.ChurchID, url: null }
+            }
+          })
+        
+        const images = await Promise.all(imagePromises)
+        const imageMap = {}
+        images.forEach(img => {
+          if (img.url) imageMap[img.id] = img.url
+        })
+        setChurchImages(imageMap)
       } catch (err) {
         console.error('Error fetching churches:', err)
         setError('Failed to load churches')
@@ -276,15 +299,15 @@ const MapComponent = () => {
           <Marker
             key={church.ChurchID}
             position={[parseFloat(church.Latitude), parseFloat(church.Longitude)]}
-            icon={createChurchMarker(church.ProfilePictureUrl, church.ChurchName)}
+            icon={createChurchMarker(churchImages[church.ChurchID], church.ChurchName)}
           >
             <Popup className="custom-popup" maxWidth={250}>
               <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                 {/* Church Header */}
                 <div className="flex items-center p-4 border-b border-gray-200">
-                  {church.ProfilePictureUrl ? (
+                  {churchImages[church.ChurchID] ? (
                     <img 
-                      src={church.ProfilePictureUrl}
+                      src={churchImages[church.ChurchID]}
                       alt={church.ChurchName}
                       className="w-12 h-12 rounded-full object-cover border-2 border-gray-200 mr-3"
                     />

@@ -34,6 +34,7 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [userMembership, setUserMembership] = useState(null)
   const [membershipLoading, setMembershipLoading] = useState(false)
+  const [churchImageUrl, setChurchImageUrl] = useState(null)
 
   // Reset modal state when opened
   useEffect(() => {
@@ -54,9 +55,26 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
       fetchServices()
       if (church) {
         checkMembershipStatus()
+        fetchChurchImage()
       }
     }
   }, [isOpen, church])
+
+  const fetchChurchImage = async () => {
+    if (!church?.ChurchID) return
+    
+    try {
+      const imageResponse = await axios.get(`/api/churches/${church.ChurchID}/profile-picture`, {
+        responseType: 'blob'
+      })
+      const blob = new Blob([imageResponse.data], { type: imageResponse.headers['content-type'] || 'image/jpeg' })
+      const blobUrl = URL.createObjectURL(blob)
+      setChurchImageUrl(blobUrl)
+    } catch (error) {
+      console.error('Failed to load church image:', error)
+      setChurchImageUrl(null)
+    }
+  }
 
   const checkMembershipStatus = async () => {
     if (!church) return
@@ -1289,9 +1307,9 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center">
-            {church?.ProfilePictureUrl ? (
+            {churchImageUrl ? (
               <img 
-                src={church.ProfilePictureUrl}
+                src={churchImageUrl}
                 alt={church.ChurchName}
                 className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 mr-3"
               />

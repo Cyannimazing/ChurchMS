@@ -29,6 +29,7 @@ const ActiveChurches = () => {
   const itemsPerPage = 10;
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, churchId: null, churchName: "" });
   const [isDisabling, setIsDisabling] = useState(false);
+  const [churchImages, setChurchImages] = useState({});
 
   // Define search fields
   const searchFields = [
@@ -69,7 +70,32 @@ const ActiveChurches = () => {
     const fetchChurches = async () => {
       try {
         const response = await axios.get("/api/churches");
-        setChurches(response.data.churches);
+        const allChurches = response.data.churches;
+        setChurches(allChurches);
+        
+        // Fetch profile pictures for churches with authentication
+        const imagePromises = allChurches
+          .filter(church => church.ChurchProfile?.ProfilePictureUrl)
+          .map(async (church) => {
+            try {
+              const imageResponse = await axios.get(`/api/churches/${church.ChurchID}/profile-picture`, {
+                responseType: 'blob'
+              })
+              const blob = new Blob([imageResponse.data], { type: imageResponse.headers['content-type'] || 'image/jpeg' })
+              const blobUrl = URL.createObjectURL(blob)
+              return { id: church.ChurchID, url: blobUrl }
+            } catch (error) {
+              console.error(`Failed to load image for church ${church.ChurchID}:`, error)
+              return { id: church.ChurchID, url: null }
+            }
+          })
+        
+        const images = await Promise.all(imagePromises)
+        const imageMap = {}
+        images.forEach(img => {
+          if (img.url) imageMap[img.id] = img.url
+        })
+        setChurchImages(imageMap)
       } catch (error) {
         const errorMessage =
           error.response?.data?.error || "Failed to fetch churches";
@@ -216,33 +242,19 @@ const ActiveChurches = () => {
                             <td className="px-4 py-3">
                               <div className="flex items-start space-x-3">
                                 <div className="flex-shrink-0">
-                                  {church.ChurchProfile?.ProfilePictureUrl ? (
+                                  {churchImages[church.ChurchID] ? (
                                     <img
-                                      src={
-                                        church.ChurchProfile.ProfilePictureUrl
-                                      }
+                                      src={churchImages[church.ChurchID]}
                                       alt={`${church.ChurchName} profile`}
                                       className="h-10 w-10 rounded-full object-cover border-2 border-green-100"
-                                      onError={(e) => {
-                                        e.target.style.display = "none";
-                                        e.target.nextSibling.style.display =
-                                          "flex";
-                                      }}
                                     />
-                                  ) : null}
-                                  <div
-                                    className={`h-10 w-10 rounded-full bg-green-100 flex items-center justify-center ${
-                                      church.ChurchProfile?.ProfilePictureUrl
-                                        ? "hidden"
-                                        : ""
-                                    }`}
-                                  >
-                                    <span className="text-xs font-medium text-green-600">
-                                      {church.ChurchName.charAt(
-                                        0
-                                      ).toUpperCase()}
-                                    </span>
-                                  </div>
+                                  ) : (
+                                    <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                                      <span className="text-xs font-medium text-green-600">
+                                        {church.ChurchName.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-gray-900 truncate">

@@ -208,21 +208,28 @@ const ChurchEditPage = () => {
           setImageError(false);
           setImageErrorMessage("");
           setImageLoadAttempts(0);
-          // Create a URL with a timestamp and nonce to prevent caching
-          const timestamp = new Date().getTime();
-          const nonce = Math.random().toString(36).substring(2, 15);
-
-          // Get the backend URL from environment variable
-          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
-
-          // Construct the full URL with the backend URL
-          const imageUrl = `${backendUrl}/api/churches/${churchId}/profile-picture?v=${timestamp}&nonce=${nonce}`;
-          setProfileImageUrl(imageUrl);
-          console.log("Profile picture path found, URL:", imageUrl);
-          console.log(
-            "Profile picture path:",
-            response.data.church.ProfilePicturePath
-          );
+          
+          // Fetch image with authentication and create blob URL
+          const fetchAuthenticatedImage = async () => {
+            try {
+              const imageResponse = await axios.get(`/api/churches/${churchId}/profile-picture`, {
+                responseType: 'blob'
+              });
+              
+              const blob = new Blob([imageResponse.data], { type: imageResponse.headers['content-type'] || 'image/jpeg' });
+              const blobUrl = URL.createObjectURL(blob);
+              setProfileImageUrl(blobUrl);
+              setIsImageLoading(false);
+              console.log("Profile picture loaded with authentication");
+            } catch (error) {
+              console.error("Failed to load authenticated image:", error);
+              setImageError(true);
+              setImageErrorMessage("Failed to load profile picture");
+              setIsImageLoading(false);
+            }
+          };
+          
+          fetchAuthenticatedImage();
         } else {
           setIsImageLoading(false);
           setImageError(true);

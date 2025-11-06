@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from '@/lib/axios';
 import { getEcho } from '@/lib/echo';
 
@@ -49,6 +49,9 @@ export const useNotifications = (user, options = {}) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  // Track last fetched notification ids and unread count to detect new ones during polling
+  const prevIdsRef = useRef(new Set());
+  const prevUnreadRef = useRef(0);
   const { churchId: optChurchId = null, churchname: optChurchname = null, suppressFavicon = false } = options || {};
   const maybeUpdateFavicon = (count) => {
     if (!suppressFavicon) updateFaviconBadge(count);

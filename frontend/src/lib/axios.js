@@ -6,6 +6,7 @@ const axios = Axios.create({
     "Content-Type": "application/json",
     "Accept": "application/json",
   },
+  withCredentials: true,
 });
 
 // Add token to requests if it exists

@@ -16,6 +16,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true)
   const [selectedChurch, setSelectedChurch] = useState(null)
   const [showModal, setShowModal] = useState(false)
+  const [churchImages, setChurchImages] = useState({})
 
   useEffect(() => {
     // Clean up any leftover payment data without showing alerts
@@ -80,6 +81,30 @@ const Dashboard = () => {
       const response = await axios.get('/api/churches/public')
       const allChurches = response.data.churches || []
       setChurches(allChurches)
+      
+      // Fetch profile pictures for churches with authentication
+      const imagePromises = allChurches
+        .filter(church => church.ProfilePictureUrl)
+        .map(async (church) => {
+          try {
+            const imageResponse = await axios.get(`/api/churches/${church.ChurchID}/profile-picture`, {
+              responseType: 'blob'
+            })
+            const blob = new Blob([imageResponse.data], { type: imageResponse.headers['content-type'] || 'image/jpeg' })
+            const blobUrl = URL.createObjectURL(blob)
+            return { id: church.ChurchID, url: blobUrl }
+          } catch (error) {
+            console.error(`Failed to load image for church ${church.ChurchID}:`, error)
+            return { id: church.ChurchID, url: null }
+          }
+        })
+      
+      const images = await Promise.all(imagePromises)
+      const imageMap = {}
+      images.forEach(img => {
+        if (img.url) imageMap[img.id] = img.url
+      })
+      setChurchImages(imageMap)
       
       // Calculate nearest churches when user location is available
       if (userLocation && allChurches.length > 0) {
@@ -183,9 +208,9 @@ const Dashboard = () => {
                         {nearestChurches.map((church) => (
                           <div key={church.ChurchID} className="bg-white rounded-lg p-4 border border-gray-200 hover:border-blue-300 transition-colors">
                             <div className="flex items-center mb-3">
-                              {church.ProfilePictureUrl ? (
+                              {churchImages[church.ChurchID] ? (
                                 <img 
-                                  src={church.ProfilePictureUrl}
+                                  src={churchImages[church.ChurchID]}
                                   alt={church.ChurchName}
                                   className="w-8 h-8 rounded-full object-cover border border-gray-200 mr-3"
                                 />
