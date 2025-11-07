@@ -79,7 +79,8 @@ const ActiveChurches = () => {
           .map(async (church) => {
             try {
               const imageResponse = await axios.get(`/api/churches/${church.ChurchID}/profile-picture`, {
-                responseType: 'blob'
+                responseType: 'blob',
+                withCredentials: false // avoid CORS credential mode for image fetch
               })
               const blob = new Blob([imageResponse.data], { type: imageResponse.headers['content-type'] || 'image/jpeg' })
               const blobUrl = URL.createObjectURL(blob)
