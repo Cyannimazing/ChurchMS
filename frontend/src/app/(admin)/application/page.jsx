@@ -59,27 +59,11 @@ const Dashboard = () => {
         const allChurches = response.data.churches;
         setChurches(allChurches);
         
-        // Fetch profile pictures for churches with authentication
-        const imagePromises = allChurches
-          .filter(church => church.ChurchProfile?.ProfilePictureUrl)
-          .map(async (church) => {
-            try {
-              const imageResponse = await axios.get(`/api/churches/${church.ChurchID}/profile-picture`, {
-                responseType: 'blob'
-              })
-              const blob = new Blob([imageResponse.data], { type: imageResponse.headers['content-type'] || 'image/jpeg' })
-              const blobUrl = URL.createObjectURL(blob)
-              return { id: church.ChurchID, url: blobUrl }
-            } catch (error) {
-              console.error(`Failed to load image for church ${church.ChurchID}:`, error)
-              return { id: church.ChurchID, url: null }
-            }
-          })
-        
-        const images = await Promise.all(imagePromises)
+        // Use direct image URLs to avoid XHR/CORS for blobs
         const imageMap = {}
-        images.forEach(img => {
-          if (img.url) imageMap[img.id] = img.url
+        allChurches.forEach(church => {
+          const url = church.ChurchProfile?.ProfilePictureUrl
+          if (url) imageMap[church.ChurchID] = url
         })
         setChurchImages(imageMap)
       } catch (error) {

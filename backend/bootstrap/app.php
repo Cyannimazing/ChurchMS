@@ -19,6 +19,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
         ]);
+        
+        // Add CORS fix middleware to api routes to run last
+        $middleware->appendToGroup('api', [
+            \App\Http\Middleware\ForceCorsSingleOrigin::class,
+        ]);
 
         //
     })
