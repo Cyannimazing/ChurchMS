@@ -6,7 +6,7 @@ const axios = Axios.create({
     "Content-Type": "application/json",
     "Accept": "application/json",
   },
-  withCredentials: true,
+  // withCredentials removed - using token-based auth instead of cookies
 });
 
 // Add token to requests if it exists
