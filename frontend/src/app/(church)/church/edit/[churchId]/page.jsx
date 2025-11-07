@@ -209,27 +209,10 @@ const ChurchEditPage = () => {
           setImageErrorMessage("");
           setImageLoadAttempts(0);
           
-          // Fetch image with authentication and create blob URL
-          const fetchAuthenticatedImage = async () => {
-            try {
-              const imageResponse = await axios.get(`/api/churches/${churchId}/profile-picture`, {
-                responseType: 'blob'
-              });
-              
-              const blob = new Blob([imageResponse.data], { type: imageResponse.headers['content-type'] || 'image/jpeg' });
-              const blobUrl = URL.createObjectURL(blob);
-              setProfileImageUrl(blobUrl);
-              setIsImageLoading(false);
-              console.log("Profile picture loaded with authentication");
-            } catch (error) {
-              console.error("Failed to load authenticated image:", error);
-              setImageError(true);
-              setImageErrorMessage("Failed to load profile picture");
-              setIsImageLoading(false);
-            }
-          };
-          
-          fetchAuthenticatedImage();
+          // Use direct image URL from API
+          setProfileImageUrl(response.data.church.ProfilePictureUrl);
+          setIsImageLoading(false);
+          console.log("Profile picture URL set");
         } else {
           setIsImageLoading(false);
           setImageError(true);

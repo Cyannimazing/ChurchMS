@@ -61,19 +61,9 @@ const SacramentApplicationModal = ({ isOpen, onClose, church }) => {
   }, [isOpen, church])
 
   const fetchChurchImage = async () => {
-    if (!church?.ChurchID) return
-    
-    try {
-      const imageResponse = await axios.get(`/api/churches/${church.ChurchID}/profile-picture`, {
-        responseType: 'blob'
-      })
-      const blob = new Blob([imageResponse.data], { type: imageResponse.headers['content-type'] || 'image/jpeg' })
-      const blobUrl = URL.createObjectURL(blob)
-      setChurchImageUrl(blobUrl)
-    } catch (error) {
-      console.error('Failed to load church image:', error)
-      setChurchImageUrl(null)
-    }
+    if (!church?.ProfilePictureUrl) return
+    // Use direct URL from church object
+    setChurchImageUrl(church.ProfilePictureUrl)
   }
 
   const checkMembershipStatus = async () => {
