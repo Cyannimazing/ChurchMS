@@ -145,70 +145,24 @@ const Dashboard = () => {
     }
   };
 
-  // Preview a document in a new tab
-  const previewDocument = async (documentId) => {
-    try {
-      const response = await axios.get(`/api/documents/${documentId}`, {
-        responseType: "blob",
-      });
-
-      if (response.headers["content-type"].includes("application/json")) {
-        const text = await response.data.text();
-        const json = JSON.parse(text);
-        throw new Error(json.error || "Invalid document response");
-      }
-
-      const blob = new Blob([response.data], {
-        type: response.headers["content-type"],
-      });
-      const url = window.URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      const errorMessage = error.message || "Failed to preview document";
-      setAlert({ type: 'error', message: errorMessage });
-      console.error("Preview document error:", {
-        documentId,
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message,
-      });
-    }
+  // Preview a document in a new tab (use direct URL to avoid CORS on blobs)
+  const previewDocument = (documentId) => {
+    const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/documents/${documentId}`
+    window.open(url, '_blank', 'noopener,noreferrer')
   };
 
-  // Download a document
-  const downloadDocument = async (documentId, documentType) => {
-    try {
-      const response = await axios.get(`/api/documents/${documentId}`, {
-        responseType: "blob",
-      });
-
-      if (response.headers["content-type"].includes("application/json")) {
-        const text = await response.data.text();
-        const json = JSON.parse(text);
-        throw new Error(json.error || "Invalid document response");
-      }
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const extension =
-        response.headers["content-type"].split("/")[1] || "file";
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `${documentType}.${extension}`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      const errorMessage = error.message || "Failed to download document";
-      setAlert({ type: 'error', message: errorMessage });
-      console.error("Download document error:", {
-        documentId,
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message,
-      });
-    }
+  // Download a document (navigate to direct URL; browser handles download)
+  const downloadDocument = (documentId, documentType) => {
+    const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/documents/${documentId}`
+    const link = document.createElement('a')
+    link.href = url
+    link.target = '_blank'
+    link.rel = 'noopener noreferrer'
+    // Let server filename win; fallback to documentType
+    link.download = documentType || 'document'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
   };
 
   return (
